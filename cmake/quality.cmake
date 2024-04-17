@@ -1,14 +1,10 @@
 find_program(CLANG_FORMAT_EXECUTABLE NAMES clang-format-18)
 file(
     GLOB_RECURSE ALL_SOURCE_FILES
-    ${CMAKE_SOURCE_DIR}/projects/**/*.c
-    ${CMAKE_SOURCE_DIR}/projects/**/*.cpp
-    ${CMAKE_SOURCE_DIR}/projects/**/*.h
-    ${CMAKE_SOURCE_DIR}/projects/**/*.hpp
-    ${CMAKE_SOURCE_DIR}/sandbox/**/*.c
-    ${CMAKE_SOURCE_DIR}/sandbox/**/*.cpp
-    ${CMAKE_SOURCE_DIR}/sandbox/**/*.h
-    ${CMAKE_SOURCE_DIR}/sandbox/**/*.hpp
+    ${CMAKE_SOURCE_DIR}/src/**/*.c
+    ${CMAKE_SOURCE_DIR}/src/**/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/**/*.h
+    ${CMAKE_SOURCE_DIR}/src/**/*.hpp
 )
 
 add_custom_target(

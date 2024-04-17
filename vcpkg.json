@@ -1,8 +1,16 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "description": "",
-    "name": "nil-",
+    "description": "Simplified event handling (from boost::asio)",
+    "name": "nil-service",
     "dependencies": [
+        {
+            "name": "boost-asio",
+            "version>=": "1.82.0"
+        },
+        {
+            "name": "boost-beast",
+            "version>=": "1.82.0"
+        }
     ],
     "features": {
         "test": {
