@@ -25,7 +25,7 @@ function(install_for_package TARGET)
     install(TARGETS ${TARGET} EXPORT ${CMAKE_PROJECT_NAME}-targets)
     install(
         EXPORT ${CMAKE_PROJECT_NAME}-targets
-        NAMESPACE ${CMAKE_PROJECT_NAME}::
+        NAMESPACE nil::
         DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}
     )
 endfunction()
