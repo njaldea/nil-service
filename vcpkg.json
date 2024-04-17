@@ -1,0 +1,18 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "description": "",
+    "name": "nil-",
+    "dependencies": [
+    ],
+    "features": {
+        "test": {
+            "description": "Enable tests",
+            "dependencies": [
+                {
+                    "name": "gtest",
+                    "version>=": "1.13.0"
+                }
+            ]
+        }
+    }
+}
