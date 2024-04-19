@@ -4,5 +4,13 @@
         "kind": "git",
         "repository": "https://github.com/Microsoft/vcpkg",
         "baseline": "da21e45c9ae689f63aa27f3a4ee0e64fe6b16494"
-    }
+    },
+    "registries": [
+        {
+            "kind": "git",
+            "repository": "https://github.com/njaldea/nil-vcpkg-ports",
+            "baseline": "0cc97bfa37e82848f72d2c8d14284e6de39080b2",
+            "packages": ["nil-clix"]
+        }
+    ]
 }

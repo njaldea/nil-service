@@ -14,7 +14,7 @@ namespace nil::service::tcp
         , impl(init_impl)
     {
         this->r_buffer.resize(buffer);
-        readHeader(0u, utils::TCP_HEADER_SIZE);
+        readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
     }
 
     Connection::~Connection() noexcept = default;

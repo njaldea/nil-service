@@ -9,3 +9,4 @@ include(cmake/test.cmake)
 include(cmake/coverage.cmake)
 
 add_subdirectory(src)
+add_subdirectory(sandbox)
