@@ -8,6 +8,7 @@ set(
         publish/nil/service/codec.hpp
         publish/nil/service/TypedHandler.hpp
         publish/nil/service/IService.hpp
+        publish/nil/service/Self.hpp
         publish/nil/service/udp/Client.hpp
         publish/nil/service/udp/Server.hpp
         publish/nil/service/tcp/Client.hpp
@@ -22,6 +23,7 @@ set(
 set(
     SOURCES
         src/codec.cpp
+        src/Self.cpp
         src/udp/Client.cpp
         src/udp/Server.cpp
         src/tcp/Client.cpp

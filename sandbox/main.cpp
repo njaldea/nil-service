@@ -1,12 +1,12 @@
 #include <nil/clix.hpp>
-#include <nil/clix/nodes/Help.hpp>
+#include <nil/clix/prebuilt/Help.hpp>
 #include <nil/service.hpp>
 
 #include <iostream>
 #include <thread>
 
 template <typename Service>
-std::unique_ptr<nil::service::IService> make_service(const nil::clix::Options& options)
+typename Service::Options make_service_option(const nil::clix::Options& options)
 {
     const auto port = std::uint16_t(options.number("port"));
     constexpr auto is_server //
@@ -19,11 +19,11 @@ std::unique_ptr<nil::service::IService> make_service(const nil::clix::Options& o
         || std::is_same_v<nil::service::ws::Client, Service>;
     if constexpr (is_server)
     {
-        return nil::service::make_service<Service>({.port = port});
+        return typename Service::Options{.port = port};
     }
     else if constexpr (is_client)
     {
-        return nil::service::make_service<Service>({.host = "127.0.0.1", .port = port});
+        return typename Service::Options{.host = "127.0.0.1", .port = port};
     }
     else
     {
@@ -38,117 +38,189 @@ std::unique_ptr<nil::service::IService> make_service(const nil::clix::Options& o
     }
 }
 
-template <typename T>
-struct Service final: nil::clix::Command
+int help(const nil::clix::Options& options)
 {
-    static_assert(std::is_base_of_v<nil::service::IService, T>);
+    options.help(std::cout);
+    return 0;
+}
 
-    nil::clix::OptionInfo options() const override
-    {
-        return nil::clix::Builder()
-            .flag("help", {.skey = 'h', .msg = "this help"})
-            .number(
-                "port",
-                {
-                    .skey = 'p',
-                    .msg = "port",
-                    .fallback = 8000,
-                    .implicit = 8000 //
-                }
-            )
-            .build();
-    }
-
-    void add_handlers(nil::service::IService& service) const
-    {
-        service.on_message(                             //
-            nil::service::TypedHandler<std::uint32_t>() //
-                .add(
-                    0u,
-                    [](const std::string& id, const std::string& message)
-                    {
-                        std::cout << "from         : " << id << std::endl;
-                        std::cout << "type         : " << 0 << std::endl;
-                        std::cout << "message      : " << message << std::endl;
-                    }
-                )
-                .add(
-                    1u,
-                    [](const std::string& id, const std::string& message)
-                    {
-                        std::cout << "from         : " << id << std::endl;
-                        std::cout << "type         : " << 1 << std::endl;
-                        std::cout << "message      : " << message << std::endl;
-                    }
-                )
-        );
-        service.on_connect(             //
-            [](const std::string& id) { //
-                std::cout << "connected    : " << id << std::endl;
-            }
-        );
-        service.on_disconnect(          //
-            [](const std::string& id) { //
-                std::cout << "disconnected : " << id << std::endl;
-            }
-        );
-    }
-
-    void loop(nil::service::IService& service) const
-    {
-        using namespace std::string_literals;
-        while (true)
+template <typename T>
+void add_end_node(nil::clix::Node& node)
+{
+    node.flag("help", {.skey = 'h', .msg = "this help"});
+    node.number(
+        "port",
         {
-            std::thread t1([&]() { service.run(); });
-            std::string message;
-            std::uint32_t type = 0;
-            while (std::getline(std::cin, message))
-            {
-                if (message == "reconnect")
-                {
-                    break;
-                }
-
-                service.publish(type, "typed > " + message, " : "s, "secondary here"s);
-
-                type = (type + 1) % 2;
-            }
-            service.stop();
-            t1.join();
-            service.restart();
+            .skey = 'p',
+            .msg = "port",
+            .fallback = 8000,
+            .implicit = 8000 //
         }
-    }
-
-    int run(const nil::clix::Options& options) const override
-    {
-        if (options.flag("help"))
+    );
+    node.runner(
+        [](const nil::clix::Options& options)
         {
-            options.help(std::cout);
+            if (options.flag("help"))
+            {
+                return help(options);
+            }
+            auto service = T(make_service_option<T>(options));
+            {
+                service.on_message(                             //
+                    nil::service::TypedHandler<std::uint32_t>() //
+                        .add(
+                            0u,
+                            [](const std::string& id, const std::string& message)
+                            {
+                                std::cout << "from         : " << id << std::endl;
+                                std::cout << "type         : " << 0 << std::endl;
+                                std::cout << "message      : " << message << std::endl;
+                            }
+                        )
+                        .add(
+                            1u,
+                            [](const std::string& id, const std::string& message)
+                            {
+                                std::cout << "from         : " << id << std::endl;
+                                std::cout << "type         : " << 1 << std::endl;
+                                std::cout << "message      : " << message << std::endl;
+                            }
+                        )
+                );
+                service.on_connect(             //
+                    [](const std::string& id) { //
+                        std::cout << "connected    : " << id << std::endl;
+                    }
+                );
+                service.on_disconnect(          //
+                    [](const std::string& id) { //
+                        std::cout << "disconnected : " << id << std::endl;
+                    }
+                );
+            }
+
+            {
+                using namespace std::string_literals;
+                while (true)
+                {
+                    std::thread t1([&]() { service.run(); });
+                    std::string message;
+                    std::uint32_t type = 0;
+                    while (std::getline(std::cin, message))
+                    {
+                        if (message == "reconnect")
+                        {
+                            break;
+                        }
+
+                        service.publish(type, "typed > " + message, " : "s, "secondary here"s);
+
+                        type = (type + 1) % 2;
+                    }
+                    service.stop();
+                    t1.join();
+                    service.restart();
+                }
+            }
             return 0;
         }
-        const auto service = make_service<T>(options);
-        add_handlers(*service);
-        loop(*service);
-        return 0;
-    }
-};
+    );
+}
 
 template <typename Server, typename Client>
 void add_sub_nodes(nil::clix::Node& node)
 {
-    node.add<Service<Server>>("server", "server");
-    node.add<Service<Client>>("client", "client");
+    node.runner(help);
+    node.add("server", "server", add_end_node<Server>);
+    node.add("client", "client", add_end_node<Client>);
 }
 
 int main(int argc, const char** argv)
 {
     using nil::clix::Node;
-    using nil::clix::nodes::Help;
     using namespace nil::service;
 
-    auto root = Node::root<Help>(std::cout);
-    add_sub_nodes<udp::Server, udp::Client>(root.add<Help>("udp", "use udp protocol", std::cout));
-    add_sub_nodes<tcp::Server, tcp::Client>(root.add<Help>("tcp", "use tcp protocol", std::cout));
-    add_sub_nodes<ws::Server, ws::Client>(root.add<Help>("ws", "use ws protocol", std::cout));
+    Node root;
+    root.runner(help);
+    root.add("udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
+    root.add("tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
+    root.add("ws", "use ws protocol", add_sub_nodes<ws::Server, ws::Client>);
+    root.add(
+        "self",
+        "use self protocol",
+        [](nil::clix::Node& node)
+        {
+            node.flag("help", {.skey = 'h', .msg = "this help"});
+            node.runner(
+                [](const nil::clix::Options& options)
+                {
+                    if (options.flag("help"))
+                    {
+                        return help(options);
+                    }
+                    nil::service::Self service;
+                    {
+                        service.on_message(                             //
+                            nil::service::TypedHandler<std::uint32_t>() //
+                                .add(
+                                    0u,
+                                    [](const std::string& id, const std::string& message)
+                                    {
+                                        std::cout << "from         : " << id << std::endl;
+                                        std::cout << "type         : " << 0 << std::endl;
+                                        std::cout << "message      : " << message << std::endl;
+                                    }
+                                )
+                                .add(
+                                    1u,
+                                    [](const std::string& id, const std::string& message)
+                                    {
+                                        std::cout << "from         : " << id << std::endl;
+                                        std::cout << "type         : " << 1 << std::endl;
+                                        std::cout << "message      : " << message << std::endl;
+                                    }
+                                )
+                        );
+                        service.on_connect(             //
+                            [](const std::string& id) { //
+                                std::cout << "connected    : " << id << std::endl;
+                            }
+                        );
+                        service.on_disconnect(          //
+                            [](const std::string& id) { //
+                                std::cout << "disconnected : " << id << std::endl;
+                            }
+                        );
+                    }
+
+                    {
+                        using namespace std::string_literals;
+                        while (true)
+                        {
+                            std::thread t1([&]() { service.run(); });
+                            std::string message;
+                            std::uint32_t type = 0;
+                            while (std::getline(std::cin, message))
+                            {
+                                if (message == "reconnect")
+                                {
+                                    break;
+                                }
+
+                                service
+                                    .publish(type, "typed > " + message, " : "s, "secondary here"s);
+
+                                type = (type + 1) % 2;
+                            }
+                            service.stop();
+                            t1.join();
+                            service.restart();
+                        }
+                    }
+                    return 0;
+                }
+            );
+        }
+    );
     return root.run(argc, argv);
 }

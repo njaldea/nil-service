@@ -29,6 +29,15 @@ The classes provided by this library conforms in similar API. available protocol
 | buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
 | timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
 
+### `nil::service::Self`
+
+- No Options
+
+This service is intended to be just a self invoking event loop.
+All messages sent will be sent to itself and forwarded to a message handler.
+
+Messages are still serialized/deserialized.
+
 ### methods
 
 | name                             | description                                |
