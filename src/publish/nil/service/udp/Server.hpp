@@ -24,7 +24,7 @@ namespace nil::service::udp
             std::chrono::nanoseconds timeout = std::chrono::seconds(2);
         };
 
-        explicit Server(Options options);
+        explicit Server(Options init_options);
         ~Server() noexcept override;
 
         Server(Server&&) noexcept = delete;
@@ -38,7 +38,7 @@ namespace nil::service::udp
         void restart() override;
 
         void publish(std::vector<std::uint8_t> data) override;
-        void send(const std::string& id, std::vector<std::uint8_t> data) override;
+        void send(const ID& id, std::vector<std::uint8_t> data) override;
 
         using IService::publish;
         using IService::publish_raw;
@@ -46,13 +46,9 @@ namespace nil::service::udp
         using IService::send_raw;
 
     private:
-        detail::Storage<Options> storage;
+        Options options;
 
         struct Impl;
         std::unique_ptr<Impl> impl;
-
-        void on_message_impl(MessageHandler handler) override;
-        void on_connect_impl(ConnectHandler handler) override;
-        void on_disconnect_impl(DisconnectHandler handler) override;
     };
 }

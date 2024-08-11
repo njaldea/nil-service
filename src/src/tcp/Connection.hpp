@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nil/service/ID.hpp>
+
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
@@ -21,7 +23,7 @@ namespace nil::service::tcp
         IImpl& operator=(const IImpl&) = delete;
 
         virtual void message(
-            const std::string& id,
+            const ID& id,
             const std::uint8_t* data,
             std::uint64_t size //
         ) = 0;
@@ -40,13 +42,13 @@ namespace nil::service::tcp
         Connection& operator=(const Connection&) = delete;
 
         void write(const std::uint8_t* data, std::uint64_t size);
-        const std::string& id() const;
+        const ID& id() const;
 
     private:
         void readHeader(std::uint64_t pos, std::uint64_t size);
         void readBody(std::uint64_t pos, std::uint64_t size);
 
-        std::string identifier;
+        ID identifier;
         boost::asio::ip::tcp::socket socket;
         IImpl& impl;
         std::vector<std::uint8_t> r_buffer;

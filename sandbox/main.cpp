@@ -1,5 +1,3 @@
-#include "nil/service/IService.hpp"
-#include "nil/service/Self.hpp"
 #include <nil/clix.hpp>
 #include <nil/clix/prebuilt/Help.hpp>
 #include <nil/service.hpp>
@@ -70,31 +68,31 @@ void add_end_node(nil::clix::Node& node)
                     nil::service::TypedHandler<std::uint32_t>() //
                         .add(
                             0u,
-                            [](const std::string& id, const std::string& message)
+                            [](const nil::service::ID& id, const std::string& message)
                             {
-                                std::cout << "from         : " << id << std::endl;
+                                std::cout << "from         : " << id.text << std::endl;
                                 std::cout << "type         : " << 0 << std::endl;
                                 std::cout << "message      : " << message << std::endl;
                             }
                         )
                         .add(
                             1u,
-                            [](const std::string& id, const std::string& message)
+                            [](const nil::service::ID& id, const std::string& message)
                             {
-                                std::cout << "from         : " << id << std::endl;
+                                std::cout << "from         : " << id.text << std::endl;
                                 std::cout << "type         : " << 1 << std::endl;
                                 std::cout << "message      : " << message << std::endl;
                             }
                         )
                 );
-                service.on_connect(             //
-                    [](const std::string& id) { //
-                        std::cout << "connected    : " << id << std::endl;
+                service.on_connect(                  //
+                    [](const nil::service::ID& id) { //
+                        std::cout << "connected    : " << id.text << std::endl;
                     }
                 );
-                service.on_disconnect(          //
-                    [](const std::string& id) { //
-                        std::cout << "disconnected : " << id << std::endl;
+                service.on_disconnect(               //
+                    [](const nil::service::ID& id) { //
+                        std::cout << "disconnected : " << id.text << std::endl;
                     }
                 );
             }

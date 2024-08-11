@@ -54,7 +54,7 @@ namespace nil::service::ws
         ws.write(boost::asio::buffer(data, size), ec);
     }
 
-    const std::string& Connection::id() const
+    const ID& Connection::id() const
     {
         return identifier;
     }

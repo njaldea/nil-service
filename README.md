@@ -150,6 +150,20 @@ void send(nil::service::IService& service)
 }
 ```
 
+### `Service::on_message` and `TypedHandler::add` overloads
+
+- the callable passed to these methods should have the following arguments:
+    -  const std::string&   - for the id
+    -  const void*          - for the data
+    -  std::uint64_t        - for the data size
+- the following will be implicitly handled in order of evaluation:
+    -  no arguments
+    -  only id
+    -  id with `const void*` and `size`
+    -  id with a custom type (with codec definition)
+    -  no id but with `const void*` and `size`
+    -  no id but with a custom type (with codec definition)
+
 ## NOTES:
 - `restart` is required to be called when `stop`-ed and `run` is about to be called.
 - due to the nature of UDP, if one side gets "destroyed" and is able to reconnect "immediately", disconnection will not be "detected".

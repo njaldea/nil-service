@@ -1,4 +1,4 @@
-add_test_executable(${PROJECT_NAME}_test TypedHandler.cpp)
+add_test_executable(${PROJECT_NAME}_test TypedHandler.cpp BaseService.cpp)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}_test PRIVATE GTest::gmock)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE GTest::gtest)

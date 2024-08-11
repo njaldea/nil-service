@@ -1,6 +1,7 @@
 #include <nil/service/udp/Client.hpp>
 
 #include "../utils.hpp"
+#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
@@ -11,15 +12,16 @@ namespace nil::service::udp
 {
     struct Client::Impl final
     {
-        explicit Impl(const detail::Storage<Options>& init_storage)
-            : storage(init_storage)
+        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
+            : options(init_options)
+            , handlers(init_handlers)
             , strand(boost::asio::make_strand(context))
             , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), 0})
             , pingtimer(strand)
             , timeout(strand)
-            , targetID(storage.options.host + ":" + std::to_string(storage.options.port))
+            , targetID{options.host + ":" + std::to_string(options.port)}
         {
-            buffer.resize(storage.options.buffer);
+            buffer.resize(options.buffer);
         }
 
         ~Impl() noexcept = default;
@@ -41,7 +43,7 @@ namespace nil::service::udp
                             boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE)),
                             boost::asio::buffer(msg)
                         },
-                        {boost::asio::ip::make_address(storage.options.host), storage.options.port}
+                        {boost::asio::ip::make_address(options.host), options.port}
                     );
                 }
             );
@@ -49,9 +51,9 @@ namespace nil::service::udp
 
         void usermsg(const std::uint8_t* data, std::uint64_t size)
         {
-            if (storage.msg)
+            if (handlers.msg)
             {
-                storage.msg->call(targetID, data, size);
+                handlers.msg->call(targetID, data, size);
             }
         }
 
@@ -60,12 +62,12 @@ namespace nil::service::udp
             if (!connected)
             {
                 connected = true;
-                if (storage.connect)
+                if (handlers.connect)
                 {
-                    storage.connect->call(targetID);
+                    handlers.connect->call(targetID);
                 }
             }
-            timeout.expires_after(storage.options.timeout);
+            timeout.expires_after(options.timeout);
             timeout.async_wait(
                 [this](const boost::system::error_code& ec)
                 {
@@ -76,9 +78,9 @@ namespace nil::service::udp
                     if (connected)
                     {
                         connected = false;
-                        if (storage.disconnect)
+                        if (handlers.disconnect)
                         {
-                            storage.disconnect->call(targetID);
+                            handlers.disconnect->call(targetID);
                         }
                     }
                 }
@@ -121,9 +123,9 @@ namespace nil::service::udp
         {
             socket.send_to(
                 boost::asio::buffer(utils::to_array(utils::UDP_INTERNAL_MESSAGE)),
-                {boost::asio::ip::make_address(storage.options.host), storage.options.port}
+                {boost::asio::ip::make_address(options.host), options.port}
             );
-            pingtimer.expires_after(storage.options.timeout / 2);
+            pingtimer.expires_after(options.timeout / 2);
             pingtimer.async_wait(
                 [this](const boost::system::error_code& ec)
                 {
@@ -141,7 +143,8 @@ namespace nil::service::udp
             receive();
         }
 
-        const detail::Storage<Options>& storage;
+        const Options& options;
+        const detail::Handlers& handlers;
 
         boost::asio::io_context context;
         boost::asio::strand<boost::asio::io_context::executor_type> strand;
@@ -152,12 +155,12 @@ namespace nil::service::udp
         std::vector<std::uint8_t> buffer;
 
         bool connected = false;
-        std::string targetID;
+        ID targetID;
     };
 
-    Client::Client(Client::Options options)
-        : storage{std::move(options), {}, {}, {}}
-        , impl(std::make_unique<Impl>(storage))
+    Client::Client(Client::Options init_options)
+        : options{std::move(init_options)}
+        , impl(std::make_unique<Impl>(options, handlers))
     {
         impl->prepare();
     }
@@ -177,26 +180,11 @@ namespace nil::service::udp
     void Client::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(storage);
+        impl = std::make_unique<Impl>(options, handlers);
         impl->prepare();
     }
 
-    void Client::on_message_impl(MessageHandler handler)
-    {
-        storage.msg = std::move(handler);
-    }
-
-    void Client::on_connect_impl(ConnectHandler handler)
-    {
-        storage.connect = std::move(handler);
-    }
-
-    void Client::on_disconnect_impl(DisconnectHandler handler)
-    {
-        storage.disconnect = std::move(handler);
-    }
-
-    void Client::send(const std::string& id, std::vector<std::uint8_t> data)
+    void Client::send(const ID& id, std::vector<std::uint8_t> data)
     {
         if (impl->targetID == id)
         {

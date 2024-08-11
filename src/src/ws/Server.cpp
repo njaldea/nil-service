@@ -1,6 +1,7 @@
 #include <nil/service/ws/Server.hpp>
 
 #include "Connection.hpp"
+#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -10,10 +11,11 @@ namespace nil::service::ws
 {
     struct Server::Impl final: IImpl
     {
-        explicit Impl(const detail::Storage<Options>& init_usage)
-            : storage(init_usage)
+        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
+            : options(init_options)
+            , handlers(init_handlers)
             , strand(boost::asio::make_strand(context))
-            , endpoint(boost::asio::ip::make_address("0.0.0.0"), storage.options.port)
+            , endpoint(boost::asio::ip::make_address("0.0.0.0"), options.port)
             , acceptor(strand, endpoint, true)
         {
         }
@@ -26,7 +28,7 @@ namespace nil::service::ws
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void send(const std::string& id, std::vector<std::uint8_t> data)
+        void send(const ID& id, std::vector<std::uint8_t> data)
         {
             boost::asio::dispatch(
                 strand,
@@ -65,19 +67,19 @@ namespace nil::service::ws
                     {
                         connections.erase(id);
                     }
-                    if (storage.disconnect)
+                    if (handlers.disconnect)
                     {
-                        storage.disconnect->call(id);
+                        handlers.disconnect->call(id);
                     }
                 }
             );
         }
 
-        void message(const std::string& id, const std::uint8_t* data, std::uint64_t size) override
+        void message(const ID& id, const std::uint8_t* data, std::uint64_t size) override
         {
-            if (storage.msg)
+            if (handlers.msg)
             {
-                storage.msg->call(id, data, size);
+                handlers.msg->call(id, data, size);
             }
         }
 
@@ -118,15 +120,15 @@ namespace nil::service::ws
                                     return;
                                 }
                                 auto connection = std::make_unique<Connection>(
-                                    storage.options.buffer,
+                                    options.buffer,
                                     std::move(*ws),
                                     *this
                                 );
                                 auto id = connection->id();
                                 connections.emplace(id, std::move(connection));
-                                if (storage.connect)
+                                if (handlers.connect)
                                 {
-                                    storage.connect->call(id);
+                                    handlers.connect->call(id);
                                 }
                             }
                         );
@@ -136,18 +138,19 @@ namespace nil::service::ws
             );
         }
 
-        const detail::Storage<Options>& storage;
+        const Options& options;
+        const detail::Handlers& handlers;
 
         boost::asio::io_context context;
         boost::asio::strand<boost::asio::io_context::executor_type> strand;
         boost::asio::ip::tcp::endpoint endpoint;
         boost::asio::ip::tcp::acceptor acceptor;
-        std::unordered_map<std::string, std::unique_ptr<Connection>> connections;
+        std::unordered_map<ID, std::unique_ptr<Connection>> connections;
     };
 
-    Server::Server(Server::Options options)
-        : storage{options, {}, {}, {}}
-        , impl(std::make_unique<Impl>(storage))
+    Server::Server(Server::Options init_options)
+        : options{init_options}
+        , impl(std::make_unique<Impl>(options, handlers))
     {
         impl->accept();
     }
@@ -167,26 +170,11 @@ namespace nil::service::ws
     void Server::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(storage);
+        impl = std::make_unique<Impl>(options, handlers);
         impl->accept();
     }
 
-    void Server::on_message_impl(MessageHandler handler)
-    {
-        storage.msg = std::move(handler);
-    }
-
-    void Server::on_connect_impl(ConnectHandler handler)
-    {
-        storage.connect = std::move(handler);
-    }
-
-    void Server::on_disconnect_impl(DisconnectHandler handler)
-    {
-        storage.disconnect = std::move(handler);
-    }
-
-    void Server::send(const std::string& id, std::vector<std::uint8_t> data)
+    void Server::send(const ID& id, std::vector<std::uint8_t> data)
     {
         impl->send(id, std::move(data));
     }

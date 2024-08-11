@@ -1,6 +1,7 @@
 #include <nil/service/ws/Client.hpp>
 
 #include "Connection.hpp"
+#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -11,8 +12,9 @@ namespace nil::service::ws
 {
     struct Client::Impl final: IImpl
     {
-        explicit Impl(const detail::Storage<Options>& init_storage)
-            : storage(init_storage)
+        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
+            : options(init_options)
+            , handlers(init_handlers)
             , strand(boost::asio::make_strand(context))
             , reconnection(strand)
         {
@@ -26,7 +28,7 @@ namespace nil::service::ws
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void send(const std::string& id, std::vector<std::uint8_t> data)
+        void send(const ID& id, std::vector<std::uint8_t> data)
         {
             boost::asio::dispatch(
                 strand,
@@ -62,9 +64,9 @@ namespace nil::service::ws
                 {
                     if (connection.get() == target_connection)
                     {
-                        if (storage.disconnect)
+                        if (handlers.disconnect)
                         {
-                            storage.disconnect->call(connection->id());
+                            handlers.disconnect->call(connection->id());
                         }
                         connection.reset();
                     }
@@ -73,11 +75,11 @@ namespace nil::service::ws
             );
         }
 
-        void message(const std::string& id, const std::uint8_t* data, std::uint64_t size) override
+        void message(const ID& id, const std::uint8_t* data, std::uint64_t size) override
         {
-            if (storage.msg)
+            if (handlers.msg)
             {
-                storage.msg->call(id, data, size);
+                handlers.msg->call(id, data, size);
             }
         }
 
@@ -86,7 +88,7 @@ namespace nil::service::ws
             auto socket = std::make_unique<boost::asio::ip::tcp::socket>(strand);
             auto* socket_ptr = socket.get();
             socket_ptr->async_connect(
-                {boost::asio::ip::make_address(storage.options.host.data()), storage.options.port},
+                {boost::asio::ip::make_address(options.host.data()), options.port},
                 [this, socket = std::move(socket)](const boost::system::error_code& connect_ec)
                 {
                     if (connect_ec)
@@ -112,7 +114,7 @@ namespace nil::service::ws
                     ));
                     auto* ws_ptr = ws.get();
                     ws_ptr->async_handshake(
-                        storage.options.host + ':' + std::to_string(storage.options.port),
+                        options.host + ':' + std::to_string(options.port),
                         "/",
                         [this, ws = std::move(ws)](boost::beast::error_code ec)
                         {
@@ -122,14 +124,14 @@ namespace nil::service::ws
                                 return;
                             }
                             connection = std::make_unique<Connection>(
-                                storage.options.buffer,
+                                options.buffer,
                                 std::move(*ws),
                                 *this
                             );
 
-                            if (storage.connect)
+                            if (handlers.connect)
                             {
-                                storage.connect->call(connection->id());
+                                handlers.connect->call(connection->id());
                             }
                         }
                     );
@@ -151,7 +153,8 @@ namespace nil::service::ws
             );
         }
 
-        const detail::Storage<Options>& storage;
+        const Options& options;
+        const detail::Handlers& handlers;
 
         boost::asio::io_context context;
         boost::asio::strand<boost::asio::io_context::executor_type> strand;
@@ -159,9 +162,9 @@ namespace nil::service::ws
         std::unique_ptr<Connection> connection;
     };
 
-    Client::Client(Client::Options options)
-        : storage{std::move(options), {}, {}, {}}
-        , impl(std::make_unique<Impl>(storage))
+    Client::Client(Client::Options init_options)
+        : options{std::move(init_options)}
+        , impl(std::make_unique<Impl>(options, handlers))
     {
         impl->connect();
     }
@@ -181,26 +184,11 @@ namespace nil::service::ws
     void Client::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(storage);
+        impl = std::make_unique<Impl>(options, handlers);
         impl->connect();
     }
 
-    void Client::on_message_impl(MessageHandler handler)
-    {
-        storage.msg = std::move(handler);
-    }
-
-    void Client::on_connect_impl(ConnectHandler handler)
-    {
-        storage.connect = std::move(handler);
-    }
-
-    void Client::on_disconnect_impl(DisconnectHandler handler)
-    {
-        storage.disconnect = std::move(handler);
-    }
-
-    void Client::send(const std::string& id, std::vector<std::uint8_t> data)
+    void Client::send(const ID& id, std::vector<std::uint8_t> data)
     {
         impl->send(id, std::move(data));
     }

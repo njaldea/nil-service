@@ -14,11 +14,13 @@ TEST(TypedHandler, basic)
     nil::service::TypedHandler<int> sut;
     sut.add(
         0x0A0B0C0D,
-        [&](const std::string& id, const std::string& data) { mock_with_str.Call(id, data); }
+        [&](const nil::service::ID& id, const std::string& data)
+        { mock_with_str.Call(id.text, data); }
     );
     sut.add(
         0x0D0C0B0A,
-        [&](const std::string& id, const std::uint64_t& data) { mock_with_uint64.Call(id, data); }
+        [&](const nil::service::ID& id, const std::uint64_t& data)
+        { mock_with_uint64.Call(id.text, data); }
     );
 
     {
@@ -26,7 +28,7 @@ TEST(TypedHandler, basic)
             .Times(1)
             .RetiresOnSaturation();
 
-        sut("id for str",
+        sut(nil::service::ID{"id for str"},
             "\x0A\x0B\x0C\x0D"
             "hello world",
             15);
@@ -37,7 +39,47 @@ TEST(TypedHandler, basic)
             .Times(1)
             .RetiresOnSaturation();
 
-        sut("id for int",
+        sut(nil::service::ID{"id for int"},
+            "\x0D\x0C\x0B\x0A"
+            "\x01\x02\x03\x04\x05\x06\x07\x08",
+            12);
+    }
+}
+
+TEST(TypedHandler, chained)
+{
+    SMF<std::string> mock_with_str;
+    SMF<std::uint64_t> mock_with_uint64;
+
+    auto sut = nil::service::TypedHandler<int>()
+                   .add(
+                       0x0A0B0C0D,
+                       [&](const nil::service::ID& id, const std::string& data)
+                       { mock_with_str.Call(id.text, data); }
+                   )
+                   .add(
+                       0x0D0C0B0A,
+                       [&](const nil::service::ID& id, const std::uint64_t& data)
+                       { mock_with_uint64.Call(id.text, data); }
+                   );
+
+    {
+        EXPECT_CALL(mock_with_str, Call("id for str", "hello world")) //
+            .Times(1)
+            .RetiresOnSaturation();
+
+        sut(nil::service::ID{"id for str"},
+            "\x0A\x0B\x0C\x0D"
+            "hello world",
+            15);
+    }
+
+    {
+        EXPECT_CALL(mock_with_uint64, Call("id for int", 0x0102030405060708)) //
+            .Times(1)
+            .RetiresOnSaturation();
+
+        sut(nil::service::ID{"id for int"},
             "\x0D\x0C\x0B\x0A"
             "\x01\x02\x03\x04\x05\x06\x07\x08",
             12);

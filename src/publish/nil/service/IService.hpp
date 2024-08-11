@@ -1,10 +1,10 @@
 #pragma once
 
+#include "ID.hpp"
 #include "codec.hpp"
 
 #include <array>
 #include <memory>
-#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -24,60 +24,118 @@ namespace nil::service
             ICallable(const ICallable&) = delete;
             ICallable& operator=(const ICallable&) = delete;
 
-            virtual void call(const std::string&, Args... args) = 0;
+            virtual void call(Args... args) = 0;
         };
 
-        template <typename Options>
-        struct Storage final
+        template <typename T, typename... Args>
+        struct Callable final: detail::ICallable<Args...>
         {
-            Options options;
-            std::unique_ptr<ICallable<const void*, std::uint64_t>> msg;
-            std::unique_ptr<ICallable<>> connect;
-            std::unique_ptr<ICallable<>> disconnect;
-        };
-
-        template <typename Handler, typename... Args>
-        std::unique_ptr<ICallable<Args...>> make_callable(Handler&& handler)
-        {
-            struct Callable final: detail::ICallable<Args...>
+            explicit Callable(T init_impl)
+                : impl(std::move(init_impl))
             {
-                explicit Callable(Handler init_handler)
-                    : handler(std::move(init_handler))
-                {
-                }
+            }
 
-                ~Callable() noexcept override = default;
+            ~Callable() noexcept override = default;
 
-                Callable(Callable&&) noexcept = delete;
-                Callable(const Callable&) = delete;
-                Callable& operator=(Callable&&) noexcept = delete;
-                Callable& operator=(const Callable&) = delete;
+            Callable(Callable&&) noexcept = delete;
+            Callable(const Callable&) = delete;
+            Callable& operator=(Callable&&) noexcept = delete;
+            Callable& operator=(const Callable&) = delete;
 
-                void call(const std::string& id, Args... args) override
-                {
-                    if constexpr (std::is_invocable_v<Handler, const std::string&, Args...>)
-                    {
-                        handler(id, args...);
-                    }
-                    else
-                    {
-                        handler(args...);
-                    }
-                }
+            void call(Args... args) override
+            {
+                impl(args...);
+            }
 
-                Handler handler;
-            };
+            T impl;
+        };
 
-            return std::make_unique<Callable>(std::forward<Handler>(handler));
+        struct Handlers
+        {
+            std::unique_ptr<ICallable<const ID&, const void*, std::uint64_t>> msg;
+            std::unique_ptr<ICallable<const ID&>> connect;
+            std::unique_ptr<ICallable<const ID&>> disconnect;
+        };
+
+        template <typename Handler>
+        std::unique_ptr<ICallable<const ID&>> create_handler(Handler handler)
+        {
+            constexpr auto final_t = std::is_invocable_v<Handler, const ID&>;
+            if constexpr (final_t)
+            {
+                using callable_t = detail::Callable<Handler, const ID&>;
+                return std::make_unique<callable_t>(std::move(handler));
+            }
+            else
+            {
+                return create_handler([handler = std::move(handler)](const ID&) { handler(); });
+            }
+        }
+
+        struct AutoCast
+        {
+            template <typename T>
+            operator T() const // NOLINT
+            {
+                return codec<T>::deserialize(d, *s);
+            }
+
+            const void* d;
+            std::uint64_t* s;
+        };
+
+        template <typename Handler>
+        std::unique_ptr<ICallable<const ID&, const void*, std::uint64_t>> create_message_handler(
+            Handler handler
+        )
+        {
+            if constexpr (std::is_invocable_v<Handler, const ID&, const void*, std::uint64_t>)
+            {
+                using callable_t = detail::Callable<Handler, const ID&, const void*, std::uint64_t>;
+                return std::make_unique<callable_t>(std::move(handler));
+            }
+            else if constexpr (std::is_invocable_v<Handler, const void*, std::uint64_t>)
+            {
+                return create_message_handler(                        //
+                    [handler = std::move(handler)]                    //
+                    (const ID&, const void* data, std::uint64_t size) //
+                    { handler(data, size); }
+                );
+            }
+            else if constexpr (std::is_invocable_v<Handler>)
+            {
+                return create_message_handler(              //
+                    [handler = std::move(handler)]          //
+                    (const ID&, const void*, std::uint64_t) //
+                    { handler(); }
+                );
+            }
+            else if constexpr (std::is_invocable_v<Handler, const nil::service::ID&>)
+            {
+                return create_message_handler(                 //
+                    [handler = std::move(handler)]             //
+                    (const ID& id, const void*, std::uint64_t) //
+                    { handler(id); }
+                );
+            }
+            else if constexpr (std::is_invocable_v<Handler, const ID&, const detail::AutoCast&>)
+            {
+                return create_message_handler(                           //
+                    [handler = std::move(handler)]                       //
+                    (const ID& id, const void* data, std::uint64_t size) //
+                    { handler(id, AutoCast{data, &size}); }
+                );
+            }
+            else
+            {
+                return create_message_handler(                        //
+                    [handler = std::move(handler)]                    //
+                    (const ID&, const void* data, std::uint64_t size) //
+                    { handler(AutoCast{data, &size}); }
+                );
+            }
         }
     }
-
-    using MessageHandler //
-        = std::unique_ptr<detail::ICallable<const void*, std::uint64_t>>;
-    using ConnectHandler //
-        = std::unique_ptr<detail::ICallable<>>;
-    using DisconnectHandler //
-        = std::unique_ptr<detail::ICallable<>>;
 
     class IService
     {
@@ -123,7 +181,7 @@ namespace nil::service
          * @param id    identifier
          * @param data  data
          */
-        virtual void send(const std::string& id, std::vector<std::uint8_t> message) = 0;
+        virtual void send(const ID& id, std::vector<std::uint8_t> message) = 0;
 
         template <typename... T>
         void publish(const T&... data)
@@ -145,7 +203,7 @@ namespace nil::service
         }
 
         template <typename... T>
-        void send(const std::string& id, T&&... data)
+        void send(const ID& id, T&&... data)
         {
             this->send(id, serialize(data...));
         }
@@ -158,46 +216,50 @@ namespace nil::service
          * @param data  payload
          * @param size  payload size
          */
-        void send_raw(const std::string& id, const void* data, std::uint64_t size)
+        void send_raw(const ID& id, const void* data, std::uint64_t size)
         {
             const auto* ptr = static_cast<const std::uint8_t*>(data);
             send(id, std::vector<std::uint8_t>(ptr, ptr + size));
         }
 
         /**
-         * @brief Add a message handler
+         * @brief Add a message handler. Not threadsafe in case the service is already running.
          *
          * @param handler
          */
         template <typename Handler>
         void on_message(Handler handler)
         {
-            on_message_impl(
-                detail::make_callable<Handler, const void*, std::uint64_t>(std::move(handler))
-            );
+            handlers.msg = detail::create_message_handler(std::move(handler));
         }
 
         /**
-         * @brief Add a connect handler for service events.
+         * @brief Add a connect handler for service events. Not threadsafe in case the service is
+         * already running.
          *
          * @param handler
          */
         template <typename Handler>
         void on_connect(Handler handler)
         {
-            on_connect_impl(detail::make_callable<Handler>(std::move(handler)));
+            handlers.connect = detail::create_handler(std::move(handler));
         }
 
         /**
-         * @brief Add a disconnect handler for service events.
+         * @brief Add a disconnect handler for service events. Not threadsafe in case the service is
+         * already running.
          *
          * @param handler
          */
         template <typename Handler>
         void on_disconnect(Handler handler)
         {
-            on_disconnect_impl(detail::make_callable<Handler>(std::move(handler)));
+            handlers.disconnect = detail::create_handler(std::move(handler));
         }
+
+    protected:
+        // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+        detail::Handlers handlers;
 
     private:
         // [TODO] refactor and make this better;
@@ -228,27 +290,6 @@ namespace nil::service
             }
             return message;
         }
-
-        /**
-         * @brief Add a message handler
-         *
-         * @param handler
-         */
-        virtual void on_message_impl(MessageHandler handler) = 0;
-
-        /**
-         * @brief Add a connect handler for service events.
-         *
-         * @param handler
-         */
-        virtual void on_connect_impl(ConnectHandler handler) = 0;
-
-        /**
-         * @brief Add a disconnect handler for service events.
-         *
-         * @param handler
-         */
-        virtual void on_disconnect_impl(DisconnectHandler handler) = 0;
     };
 
     template <typename T>

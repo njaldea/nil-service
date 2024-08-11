@@ -6,6 +6,7 @@ set(
     HEADERS
         publish/nil/service.hpp
         publish/nil/service/codec.hpp
+        publish/nil/service/ID.hpp
         publish/nil/service/TypedHandler.hpp
         publish/nil/service/IService.hpp
         publish/nil/service/Self.hpp

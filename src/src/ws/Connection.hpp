@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nil/service/ID.hpp>
+
 #include <boost/asio/io_context.hpp>
 
 #include <boost/beast/core.hpp>
@@ -13,14 +15,15 @@ namespace nil::service::ws
 
     struct IImpl
     {
+        IImpl() = default;
         virtual ~IImpl() noexcept = default;
 
-        virtual void message( //
-            const std::string& id,
-            const std::uint8_t* data,
-            std::uint64_t size
-        ) = 0;
+        IImpl(IImpl&&) = delete;
+        IImpl(const IImpl&) = delete;
+        IImpl& operator=(IImpl&&) = delete;
+        IImpl& operator=(const IImpl&) = delete;
 
+        virtual void message(const ID& id, const std::uint8_t* data, std::uint64_t size) = 0;
         virtual void disconnect(Connection* connection) = 0;
     };
 
@@ -41,12 +44,12 @@ namespace nil::service::ws
         Connection& operator=(const Connection&) = delete;
 
         void write(const std::uint8_t* data, std::uint64_t size);
-        const std::string& id() const;
+        const ID& id() const;
 
     private:
         void read();
 
-        std::string identifier;
+        ID identifier;
         boost::beast::websocket::stream<boost::beast::tcp_stream> ws;
         IImpl& impl;
         std::vector<std::uint8_t> r_buffer;

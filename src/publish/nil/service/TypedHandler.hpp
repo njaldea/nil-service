@@ -3,7 +3,7 @@
 #include "IService.hpp"
 #include "codec.hpp"
 
-#include <string>
+#include <type_traits>
 #include <unordered_map>
 
 namespace nil::service
@@ -11,55 +11,6 @@ namespace nil::service
     template <typename Indexer>
     class TypedHandler final
     {
-        struct AutoCast
-        {
-            template <typename T>
-            operator T() const // NOLINT
-            {
-                return codec<T>::deserialize(d, *s);
-            }
-
-            const void* d;
-            std::uint64_t* s;
-        };
-
-        template <typename T>
-        struct Callable final: detail::ICallable<const void*, std::uint64_t>
-        {
-            Callable() = delete;
-
-            Callable(Callable&&) noexcept = delete;
-            Callable& operator=(Callable&&) noexcept = delete;
-
-            Callable(const Callable&) = delete;
-            Callable& operator=(const Callable&) = delete;
-
-            explicit Callable(T init_handler)
-                : handler(std::move(init_handler))
-            {
-            }
-
-            ~Callable() noexcept override = default;
-
-            void call(const std::string& id, const void* data, std::uint64_t size) override
-            {
-                if constexpr (std::is_invocable_v<T>)
-                {
-                    handler();
-                }
-                else if constexpr (std::is_invocable_v<T, const std::string&>)
-                {
-                    handler(id);
-                }
-                else
-                {
-                    handler(id, AutoCast(data, &size));
-                }
-            }
-
-            T handler;
-        };
-
     public:
         TypedHandler() = default;
         ~TypedHandler() noexcept = default;
@@ -73,18 +24,18 @@ namespace nil::service
         template <typename Handler>
         TypedHandler add(Indexer type, Handler handler) &&
         {
-            handlers.emplace(type, std::make_unique<Callable<Handler>>(std::move(handler)));
+            handlers.emplace(type, detail::create_message_handler(handler));
             return std::move(*this);
         }
 
         template <typename Handler>
         TypedHandler& add(Indexer type, Handler handler) &
         {
-            handlers.emplace(type, std::make_unique<Callable<Handler>>(std::move(handler)));
+            handlers.emplace(type, detail::create_message_handler(std::move(handler)));
             return *this;
         }
 
-        void operator()(const std::string& id, const void* data, std::uint64_t size) const
+        void operator()(const ID& id, const void* data, std::uint64_t size) const
         {
             const auto* const m = static_cast<const std::uint8_t*>(data);
             const auto o_size = size;
@@ -97,6 +48,7 @@ namespace nil::service
         }
 
     private:
-        std::unordered_map<Indexer, MessageHandler> handlers;
+        using handler_t = detail::ICallable<const ID&, const void*, std::uint64_t>;
+        std::unordered_map<Indexer, std::unique_ptr<handler_t>> handlers;
     };
 }

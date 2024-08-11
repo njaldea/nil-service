@@ -83,7 +83,7 @@ namespace nil::service::tcp
         );
     }
 
-    const std::string& Connection::id() const
+    const ID& Connection::id() const
     {
         return identifier;
     }

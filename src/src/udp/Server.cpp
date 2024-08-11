@@ -1,6 +1,7 @@
 #include <nil/service/udp/Server.hpp>
 
 #include "../utils.hpp"
+#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
@@ -11,12 +12,13 @@ namespace nil::service::udp
 {
     struct Server::Impl final
     {
-        explicit Impl(const detail::Storage<Options>& init_storage)
-            : storage(init_storage)
+        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
+            : options(init_options)
+            , handlers(init_handlers)
             , strand(boost::asio::make_strand(context))
-            , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), storage.options.port})
+            , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), options.port})
         {
-            buffer.resize(storage.options.buffer);
+            buffer.resize(options.buffer);
         }
 
         ~Impl() noexcept = default;
@@ -27,13 +29,15 @@ namespace nil::service::udp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        std::string id() const
+        ID id() const
         {
-            return socket.remote_endpoint().address().to_string() + ":"
-                + std::to_string(socket.remote_endpoint().port());
+            return {
+                socket.remote_endpoint().address().to_string() + ":"
+                + std::to_string(socket.remote_endpoint().port())
+            };
         }
 
-        void send(const std::string& id, std::vector<std::uint8_t> data)
+        void send(const ID& id, std::vector<std::uint8_t> data)
         {
             boost::asio::dispatch(
                 strand,
@@ -73,18 +77,18 @@ namespace nil::service::udp
             );
         }
 
-        void ping(const boost::asio::ip::udp::endpoint& endpoint, const std::string& id)
+        void ping(const boost::asio::ip::udp::endpoint& endpoint, const ID& id)
         {
             auto& connection = connections[id];
             if (!connection)
             {
                 connection = std::make_unique<Connection>(endpoint, strand);
-                if (storage.connect)
+                if (handlers.connect)
                 {
-                    storage.connect->call(id);
+                    handlers.connect->call(id);
                 }
             }
-            connection->timer.expires_after(storage.options.timeout);
+            connection->timer.expires_after(options.timeout);
             connection->timer.async_wait(
                 [this, id](const boost::system::error_code& ec)
                 {
@@ -92,9 +96,9 @@ namespace nil::service::udp
                     {
                         return;
                     }
-                    if (storage.disconnect)
+                    if (handlers.disconnect)
                     {
-                        storage.disconnect->call(id);
+                        handlers.disconnect->call(id);
                     }
                     connections.erase(id);
                 }
@@ -106,11 +110,11 @@ namespace nil::service::udp
             );
         }
 
-        void usermsg(const std::string& id, const std::uint8_t* data, std::uint64_t size)
+        void usermsg(const ID& id, const std::uint8_t* data, std::uint64_t size)
         {
-            if (storage.msg)
+            if (handlers.msg)
             {
-                storage.msg->call(id, data, size);
+                handlers.msg->call(id, data, size);
             }
         }
 
@@ -124,12 +128,12 @@ namespace nil::service::udp
             {
                 if (utils::from_array<std::uint8_t>(data) > 0u)
                 {
-                    ping(endpoint, utils::to_string(endpoint));
+                    ping(endpoint, {utils::to_string(endpoint)});
                 }
                 else
                 {
                     usermsg(
-                        utils::to_string(endpoint),
+                        {utils::to_string(endpoint)},
                         data + sizeof(std::uint8_t),
                         size - sizeof(std::uint8_t)
                     );
@@ -158,7 +162,8 @@ namespace nil::service::udp
             );
         }
 
-        const detail::Storage<Options>& storage;
+        const Options& options;
+        const detail::Handlers& handlers;
 
         boost::asio::io_context context;
         boost::asio::strand<boost::asio::io_context::executor_type> strand;
@@ -186,15 +191,15 @@ namespace nil::service::udp
             boost::asio::steady_timer timer;
         };
 
-        using Connections = std::unordered_map<std::string, std::unique_ptr<Connection>>;
+        using Connections = std::unordered_map<ID, std::unique_ptr<Connection>>;
         Connections connections;
 
         std::vector<std::uint8_t> buffer;
     };
 
-    Server::Server(Server::Options options)
-        : storage{options, {}, {}, {}}
-        , impl(std::make_unique<Impl>(storage))
+    Server::Server(Server::Options init_options)
+        : options{init_options}
+        , impl(std::make_unique<Impl>(options, handlers))
     {
         impl->receive();
     }
@@ -214,26 +219,11 @@ namespace nil::service::udp
     void Server::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(storage);
+        impl = std::make_unique<Impl>(options, handlers);
         impl->receive();
     }
 
-    void Server::on_message_impl(MessageHandler handler)
-    {
-        storage.msg = std::move(handler);
-    }
-
-    void Server::on_connect_impl(ConnectHandler handler)
-    {
-        storage.connect = std::move(handler);
-    }
-
-    void Server::on_disconnect_impl(DisconnectHandler handler)
-    {
-        storage.disconnect = std::move(handler);
-    }
-
-    void Server::send(const std::string& id, std::vector<std::uint8_t> data)
+    void Server::send(const ID& id, std::vector<std::uint8_t> data)
     {
         impl->send(id, std::move(data));
     }

@@ -1,5 +1,6 @@
-#include <boost/asio/executor_work_guard.hpp>
 #include <nil/service/Self.hpp>
+
+#include <boost/asio/executor_work_guard.hpp>
 
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/io_context.hpp>
@@ -8,8 +9,8 @@ namespace nil::service
 {
     struct Self::Impl
     {
-        explicit Impl(const Self::Storage& init_storage)
-            : storage(init_storage)
+        explicit Impl(const detail::Handlers& init_handlers)
+            : handlers(init_handlers)
         {
         }
 
@@ -20,9 +21,9 @@ namespace nil::service
                 context,
                 [this]()
                 {
-                    if (storage.connect)
+                    if (handlers.connect)
                     {
-                        storage.connect->call("self");
+                        handlers.connect->call(id);
                     }
                 }
             );
@@ -31,9 +32,9 @@ namespace nil::service
 
         void stop()
         {
-            if (storage.disconnect)
+            if (handlers.disconnect)
             {
-                storage.disconnect->call("self");
+                handlers.disconnect->call(id);
             }
             context.stop();
         }
@@ -44,20 +45,22 @@ namespace nil::service
                 context,
                 [this, msg = std::move(data)]()
                 {
-                    if (storage.msg)
+                    if (handlers.msg)
                     {
-                        storage.msg->call("self", msg.data(), msg.size());
+                        handlers.msg->call(id, msg.data(), msg.size());
                     }
                 }
             );
         }
 
-        const Self::Storage& storage;
+        const detail::Handlers& handlers;
         boost::asio::io_context context;
+
+        ID id = {"self"};
     };
 
     Self::Self()
-        : impl(std::make_unique<Impl>(storage))
+        : impl(std::make_unique<Impl>(handlers))
     {
     }
 
@@ -76,7 +79,7 @@ namespace nil::service
     void Self::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(storage);
+        impl = std::make_unique<Impl>(handlers);
     }
 
     void Self::publish(std::vector<std::uint8_t> data)
@@ -84,26 +87,11 @@ namespace nil::service
         impl->publish(std::move(data));
     }
 
-    void Self::send(const std::string& id, std::vector<std::uint8_t> data)
+    void Self::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        if ("self" == id)
+        if ("self" == id.text)
         {
             impl->publish(std::move(data));
         }
-    }
-
-    void Self::on_message_impl(MessageHandler handler)
-    {
-        storage.msg = std::move(handler);
-    }
-
-    void Self::on_connect_impl(ConnectHandler handler)
-    {
-        storage.connect = std::move(handler);
-    }
-
-    void Self::on_disconnect_impl(DisconnectHandler handler)
-    {
-        storage.disconnect = std::move(handler);
     }
 }
