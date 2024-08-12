@@ -48,17 +48,124 @@ Messages are still serialized/deserialized.
 | `on_connect(handler)`            | register connect handler                   |
 | `on_disconnect(handler)`         | register disconnect handler                |
 | `on_message(handler)`            | register message handler                   |
-| `send_raw(id, data, size)`       | send message to a specific id/connection   |
-| `publish_raw(data, size)`        | send message to all connection             |
-| `send(id, message...)`           | send message to a specific id/connection   |
-| `publish(message...)`            | send message to all connection             |
+| `send(id, data, size)`           | send message to a specific id/connection   |
+| `publish(data, size)`            | send message to all connection             |
+| `send(id, message)`              | send message to a specific id/connection   |
+| `publish(message)`               | send message to all connection             |
 
 ### `send`/`publish` arguments
 
 - by default only accepts the buffer typed as `std::vector<std::uint8_t>`
-- if multiple messages are provided, the messages are serialized one after another
-    - the handler should be responsible in parsing these messages
-    - see codec for more details
+- if message is not of type `std::vector<std::uint8_t>`, codec serialization will be used.
+
+### `Service::on_message` overloads
+
+- the callable passed to these methods should have the following arguments:
+    -  const std::string&   - for the id
+    -  const void*          - for the data
+    -  std::uint64_t        - for the data size
+- the following will be implicitly handled in order of evaluation:
+    -  no arguments
+    -  only id
+    -  id with `const void*` and `size`
+    -  id with a custom type (with codec definition)
+    -  no id but with `const void*` and `size`
+    -  no id but with a custom type (with codec definition)
+
+### `type_cast<T>(data, size)`
+
+A utility method to simplify consumption of data and size to an appropriate type.
+This is expected to move the data pointer and size depending on how much of the buffer is used.
+
+```cpp
+const auto payload = nil::service::type_cast<std::uint64_t>(data, size);
+// data should have moved by 8 bytes
+// size should have been incremented by 8
+```
+
+This utilizes `codec`s which will be discussesd at the end.
+
+### `concat(T...)`
+
+This utility method provides a way to concatenate multiple payloads into one.
+
+```cpp
+void send(nil::service::IService& service)
+{
+    service.publish(nil::service::concat(0u, "message for 0"s));
+    service.publish(nil::service::concat(1u, false));
+}
+```
+
+This utilizes `codec`s which will be discussesd at the end.
+
+### `split<T>(Handler handler)`
+
+This utility method wraps a handler to provide easier conversion of the data
+- first section is the type provided
+- second section is the actual payload
+
+This allows re-mapping of different callbacks for different index.
+
+The example below is done via manual parsing:
+
+```cpp
+void add_handlers(nil::service::IService& service)
+{
+    service.on_message(
+        [](
+            const nil::service::ID&, // optional
+            const void* data,
+            std::uint64_t size
+        )
+        {
+            const auto tag = nil::service::type_cast<std::uint32_t>(data, size);
+            switch (tag)
+            {
+                case 0:
+                    const auto payload = 
+                        nil::service::type_cast<std::string>(data, size);
+                    break;
+                case 1:
+                    const auto payload =
+                        nil::service::type_cast<bool>(data, size);
+                    break;
+            }
+        }
+    );
+}
+```
+
+The example below allows parsing of the message sent by concat from previous section:
+
+```cpp
+void add_handlers(nil::service::IService& service)
+{
+    service.on_message(
+        nil::service::split<std::uint32_t>(
+            [](
+                const nil::service::ID&, // optional
+                std::uint32_t tag,
+                const void* data,
+                std::uint64_t size
+            )
+            {
+                switch (tag)
+                {
+                    case 0:
+                        const auto payload = 
+                            nil::service::type_cast<std::string>(data, size);
+                        break;
+                    case 1:
+                        const auto payload =
+                            nil::service::type_cast<bool>(data, size);
+                        break;
+                }
+            }
+        )
+    );
+}
+```
 
 ### `codec`
 
@@ -82,9 +189,6 @@ a `codec` is expected to have `serialize` and `deserialize` method. see example 
 
 // include this header for base template
 #include <nil/service/codec.hpp>
-
-// or include service.hpp as a whole
-// #include <nil/service.hpp>
 
 #include <google/protobuf/message_lite.h>
 
@@ -119,7 +223,6 @@ namespace nil::service
 
 // Include your codec
 #include "my_codec.hpp"
-// Include service header if `nil/service/codec.hpp` is included in your codec
 #include <nil/service.hpp>
 
 template <typename ProtobufMessage>
@@ -128,41 +231,6 @@ void foo(nil::service::IService& service, const ProtobufMessage& message)
     service.publish(message);
 }
 ```
-
-### `TypedHandler`
-
-This utility handler is provided to identify the message type and trigger which handler to execute
-
-```cpp
-void add_handlers(nil::service::IService& service)
-{
-    service.on_message(
-        nil::service::TypedHandler<std::uint32_t>()
-            .add(0u, handler_for_0)
-            .add(1u, handler_for_1)
-    );
-}
-
-void send(nil::service::IService& service)
-{
-    service.publish(0u, "message for 0");
-    service.publish(1u, "message for 1");
-}
-```
-
-### `Service::on_message` and `TypedHandler::add` overloads
-
-- the callable passed to these methods should have the following arguments:
-    -  const std::string&   - for the id
-    -  const void*          - for the data
-    -  std::uint64_t        - for the data size
-- the following will be implicitly handled in order of evaluation:
-    -  no arguments
-    -  only id
-    -  id with `const void*` and `size`
-    -  id with a custom type (with codec definition)
-    -  no id but with `const void*` and `size`
-    -  no id but with a custom type (with codec definition)
 
 ## NOTES:
 - `restart` is required to be called when `stop`-ed and `run` is about to be called.

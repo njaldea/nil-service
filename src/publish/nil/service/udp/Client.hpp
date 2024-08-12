@@ -42,9 +42,7 @@ namespace nil::service::udp
         void send(const ID& id, std::vector<std::uint8_t> data) override;
 
         using IService::publish;
-        using IService::publish_raw;
         using IService::send;
-        using IService::send_raw;
 
     private:
         Options options;

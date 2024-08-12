@@ -6,7 +6,7 @@
 namespace nil::service
 {
     template <typename T, typename = void>
-    struct codec
+    struct codec final
     {
         static std::vector<std::uint8_t> serialize(const T&);
         static T deserialize(const void* data, std::uint64_t& size);

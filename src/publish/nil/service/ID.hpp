@@ -8,7 +8,7 @@ namespace nil::service
     /**
      * @brief Temporary identifier for a connection
      */
-    struct ID
+    struct ID final
     {
         std::string text;
     };

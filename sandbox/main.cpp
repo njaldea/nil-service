@@ -64,26 +64,19 @@ void add_end_node(nil::clix::Node& node)
             }
             auto service = make_service<T>(options);
             {
-                service.on_message(                             //
-                    nil::service::TypedHandler<std::uint32_t>() //
-                        .add(
-                            0u,
-                            [](const nil::service::ID& id, const std::string& message)
-                            {
-                                std::cout << "from         : " << id.text << std::endl;
-                                std::cout << "type         : " << 0 << std::endl;
-                                std::cout << "message      : " << message << std::endl;
-                            }
+                service.on_message( //
+                    nil::service::split<std::uint32_t>(
+                        []( //
+                            const nil::service::ID& id,
+                            std::uint32_t tag,
+                            const std::string& message
                         )
-                        .add(
-                            1u,
-                            [](const nil::service::ID& id, const std::string& message)
-                            {
-                                std::cout << "from         : " << id.text << std::endl;
-                                std::cout << "type         : " << 1 << std::endl;
-                                std::cout << "message      : " << message << std::endl;
-                            }
-                        )
+                        {
+                            std::cout << "from         : " << id.text << std::endl;
+                            std::cout << "type         : " << tag << std::endl;
+                            std::cout << "message      : " << message << std::endl;
+                        }
+                    )
                 );
                 service.on_connect(                  //
                     [](const nil::service::ID& id) { //
@@ -111,7 +104,13 @@ void add_end_node(nil::clix::Node& node)
                             break;
                         }
 
-                        service.publish(type, "typed > " + message, " : "s, "secondary here"s);
+                        service.publish(nil::service::concat(
+                            type,
+                            "typed > "s,
+                            message,
+                            " : "s,
+                            "secondary here"s
+                        ));
 
                         type = (type + 1) % 2;
                     }
@@ -135,10 +134,9 @@ void add_sub_nodes(nil::clix::Node& node)
 
 int main(int argc, const char** argv)
 {
-    using nil::clix::Node;
     using namespace nil::service;
 
-    Node root;
+    nil::clix::Node root;
     root.runner(help);
     root.add("udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
     root.add("tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
