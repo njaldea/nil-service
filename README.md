@@ -119,16 +119,14 @@ void add_handlers(nil::service::IService& service)
             std::uint64_t size
         )
         {
-            const auto tag = nil::service::type_cast<std::uint32_t>(data, size);
-            switch (tag)
+            namespace ns = service;
+            switch (ns::type_cast<std::uint32_t>(data, size))
             {
                 case 0:
-                    const auto payload = 
-                        nil::service::type_cast<std::string>(data, size);
+                    const auto payload = ns::type_cast<std::string>(data, size);
                     break;
                 case 1:
-                    const auto payload =
-                        nil::service::type_cast<bool>(data, size);
+                    const auto payload = ns::type_cast<bool>(data, size);
                     break;
             }
         }
@@ -150,15 +148,14 @@ void add_handlers(nil::service::IService& service)
                 std::uint64_t size
             )
             {
+                namespace ns = service;
                 switch (tag)
                 {
                     case 0:
-                        const auto payload = 
-                            nil::service::type_cast<std::string>(data, size);
+                        const auto payload = ns::type_cast<std::string>(data, size);
                         break;
                     case 1:
-                        const auto payload =
-                            nil::service::type_cast<bool>(data, size);
+                        const auto payload = ns::type_cast<bool>(data, size);
                         break;
                 }
             }

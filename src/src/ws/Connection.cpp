@@ -24,6 +24,7 @@ namespace nil::service::ws
               }(r_buffer, buffer)
           )
     {
+        ws.binary(true);
         read();
     }
 
