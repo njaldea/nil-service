@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ID.hpp"
-#include "codec.hpp"
+#include "consume.hpp"
 #include "detail.hpp"
 
 #include <type_traits>
@@ -27,30 +27,58 @@ namespace nil::service
         return [handler = std::move(handler)](const ID& id, const void* data, std::uint64_t size)
         {
             using AutoCast = typename detail::AutoCast;
+            using Unknown = typename detail::Unknown;
 
-            const auto* const m = static_cast<const std::uint8_t*>(data);
-            const auto o_size = size;
-            const auto value = codec<T>::deserialize(data, size);
-            const void* n_data = m + o_size - size;
-            if constexpr (std::is_invocable_v<H, const ID&, const T&, const void*, std::uint64_t>)
+            constexpr auto match //
+                = std::is_invocable_v<H, const ID&, const T&, const AutoCast&>
+                + std::is_invocable_v<H, const ID&, const T&, const void*, std::uint64_t>
+                + std::is_invocable_v<H, const T&, const AutoCast&>
+                + std::is_invocable_v<H, const T&, const void*, std::uint64_t>;
+
+            constexpr auto has_unknown_type //
+                = std::is_invocable_v<H, const T&, const Unknown&>
+                + std::is_invocable_v<H, const ID&, const T&, const Unknown&>;
+
+            const auto value = consume<T>(data, size);
+
+            if constexpr (0 == match)
             {
-                handler(id, value, n_data, size);
+                detail::argument_error<H>("incorrect argument type detected");
+            }
+            else if constexpr (1 < match)
+            {
+                detail::argument_error<H>("ambiguous argument type detected");
+            }
+            else if constexpr (0 < has_unknown_type)
+            {
+                detail::argument_error<H>("unknown argument type detected");
             }
             else if constexpr (std::is_invocable_v<H, const ID&, const T&, const AutoCast&>)
             {
-                handler(id, value, AutoCast(m + o_size - size, &size));
+                handler(id, value, AutoCast(data, &size));
             }
-            else if constexpr (std::is_invocable_v<H, const T&, const void*, std::uint64_t>)
+            else if constexpr ( //
+                std::is_invocable_v<
+                    H,
+                    const ID&,
+                    const T&,
+                    const void*,
+                    std::uint64_t> //
+            )
             {
-                handler(value, n_data, size);
+                handler(id, value, data, size);
             }
             else if constexpr (std::is_invocable_v<H, const T&, const AutoCast&>)
             {
-                handler(value, AutoCast(m + o_size - size, &size));
+                handler(value, AutoCast(data, &size));
+            }
+            else if constexpr (std::is_invocable_v<H, const T&, const void*, std::uint64_t>)
+            {
+                handler(value, data, size);
             }
             else
             {
-                detail::unreachable<T>();
+                detail::unreachable<H>();
             }
         };
     }

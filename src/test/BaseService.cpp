@@ -1,6 +1,7 @@
 #include <nil/service/IService.hpp>
 #include <nil/service/codec.hpp>
 #include <nil/service/concat.hpp>
+#include <nil/service/consume.hpp>
 #include <nil/service/split.hpp>
 
 #include <gmock/gmock.h>
@@ -117,7 +118,7 @@ TEST(BaseService, on_message_with_id_with_raw)
         [](const nil::service::ID& id, const void* data, std::uint64_t size) //
         {
             (void)id;
-            const auto message = nil::service::type_cast<std::string>(data, size);
+            const auto message = nil::service::consume<std::string>(data, size);
             std::cout << "message: " << message << std::endl;
         }
     );
@@ -156,7 +157,7 @@ TEST(BaseService, on_message_without_id_with_raw)
     service.on_message(                          //
         [](const void* data, std::uint64_t size) //
         {
-            const auto message = nil::service::type_cast<std::string>(data, size);
+            const auto message = nil::service::consume<std::string>(data, size);
             std::cout << "message: " << message << std::endl;
         }
     );
@@ -193,7 +194,7 @@ TEST(BaseService, on_message_split_without_id_with_raw)
             [](char f, const void* d, std::uint64_t s) //
             {
                 std::cout << "message[0]: " << f << std::endl;
-                const auto msg = nil::service::type_cast<std::string>(d, s);
+                const auto msg = nil::service::consume<std::string>(d, s);
                 std::cout << "message[1]: " << msg << std::endl;
             }
         )
@@ -236,7 +237,7 @@ TEST(BaseService, on_message_split_with_id_with_raw)
             [](const nil::service::ID&, char f, const void* d, std::uint64_t s) //
             {
                 std::cout << "message[0]: " << f << std::endl;
-                const auto msg = nil::service::type_cast<std::string>(d, s);
+                const auto msg = nil::service::consume<std::string>(d, s);
                 std::cout << "message[1]: " << msg << std::endl;
             }
         )

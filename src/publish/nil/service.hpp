@@ -8,5 +8,6 @@
 #include "service/ws/Client.hpp"  // IWYU pragma: export
 #include "service/ws/Server.hpp"  // IWYU pragma: export
 
-#include "service/concat.hpp" // IWYU pragma: export
-#include "service/split.hpp"  // IWYU pragma: export
+#include "service/concat.hpp"  // IWYU pragma: export
+#include "service/consume.hpp" // IWYU pragma: export
+#include "service/split.hpp"   // IWYU pragma: export

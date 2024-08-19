@@ -6,12 +6,13 @@ set(
     HEADERS
         publish/nil/service.hpp
         publish/nil/service/codec.hpp
-        publish/nil/service/ID.hpp
         publish/nil/service/concat.hpp
-        publish/nil/service/split.hpp
+        publish/nil/service/consume.hpp
         publish/nil/service/detail.hpp
+        publish/nil/service/ID.hpp
         publish/nil/service/IService.hpp
         publish/nil/service/Self.hpp
+        publish/nil/service/split.hpp
         publish/nil/service/udp/Client.hpp
         publish/nil/service/udp/Server.hpp
         publish/nil/service/tcp/Client.hpp
