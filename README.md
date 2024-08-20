@@ -108,27 +108,25 @@ void send(nil::service::IService& service)
 
 This utilizes `codec`s which will be discussesd at the end.
 
-### `split<T>(Handler handler)`
+### `map<T, H...>(mapping<T, H>... handler)`
 
-This utility method that will split the payload into two and will create a handler compatible to `on_message`.
-
-- the following callable signatures will be handled:
+This utility method creates a handler that will do the following:
+- parses the first section of the buffer (like having a header)
+- calls the right mapping (callback) based on the header
+- returns a handler compatible to `on_message`
 
 ```cpp
-split<T>(handler);
-
-// the following are possible signatures for the call operator of handler
-[](const nil::service::ID&, const T&, const void*, std::uint64_t){};
-[](const nil::service::ID&, const T&, const WithCodec&){};
-[](const T&, const void*, std::uint64_t){};
-[](const T&, const WithCodec&){};
-
-// id and T can be auto
-[](const auto&, const auto&, const void*, std::uint64_t){};
-[](const auto&, const auto&, const WithCodec&){};
-[](const auto&, const void*, std::uint64_t){};
-[](const auto&, const WithCodec&){};
+T header1;
+T header2;
+map(
+    mapping(header1, handler1),
+    mapping(header2, handler2)
+);
 ```
+
+Notes:
+- all mappings inside the map should have the same header type.
+- handlers will follow the same signature support as `on_message`.
 
 ### `codec`
 

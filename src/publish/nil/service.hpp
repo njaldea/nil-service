@@ -10,4 +10,4 @@
 
 #include "service/concat.hpp"  // IWYU pragma: export
 #include "service/consume.hpp" // IWYU pragma: export
-#include "service/split.hpp"   // IWYU pragma: export
+#include "service/map.hpp"     // IWYU pragma: export

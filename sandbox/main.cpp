@@ -1,3 +1,4 @@
+#include "nil/service/consume.hpp"
 #include <nil/clix.hpp>
 #include <nil/clix/prebuilt/Help.hpp>
 #include <nil/service.hpp>
@@ -65,17 +66,26 @@ void add_end_node(nil::clix::Node& node)
             auto service = make_service<T>(options);
             {
                 service.on_message( //
-                    nil::service::split<std::uint32_t>(
-                        []( //
-                            const nil::service::ID& id,
-                            std::uint32_t tag,
-                            const std::string& message
+                    nil::service::map(
+                        nil::service::mapping(
+                            0u,
+                            [](const auto& id, const std::string& m)
+                            {
+                                std::cout << "from         : " << id.text << std::endl;
+                                std::cout << "type         : " << 0 << std::endl;
+                                std::cout << "message      : " << m << std::endl;
+                            }
+                        ),
+                        nil::service::mapping(
+                            1u,
+                            [](const auto& id, const void* data, std::uint64_t size)
+                            {
+                                const auto m = nil::service::consume<std::string>(data, size);
+                                std::cout << "from         : " << id.text << std::endl;
+                                std::cout << "type         : " << 1 << std::endl;
+                                std::cout << "message      : " << m << std::endl;
+                            }
                         )
-                        {
-                            std::cout << "from         : " << id.text << std::endl;
-                            std::cout << "type         : " << tag << std::endl;
-                            std::cout << "message      : " << message << std::endl;
-                        }
                     )
                 );
                 service.on_connect(                  //

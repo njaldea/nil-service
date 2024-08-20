@@ -12,7 +12,7 @@ set(
         publish/nil/service/ID.hpp
         publish/nil/service/IService.hpp
         publish/nil/service/Self.hpp
-        publish/nil/service/split.hpp
+        publish/nil/service/map.hpp
         publish/nil/service/udp/Client.hpp
         publish/nil/service/udp/Server.hpp
         publish/nil/service/tcp/Client.hpp
