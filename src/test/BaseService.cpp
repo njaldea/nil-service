@@ -1,10 +1,10 @@
-#include "gmock/gmock.h"
 #include <nil/service/IService.hpp>
 #include <nil/service/codec.hpp>
 #include <nil/service/concat.hpp>
 #include <nil/service/consume.hpp>
 #include <nil/service/map.hpp>
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace nil::service
@@ -336,4 +336,41 @@ TEST(BaseService, on_message_map_with_id_with_codec)
         const std::uint8_t data[] = {'b', 'b', 'c'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
+}
+
+// template <typename T>
+// struct callable_traits;
+
+// template <typename T>
+// struct callable_traits: callable_traits<decltype(&T::operator())>
+// {
+// };
+
+// template <typename C, typename R, typename... A>
+// struct callable_traits<R (C::*const)(A...)>: callable_traits<R (*)(A...)>
+// {
+// };
+
+// template <typename C, typename R, typename... A>
+// struct callable_traits<R (C::*)(A...)>: callable_traits<R (*)(A...)>
+// {
+// };
+
+// template <typename... T>
+// struct types;
+
+// template <typename R, typename... A>
+// struct callable_traits<R (*)(A...)>
+// {
+//     using out = R;
+//     using in = types<A...>;
+// };
+
+// template <typename... T>
+// void foo();
+
+TEST(BaseService, WTF)
+{
+    const auto h = [](auto id, auto, auto) { (void)id.text; };
+    nil::service::detail::create_message_handler(h);
 }

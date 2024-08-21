@@ -1,6 +1,6 @@
 #pragma once
 
-#include "detail.hpp"
+#include "detail/AutoCast.hpp"
 
 #include <cstdint>
 

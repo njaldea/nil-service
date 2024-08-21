@@ -75,10 +75,20 @@ service.on_message(handler);
 [](const WithCodec&){};
 
 // we can use `auto` for id
-[](const auto&){};
-[](const auto&, const void*, std::uint64_t){};
-[](const auto&, const WithCodec&){};
+// use `const auto&` or other variants. up to you.
+[](auto){};
+[](auto, const void*, std::uint64_t){};
+[](auto, const WithCodec&){};
+
+// use auto for overload with id and raw
+[](auto, auto, auto){};
+
+// custom types can't be deduced with auto
+[](auto id, auto data){}; // data type is unknown
+[](auto data){}; // will be deduced as id
 ```
+
+Preferrably, it is better to use distinct types to avoid confusion. but you do you.
 
 ### `consume<T>(data, size)`
 

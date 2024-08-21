@@ -8,11 +8,16 @@ set(
         publish/nil/service/codec.hpp
         publish/nil/service/concat.hpp
         publish/nil/service/consume.hpp
-        publish/nil/service/detail.hpp
         publish/nil/service/ID.hpp
         publish/nil/service/IService.hpp
         publish/nil/service/Self.hpp
         publish/nil/service/map.hpp
+        publish/nil/service/detail/AutoCast.hpp
+        publish/nil/service/detail/Callable.hpp
+        publish/nil/service/detail/create_handler.hpp
+        publish/nil/service/detail/create_message_handler.hpp
+        publish/nil/service/detail/errors.hpp
+        publish/nil/service/detail/Handlers.hpp
         publish/nil/service/udp/Client.hpp
         publish/nil/service/udp/Server.hpp
         publish/nil/service/tcp/Client.hpp

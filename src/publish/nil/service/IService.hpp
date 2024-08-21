@@ -2,7 +2,9 @@
 
 #include "ID.hpp"
 #include "codec.hpp"
-#include "detail.hpp"
+#include "detail/Handlers.hpp"
+#include "detail/create_handler.hpp"
+#include "detail/create_message_handler.hpp"
 
 #include <vector>
 
