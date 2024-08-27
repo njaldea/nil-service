@@ -1,4 +1,3 @@
-#include "nil/service/consume.hpp"
 #include <nil/clix.hpp>
 #include <nil/clix/prebuilt/Help.hpp>
 #include <nil/service.hpp>
@@ -88,14 +87,19 @@ void add_end_node(nil::clix::Node& node)
                         )
                     )
                 );
-                service.on_connect(                  //
-                    [](const nil::service::ID& id) { //
-                        std::cout << "connected    : " << id.text << std::endl;
+                service.on_ready(                                               //
+                    [](const auto& id) {                                        //
+                        std::cout << "local        : " << id.text << std::endl; //
                     }
                 );
-                service.on_disconnect(               //
-                    [](const nil::service::ID& id) { //
-                        std::cout << "disconnected : " << id.text << std::endl;
+                service.on_connect(                                             //
+                    [](const nil::service::ID& id) {                            //
+                        std::cout << "connected    : " << id.text << std::endl; //
+                    }
+                );
+                service.on_disconnect(                                          //
+                    [](const nil::service::ID& id) {                            //
+                        std::cout << "disconnected : " << id.text << std::endl; //
                     }
                 );
             }
@@ -142,15 +146,59 @@ void add_sub_nodes(nil::clix::Node& node)
     node.add("client", "client", add_end_node<Client>);
 }
 
+void add_http_node(nil::clix::Node& node)
+{
+    node.flag("help", {.skey = 'h', .msg = "this help"});
+    node.number(
+        "port",
+        {
+            .skey = 'p',
+            .msg = "port",
+            .fallback = 8080,
+            .implicit = 8080 //
+        }
+    );
+    node.runner(
+        [](const nil::clix::Options& options)
+        {
+            if (options.flag("help"))
+            {
+                return help(options);
+            }
+            nil::service::http::Server server(
+                {.port = std::uint16_t(options.number("port")), .buffer = 1024}
+            );
+            server.use(
+                "/",
+                "text/html",
+                [](std::ostream& oss)
+                {
+                    oss << "<!DOCTYPE html>"    //
+                        << "<html lang=\"en\">" //
+                        << "<head></head>"      //
+                        << "<body>hello world</body>";
+                }
+            );
+            server.on_ready(                                        //
+                [](const auto& id)                                  //
+                { std::cout << "ready: " << id.text << std::endl; } //
+            );
+            server.run();
+            return 0;
+        }
+    );
+}
+
 int main(int argc, const char** argv)
 {
     using namespace nil::service;
 
     nil::clix::Node root;
     root.runner(help);
+    root.add("self", "use self protocol", add_end_node<Self>);
     root.add("udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
     root.add("tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
     root.add("ws", "use ws protocol", add_sub_nodes<ws::Server, ws::Client>);
-    root.add("self", "use self protocol", add_end_node<Self>);
+    root.add("http", "serve http server", add_http_node);
     return root.run(argc, argv);
 }

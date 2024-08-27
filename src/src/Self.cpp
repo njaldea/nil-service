@@ -21,6 +21,10 @@ namespace nil::service
                 context,
                 [this]()
                 {
+                    if (handlers.ready)
+                    {
+                        handlers.ready->call(id);
+                    }
                     if (handlers.connect)
                     {
                         handlers.connect->call(id);

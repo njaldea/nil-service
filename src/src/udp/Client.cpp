@@ -1,7 +1,6 @@
 #include <nil/service/udp/Client.hpp>
 
 #include "../utils.hpp"
-#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
@@ -137,10 +136,18 @@ namespace nil::service::udp
             );
         }
 
-        void prepare()
+        void run()
         {
+            if (handlers.ready)
+            {
+                handlers.ready->call(
+                    {socket.local_endpoint().address().to_string() + ":"
+                     + std::to_string(socket.local_endpoint().port())}
+                );
+            }
             ping();
             receive();
+            context.run();
         }
 
         const Options& options;
@@ -162,14 +169,13 @@ namespace nil::service::udp
         : options{std::move(init_options)}
         , impl(std::make_unique<Impl>(options, handlers))
     {
-        impl->prepare();
     }
 
     Client::~Client() noexcept = default;
 
     void Client::run()
     {
-        impl->context.run();
+        impl->run();
     }
 
     void Client::stop()
@@ -181,7 +187,6 @@ namespace nil::service::udp
     {
         impl.reset();
         impl = std::make_unique<Impl>(options, handlers);
-        impl->prepare();
     }
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)

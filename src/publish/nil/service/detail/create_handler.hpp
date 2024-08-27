@@ -28,11 +28,11 @@ namespace nil::service::detail
             + std::is_invocable_v<Handler>;
         if constexpr (0 == match)
         {
-            argument_error<Handler>("incorrect argument type detected");
+            error<Handler>("incorrect argument type detected");
         }
         else if constexpr (1 < match)
         {
-            argument_error<Handler>("ambiguous argument type detected");
+            error<Handler>("ambiguous argument type detected");
         }
         else if constexpr (std::is_invocable_v<Handler, const ID&>)
         {

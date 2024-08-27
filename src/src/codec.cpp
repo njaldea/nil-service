@@ -2,33 +2,29 @@
 
 #include "utils.hpp"
 
-namespace nil::service
+namespace nil::service::detail
 {
-    template <>
-    std::vector<std::uint8_t> codec<std::string>::serialize(const std::string& message)
+    std::vector<std::uint8_t> serialize(tag<std::string> t, const std::string& message)
     {
+        (void)t;
         return {message.begin(), message.end()};
     }
 
-    template <>
-    std::string codec<std::string>::deserialize(const void* data, std::uint64_t& size)
+    std::string deserialize(tag<std::string> t, const void* data, std::uint64_t& size)
     {
-        const auto o_size = size;
-        size = 0;
-        return {static_cast<const char*>(data), o_size};
+        (void)t;
+        return {static_cast<const char*>(data), std::exchange(size, 0)};
     }
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define NIL_SERVICE_CODEC_DEFINE(TYPE)                                                             \
-    template <>                                                                                    \
-    std::vector<std::uint8_t> codec<TYPE>::serialize(const TYPE& message)                          \
+    std::vector<std::uint8_t> serialize(tag<TYPE>, TYPE message)                                   \
     {                                                                                              \
         const auto typed = utils::to_array(message);                                               \
         return std::vector<std::uint8_t>(typed.begin(), typed.end());                              \
     }                                                                                              \
                                                                                                    \
-    template <>                                                                                    \
-    TYPE codec<TYPE>::deserialize(const void* data, std::uint64_t& size)                           \
+    TYPE deserialize(tag<TYPE>, const void* data, std::uint64_t& size)                             \
     {                                                                                              \
         size -= sizeof(TYPE);                                                                      \
         return utils::from_array<TYPE>(static_cast<const std::uint8_t*>(data));                    \

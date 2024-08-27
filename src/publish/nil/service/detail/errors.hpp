@@ -3,12 +3,12 @@
 namespace nil::service::detail
 {
     /**
-     * @brief used to cause compilation error when argument types of a callable is invalid
+     * @brief used to cause compilation error with customizable error message
      *
      * @tparam T
      */
     template <typename T, typename... Rest>
-    void argument_error(Rest...) = delete;
+    void error(Rest...) = delete;
 
     /**
      * @brief used to cause compilation error in case when there is a missing branch

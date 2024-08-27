@@ -12,7 +12,7 @@ namespace nil::service
     template <>
     struct codec<char>
     {
-        static std::vector<std::uint8_t> serialize(const char& data)
+        static std::vector<std::uint8_t> serialize(char data)
         {
             return {std::uint8_t(data)};
         }
@@ -338,39 +338,14 @@ TEST(BaseService, on_message_map_with_id_with_codec)
     }
 }
 
-// template <typename T>
-// struct callable_traits;
-
-// template <typename T>
-// struct callable_traits: callable_traits<decltype(&T::operator())>
-// {
-// };
-
-// template <typename C, typename R, typename... A>
-// struct callable_traits<R (C::*const)(A...)>: callable_traits<R (*)(A...)>
-// {
-// };
-
-// template <typename C, typename R, typename... A>
-// struct callable_traits<R (C::*)(A...)>: callable_traits<R (*)(A...)>
-// {
-// };
-
-// template <typename... T>
-// struct types;
-
-// template <typename R, typename... A>
-// struct callable_traits<R (*)(A...)>
-// {
-//     using out = R;
-//     using in = types<A...>;
-// };
-
-// template <typename... T>
-// void foo();
-
 TEST(BaseService, WTF)
 {
-    const auto h = [](auto id, auto, auto) { (void)id.text; };
-    nil::service::detail::create_message_handler(h);
+    {
+        const auto h = [](auto id, auto, auto) { (void)id.text; };
+        nil::service::detail::create_message_handler(h);
+    }
+    {
+        const auto h = [](auto id, auto, std::uint64_t) { (void)id.text; };
+        nil::service::detail::create_message_handler(h);
+    }
 }

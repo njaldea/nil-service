@@ -68,24 +68,24 @@ service.on_message(handler);
 
 // the following are possible signatures for the call operator of handler
 [](){};
-[](const nil::service::ID&){};
-[](const nil::service::ID&, const void*, std::uint64_t){};
-[](const nil::service::ID&, const WithCodec&){};
-[](const void*, std::uint64_t){};
-[](const WithCodec&){};
+[](const nil::service::ID& id){};
+[](const nil::service::ID& id, const void* buffer, std::uint64_t size){};
+[](const nil::service::ID& id, const WithCodec& custom_data){};
+[](const void* buffer, std::uint64_t size){};
+[](const WithCodec& custom_data){};
 
 // we can use `auto` for id
 // use `const auto&` or other variants. up to you.
-[](auto){};
-[](auto, const void*, std::uint64_t){};
-[](auto, const WithCodec&){};
+[](auto id){};
+[](auto id, const void* buffer, std::uint64_t size){};
+[](auto id, const WithCodec&){};
 
-// use auto for overload with id and raw
-[](auto, auto, auto){};
+// use auto will automatically be deduced
+[](auto id, auto data, auto raw){};
 
 // custom types can't be deduced with auto
-[](auto id, auto data){}; // data type is unknown
-[](auto data){}; // will be deduced as id
+[](auto id, auto custom_data){}; // custom_data's type is unknown
+[](auto arg){}; // arg is going to be deduced as id
 ```
 
 Preferrably, it is better to use distinct types to avoid confusion. but you do you.

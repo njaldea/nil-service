@@ -12,7 +12,6 @@ set(
         publish/nil/service/IService.hpp
         publish/nil/service/Self.hpp
         publish/nil/service/map.hpp
-        publish/nil/service/detail/AutoCast.hpp
         publish/nil/service/detail/Callable.hpp
         publish/nil/service/detail/create_handler.hpp
         publish/nil/service/detail/create_message_handler.hpp
@@ -24,6 +23,7 @@ set(
         publish/nil/service/tcp/Server.hpp
         publish/nil/service/ws/Client.hpp
         publish/nil/service/ws/Server.hpp
+        publish/nil/service/http/Server.hpp
         src/tcp/Connection.hpp
         src/ws/Connection.hpp
         src/utils.hpp
@@ -41,6 +41,7 @@ set(
         src/ws/Client.cpp
         src/ws/Server.cpp
         src/ws/Connection.cpp
+        src/http/Server.cpp
 )
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})

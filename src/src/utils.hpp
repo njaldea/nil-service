@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nil/service/ID.hpp>
+
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 
@@ -7,14 +9,14 @@
 
 namespace nil::service::utils
 {
-    inline std::string to_string(const boost::asio::ip::tcp::endpoint& endpoint)
+    inline ID to_id(const boost::asio::ip::tcp::endpoint& endpoint)
     {
-        return endpoint.address().to_string() + ":" + std::to_string(endpoint.port());
+        return {endpoint.address().to_string() + ":" + std::to_string(endpoint.port())};
     }
 
-    inline std::string to_string(const boost::asio::ip::udp::endpoint& endpoint)
+    inline ID to_id(const boost::asio::ip::udp::endpoint& endpoint)
     {
-        return endpoint.address().to_string() + ":" + std::to_string(endpoint.port());
+        return {endpoint.address().to_string() + ":" + std::to_string(endpoint.port())};
     }
 
     // in tcp, we need to know the size of the actual message
@@ -22,7 +24,6 @@ namespace nil::service::utils
     constexpr auto TCP_HEADER_SIZE = sizeof(std::uint64_t);
 
     // in udp, there is no connection guarantee.
-    // this flag
     constexpr std::uint8_t UDP_INTERNAL_MESSAGE = 1u;
     constexpr std::uint8_t UDP_EXTERNAL_MESSAGE = 0u;
 

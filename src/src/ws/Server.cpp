@@ -1,7 +1,7 @@
 #include <nil/service/ws/Server.hpp>
 
+#include "../utils.hpp"
 #include "Connection.hpp"
-#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -83,6 +83,15 @@ namespace nil::service::ws
             }
         }
 
+        void run()
+        {
+            if (handlers.ready)
+            {
+                handlers.ready->call(utils::to_id(acceptor.local_endpoint()));
+            }
+            accept();
+        }
+
         void accept()
         {
             acceptor.async_accept(
@@ -152,14 +161,13 @@ namespace nil::service::ws
         : options{init_options}
         , impl(std::make_unique<Impl>(options, handlers))
     {
-        impl->accept();
     }
 
     Server::~Server() noexcept = default;
 
     void Server::run()
     {
-        impl->context.run();
+        impl->run();
     }
 
     void Server::stop()
@@ -171,7 +179,6 @@ namespace nil::service::ws
     {
         impl.reset();
         impl = std::make_unique<Impl>(options, handlers);
-        impl->accept();
     }
 
     void Server::send(const ID& id, std::vector<std::uint8_t> data)

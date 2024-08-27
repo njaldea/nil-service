@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../ID.hpp"
-#include "AutoCast.hpp"
+#include "../codec.hpp"
 #include "Callable.hpp"
 #include "errors.hpp"
 
@@ -11,6 +11,35 @@
 
 namespace nil::service::detail
 {
+    /**
+     * @brief a hack to bypass argument type detection of the handlers.
+     *  this is only used internally to avoid convoluted templates just to detect the type.
+     */
+    struct AutoCast final
+    {
+        AutoCast(const void* init_d, std::uint64_t* init_s)
+            : d(init_d)
+            , s(init_s)
+        {
+        }
+
+        ~AutoCast() = default;
+
+        AutoCast(const AutoCast&) = delete;
+        AutoCast(AutoCast&&) = delete;
+        AutoCast& operator=(const AutoCast&) = delete;
+        AutoCast& operator=(AutoCast&&) = delete;
+
+        template <typename T>
+        operator T() const // NOLINT
+        {
+            return codec<T>::deserialize(d, *s);
+        }
+
+        const void* d;
+        std::uint64_t* s;
+    };
+
     /**
      * @brief This is used to detect if the user provided a callable with `const auto&` argument.
      *  If const auto& is provided, the AutoCast passed by the library will not trigger implicit
@@ -44,12 +73,12 @@ namespace nil::service::detail
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
         (void)handler;
-        argument_error<Handler>("unsupported handler type");
+        error<Handler>("unsupported handler type");
         return {};
     }
 
     template <typename Handler>
-        requires(std::is_invocable_v<Handler, const ID&, const void*, std::uint64_t>)
+        requires(std::is_invocable_v<Handler, ID, const void*, std::uint64_t>)
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
         using callable_t = Callable<Handler, const ID&, const void*, std::uint64_t>;
@@ -68,7 +97,7 @@ namespace nil::service::detail
     }
 
     template <typename Handler>
-        requires(std::is_invocable_v<Handler, const ID&>)
+        requires(std::is_invocable_v<Handler, ID>)
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
         return create_message_handler(                 //
@@ -80,8 +109,8 @@ namespace nil::service::detail
 
     template <typename Handler>
         requires(
-            !std::is_invocable_v<Handler, const ID&, const Unknown&>
-            && std::is_invocable_v<Handler, const ID&, const AutoCast&> //
+            !std::is_invocable_v<Handler, ID, Unknown>
+            && std::is_invocable_v<Handler, ID, AutoCast> //
         )
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
@@ -94,7 +123,7 @@ namespace nil::service::detail
 
     template <typename Handler>
         requires(
-            !std::is_invocable_v<Handler, const ID&, std::uint64_t>
+            !std::is_invocable_v<Handler, ID, std::uint64_t>
             && std::is_invocable_v<Handler, const void*, std::uint64_t> //
         )
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
@@ -108,9 +137,9 @@ namespace nil::service::detail
 
     template <typename Handler>
         requires(
-            !std::is_invocable_v<Handler, const ID&>
-            && !std::is_invocable_v<Handler, const Unknown&>
-            && std::is_invocable_v<Handler, const AutoCast&> //
+            !std::is_invocable_v<Handler, ID>         //
+            && !std::is_invocable_v<Handler, Unknown> //
+            && std::is_invocable_v<Handler, AutoCast> //
         )
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {

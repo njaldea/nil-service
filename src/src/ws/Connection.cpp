@@ -9,7 +9,7 @@ namespace nil::service::ws
         boost::beast::websocket::stream<boost::beast::tcp_stream> init_ws,
         IImpl& init_impl
     )
-        : identifier(utils::to_string(                //
+        : identifier(utils::to_id(                    //
               boost::beast::get_lowest_layer(init_ws) //
                   .socket()
                   .remote_endpoint()

@@ -1,7 +1,7 @@
 #include <nil/service/ws/Client.hpp>
 
+#include "../utils.hpp"
 #include "Connection.hpp"
-#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -83,6 +83,12 @@ namespace nil::service::ws
             }
         }
 
+        void run()
+        {
+            connect();
+            context.run();
+        }
+
         void connect()
         {
             auto socket = std::make_unique<boost::asio::ip::tcp::socket>(strand);
@@ -97,6 +103,10 @@ namespace nil::service::ws
                         return;
                     }
                     namespace websocket = boost::beast::websocket;
+                    if (handlers.ready)
+                    {
+                        handlers.ready->call(utils::to_id(socket->local_endpoint()));
+                    }
                     auto ws = std::make_unique<websocket::stream<boost::beast::tcp_stream>>(
                         std::move(*socket)
                     );
@@ -166,14 +176,13 @@ namespace nil::service::ws
         : options{std::move(init_options)}
         , impl(std::make_unique<Impl>(options, handlers))
     {
-        impl->connect();
     }
 
     Client::~Client() noexcept = default;
 
     void Client::run()
     {
-        impl->context.run();
+        impl->run();
     }
 
     void Client::stop()
@@ -185,7 +194,6 @@ namespace nil::service::ws
     {
         impl.reset();
         impl = std::make_unique<Impl>(options, handlers);
-        impl->connect();
     }
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)

@@ -28,14 +28,6 @@ namespace nil::service::udp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        ID id() const
-        {
-            return {
-                socket.remote_endpoint().address().to_string() + ":"
-                + std::to_string(socket.remote_endpoint().port())
-            };
-        }
-
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
             boost::asio::dispatch(
@@ -127,17 +119,30 @@ namespace nil::service::udp
             {
                 if (utils::from_array<std::uint8_t>(data) > 0u)
                 {
-                    ping(endpoint, {utils::to_string(endpoint)});
+                    ping(endpoint, {utils::to_id(endpoint)});
                 }
                 else
                 {
                     usermsg(
-                        {utils::to_string(endpoint)},
+                        {utils::to_id(endpoint)},
                         data + sizeof(std::uint8_t),
                         size - sizeof(std::uint8_t)
                     );
                 }
             }
+        }
+
+        void run()
+        {
+            if (handlers.ready)
+            {
+                handlers.ready->call(
+                    {socket.local_endpoint().address().to_string() + ":"
+                     + std::to_string(socket.local_endpoint().port())}
+                );
+            }
+            receive();
+            context.run();
         }
 
         void receive()
@@ -200,14 +205,13 @@ namespace nil::service::udp
         : options{init_options}
         , impl(std::make_unique<Impl>(options, handlers))
     {
-        impl->receive();
     }
 
     Server::~Server() noexcept = default;
 
     void Server::run()
     {
-        impl->context.run();
+        impl->run();
     }
 
     void Server::stop()
@@ -219,7 +223,6 @@ namespace nil::service::udp
     {
         impl.reset();
         impl = std::make_unique<Impl>(options, handlers);
-        impl->receive();
     }
 
     void Server::send(const ID& id, std::vector<std::uint8_t> data)

@@ -13,9 +13,13 @@ namespace nil::service
     class IService
     {
     public:
+        IService() = default;
+
+        /**
+         * @note make sure the service is not running before destroying it.
+         */
         virtual ~IService() noexcept = default;
 
-        IService() = default;
         IService(IService&&) noexcept = delete;
         IService(const IService&) = delete;
         IService& operator=(IService&&) noexcept = delete;
@@ -105,6 +109,18 @@ namespace nil::service
         void on_message(Handler handler)
         {
             handlers.msg = detail::create_message_handler(std::move(handler));
+        }
+
+        /**
+         * @brief Add ready handler for service events.
+         *  Not threadsafe in case the service is already running.
+         *
+         * @param handler
+         */
+        template <typename Handler>
+        void on_ready(Handler handler)
+        {
+            handlers.ready = detail::create_handler(std::move(handler));
         }
 
         /**

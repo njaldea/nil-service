@@ -9,7 +9,7 @@ namespace nil::service::tcp
         boost::asio::ip::tcp::socket init_socket,
         IImpl& init_impl
     )
-        : identifier(utils::to_string(init_socket.remote_endpoint()))
+        : identifier(utils::to_id(init_socket.remote_endpoint()))
         , socket(std::move(init_socket))
         , impl(init_impl)
     {

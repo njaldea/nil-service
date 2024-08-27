@@ -1,7 +1,7 @@
 #include <nil/service/tcp/Client.hpp>
 
+#include "../utils.hpp"
 #include "Connection.hpp"
-#include "nil/service/IService.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -93,6 +93,10 @@ namespace nil::service::tcp
                 {
                     if (!ec)
                     {
+                        if (handlers.ready)
+                        {
+                            handlers.ready->call(utils::to_id(socket->local_endpoint()));
+                        }
                         connection = std::make_unique<Connection>(
                             options.buffer,
                             std::move(*socket),
