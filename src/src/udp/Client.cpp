@@ -11,6 +11,7 @@ namespace nil::service::udp
 {
     struct Client::Impl final
     {
+    public:
         explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
             : options(init_options)
             , handlers(init_handlers)
@@ -31,6 +32,33 @@ namespace nil::service::udp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
+        void run()
+        {
+            if (handlers.ready)
+            {
+                handlers.ready->call(
+                    {socket.local_endpoint().address().to_string() + ":"
+                     + std::to_string(socket.local_endpoint().port())}
+                );
+            }
+            ping();
+            receive();
+            context.run();
+        }
+
+        void stop()
+        {
+            context.stop();
+        }
+
+        void send(const ID& id, std::vector<std::uint8_t> data)
+        {
+            if (targetID == id)
+            {
+                publish(std::move(data));
+            }
+        }
+
         void publish(std::vector<std::uint8_t> data)
         {
             boost::asio::dispatch(
@@ -48,6 +76,7 @@ namespace nil::service::udp
             );
         }
 
+    private:
         void usermsg(const std::uint8_t* data, std::uint64_t size)
         {
             if (handlers.msg)
@@ -136,20 +165,6 @@ namespace nil::service::udp
             );
         }
 
-        void run()
-        {
-            if (handlers.ready)
-            {
-                handlers.ready->call(
-                    {socket.local_endpoint().address().to_string() + ":"
-                     + std::to_string(socket.local_endpoint().port())}
-                );
-            }
-            ping();
-            receive();
-            context.run();
-        }
-
         const Options& options;
         const detail::Handlers& handlers;
 
@@ -180,7 +195,7 @@ namespace nil::service::udp
 
     void Client::stop()
     {
-        impl->context.stop();
+        impl->stop();
     }
 
     void Client::restart()
@@ -191,10 +206,7 @@ namespace nil::service::udp
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        if (impl->targetID == id)
-        {
-            impl->publish(std::move(data));
-        }
+        impl->send(id, std::move(data));
     }
 
     void Client::publish(std::vector<std::uint8_t> data)

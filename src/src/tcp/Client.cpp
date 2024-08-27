@@ -12,6 +12,7 @@ namespace nil::service::tcp
 {
     struct Client::Impl final: IImpl
     {
+    public:
         explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
             : options(init_options)
             , handlers(init_handlers)
@@ -27,6 +28,17 @@ namespace nil::service::tcp
 
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
+
+        void run()
+        {
+            connect();
+            context.run();
+        }
+
+        void stop()
+        {
+            context.stop();
+        }
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
@@ -56,6 +68,7 @@ namespace nil::service::tcp
             );
         }
 
+    private:
         void disconnect(Connection* target_connection) override
         {
             boost::asio::dispatch(
@@ -140,26 +153,24 @@ namespace nil::service::tcp
         : options{std::move(init_options)}
         , impl(std::make_unique<Impl>(options, handlers))
     {
-        impl->connect();
     }
 
     Client::~Client() noexcept = default;
 
     void Client::run()
     {
-        impl->context.run();
+        impl->run();
     }
 
     void Client::stop()
     {
-        impl->context.stop();
+        impl->stop();
     }
 
     void Client::restart()
     {
         impl.reset();
         impl = std::make_unique<Impl>(options, handlers);
-        impl->connect();
     }
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)

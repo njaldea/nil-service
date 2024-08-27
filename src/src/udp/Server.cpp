@@ -11,6 +11,7 @@ namespace nil::service::udp
 {
     struct Server::Impl final
     {
+    public:
         explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
             : options(init_options)
             , handlers(init_handlers)
@@ -27,6 +28,24 @@ namespace nil::service::udp
 
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
+
+        void run()
+        {
+            if (handlers.ready)
+            {
+                handlers.ready->call(
+                    {socket.local_endpoint().address().to_string() + ":"
+                     + std::to_string(socket.local_endpoint().port())}
+                );
+            }
+            receive();
+            context.run();
+        }
+
+        void stop()
+        {
+            context.stop();
+        }
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
@@ -68,6 +87,7 @@ namespace nil::service::udp
             );
         }
 
+    private:
         void ping(const boost::asio::ip::udp::endpoint& endpoint, const ID& id)
         {
             auto& connection = connections[id];
@@ -130,19 +150,6 @@ namespace nil::service::udp
                     );
                 }
             }
-        }
-
-        void run()
-        {
-            if (handlers.ready)
-            {
-                handlers.ready->call(
-                    {socket.local_endpoint().address().to_string() + ":"
-                     + std::to_string(socket.local_endpoint().port())}
-                );
-            }
-            receive();
-            context.run();
         }
 
         void receive()
@@ -216,7 +223,7 @@ namespace nil::service::udp
 
     void Server::stop()
     {
-        impl->context.stop();
+        impl->stop();
     }
 
     void Server::restart()

@@ -12,6 +12,7 @@ namespace nil::service::ws
 {
     struct Client::Impl final: IImpl
     {
+    public:
         explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
             : options(init_options)
             , handlers(init_handlers)
@@ -27,6 +28,17 @@ namespace nil::service::ws
 
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
+
+        void run()
+        {
+            connect();
+            context.run();
+        }
+
+        void stop()
+        {
+            context.stop();
+        }
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
@@ -56,6 +68,7 @@ namespace nil::service::ws
             );
         }
 
+    private:
         void disconnect(Connection* target_connection) override
         {
             boost::asio::dispatch(
@@ -81,12 +94,6 @@ namespace nil::service::ws
             {
                 handlers.msg->call(id, data, size);
             }
-        }
-
-        void run()
-        {
-            connect();
-            context.run();
         }
 
         void connect()
@@ -187,7 +194,7 @@ namespace nil::service::ws
 
     void Client::stop()
     {
-        impl->context.stop();
+        impl->stop();
     }
 
     void Client::restart()
