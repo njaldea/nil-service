@@ -1,26 +1,58 @@
-#include <nil/service/http/Server.hpp>
-
-#include "WebSocketImpl.hpp"
+#include "WebSocket.hpp"
 
 namespace nil::service::http
 {
-    WebSocket::WebSocket(std::unique_ptr<Impl> init_impl)
-        : impl(std::move(init_impl))
+    void WebSocket::ready(const ID& id) const
     {
-        impl->parent = this;
+        if (handlers.ready)
+        {
+            handlers.ready->call(id);
+        }
     }
 
-    WebSocket::~WebSocket() noexcept = default;
+    void WebSocket::connect(ws::Connection* connection)
+    {
+        if (handlers.connect)
+        {
+            handlers.connect->call(connection->id());
+        }
+    }
+
+    void WebSocket::message(const ID& id, const void* data, std::uint64_t size)
+    {
+        if (handlers.msg)
+        {
+            handlers.msg->call(id, data, size);
+        }
+    }
+
+    void WebSocket::disconnect(ws::Connection* connection)
+    {
+        boost::asio::post(
+            *context,
+            [this, id = connection->id()]()
+            {
+                if (connections.contains(id))
+                {
+                    connections.erase(id);
+                }
+                if (handlers.disconnect)
+                {
+                    handlers.disconnect->call(id);
+                }
+            }
+        );
+    }
 
     void WebSocket::publish(std::vector<std::uint8_t> data)
     {
-        if (impl->context != nullptr)
+        if (context != nullptr)
         {
             boost::asio::post(
-                *impl->context,
+                *context,
                 [this, msg = std::move(data)]()
                 {
-                    for (const auto& item : impl->connections)
+                    for (const auto& item : connections)
                     {
                         item.second->write(msg.data(), msg.size());
                     }
@@ -31,14 +63,14 @@ namespace nil::service::http
 
     void WebSocket::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        if (impl->context != nullptr)
+        if (context != nullptr)
         {
             boost::asio::post(
-                *impl->context,
+                *context,
                 [this, id, msg = std::move(data)]()
                 {
-                    const auto it = impl->connections.find(id);
-                    if (it != impl->connections.end())
+                    auto it = connections.find(id);
+                    if (it != connections.end())
                     {
                         it->second->write(msg.data(), msg.size());
                     }

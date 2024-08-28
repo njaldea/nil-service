@@ -14,11 +14,11 @@ All classes are in `nil::service` namespace.
 
 - Options
 
-| name    | protocol    | description                              | default   |
-| ------- | ----------- | ---------------------------------------- | --------- |
-| port    | tcp/udp/ws  | network port to use                      |           |
-| buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
-| timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
+| name    | protocol         | description                              | default   |
+| ------- | ---------------- | ---------------------------------------- | --------- |
+| port    | tcp/udp/ws/http  | network port to use                      |           |
+| buffer  | tcp/udp/ws/http  | buffer size to use                       | 1024      |
+| timeout | udp              | timeuout to consier a connection is lost | 2 seconds |
 
 ### `<protocol>:::Client`
 

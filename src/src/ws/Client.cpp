@@ -117,19 +117,19 @@ namespace nil::service::ws
                         reconnect();
                         return;
                     }
-                    namespace websocket = boost::beast::websocket;
+                    auto id = utils::to_id(socket->remote_endpoint());
                     if (handlers.ready)
                     {
                         handlers.ready->call(utils::to_id(socket->local_endpoint()));
                     }
-                    auto ws = std::make_unique<websocket::stream<boost::beast::tcp_stream>>(
-                        std::move(*socket)
-                    );
-                    ws->set_option(
-                        websocket::stream_base::timeout::suggested(boost::beast::role_type::client)
-                    );
-                    ws->set_option(websocket::stream_base::decorator(
-                        [](websocket::request_type& req)
+                    auto ws = std::make_unique<
+                        boost::beast::websocket::stream<boost::beast::tcp_stream>>(std::move(*socket
+                    ));
+                    ws->set_option(boost::beast::websocket::stream_base::timeout::suggested(
+                        boost::beast::role_type::client
+                    ));
+                    ws->set_option(boost::beast::websocket::stream_base::decorator(
+                        [](boost::beast::websocket::request_type& req)
                         {
                             req.set(
                                 boost::beast::http::field::user_agent,
@@ -141,18 +141,13 @@ namespace nil::service::ws
                     ws_ptr->async_handshake(
                         options.host + ':' + std::to_string(options.port),
                         "/",
-                        [this, ws = std::move(ws)](boost::beast::error_code ec)
+                        [this, id = std::move(id), ws = std::move(ws)](boost::beast::error_code ec)
                         {
                             if (ec)
                             {
                                 reconnect();
                                 return;
                             }
-                            auto id = utils::to_id(                 //
-                                boost::beast::get_lowest_layer(*ws) //
-                                    .socket()
-                                    .remote_endpoint()
-                            );
                             connection = std::make_unique<Connection>(
                                 id,
                                 options.buffer,

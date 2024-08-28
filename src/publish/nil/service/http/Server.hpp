@@ -8,37 +8,10 @@
 
 namespace nil::service::http
 {
-    class WebSocket final: public IService
-    {
-        friend class Server;
-
-    public:
-        struct Impl;
-        std::unique_ptr<Impl> impl;
-
-        explicit WebSocket(std::unique_ptr<Impl> init_impl);
-        ~WebSocket() noexcept override;
-        WebSocket(WebSocket&&) = delete;
-        WebSocket(const WebSocket&) = delete;
-        WebSocket& operator=(WebSocket&&) = delete;
-        WebSocket& operator=(const WebSocket&) = delete;
-
-        void publish(std::vector<std::uint8_t> data) override;
-        void send(const ID& id, std::vector<std::uint8_t> data) override;
-
-        using IMessagingService::publish;
-        using IMessagingService::send;
-
-        using IObservableService::on_connect;
-        using IObservableService::on_disconnect;
-        using IObservableService::on_message;
-        using IObservableService::on_ready;
-    };
-
     class Server final: public IRunnableService
     {
     public:
-        struct Options final
+        struct Options final // NOLINT
         {
             std::uint16_t port;
             std::uint64_t buffer = 8192;
@@ -70,7 +43,7 @@ namespace nil::service::http
             );
         }
 
-        WebSocket& use_ws(std::string route);
+        IService& use_ws(std::string route);
 
         template <typename Handler>
         void on_ready(Handler handler)

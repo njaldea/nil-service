@@ -1,9 +1,7 @@
-#include <boost/asio/strand.hpp>
-#include <boost/beast/websocket/rfc6455.hpp>
 #include <nil/service/http/Server.hpp>
 
 #include "../utils.hpp"
-#include "WebSocketImpl.hpp"
+#include "WebSocket.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -25,10 +23,10 @@ namespace nil::service::http
         std::unique_ptr<detail::ICallable<std::ostream&>> body;
     };
 
-    class Connection final: public std::enable_shared_from_this<Connection>
+    class Transaction final: public std::enable_shared_from_this<Transaction>
     {
     public:
-        explicit Connection(
+        explicit Transaction(
             std::unordered_map<std::string, WebSocket>& init_wss,
             const std::unordered_map<std::string, Route>& init_routes,
             std::uint64_t buffer_size,
@@ -121,24 +119,22 @@ namespace nil::service::http
                                 auto* ws_ptr = ws.get();
                                 ws_ptr->async_accept(
                                     request,
-                                    [it,
-                                     id = std::move(id),
-                                     ws = std::move(ws)](boost::beast::error_code ec)
+                                    [this, it, id = std::move(id), ws = std::move(ws)](
+                                        boost::beast::error_code ec
+                                    )
                                     {
-                                        if (ec)
+                                        if (!ec)
                                         {
-                                            return;
+                                            it->second.connections.emplace(
+                                                id,
+                                                std::make_unique<ws::Connection>(
+                                                    id,
+                                                    buffer.capacity(),
+                                                    std::move(*ws),
+                                                    it->second
+                                                )
+                                            );
                                         }
-                                        auto connection = std::make_unique<ws::Connection>(
-                                            id,
-                                            8192,
-                                            std::move(*ws),
-                                            *it->second.impl
-                                        );
-                                        it->second.impl->connections.emplace(
-                                            id,
-                                            std::move(connection)
-                                        );
                                     }
                                 );
                             }
@@ -233,7 +229,7 @@ namespace nil::service::http
                 {
                     if (!ec)
                     {
-                        std::make_shared<Connection>(wss, routes, buffer_size, std::move(socket))
+                        std::make_shared<Transaction>(wss, routes, buffer_size, std::move(socket))
                             ->start();
                     }
                     accept();
@@ -273,8 +269,8 @@ namespace nil::service::http
             impl = std::make_unique<Impl>(*this);
             for (auto& [route, ws] : state->wss)
             {
-                ws.impl->context = &impl->context;
-                ws.impl->ready({id + route});
+                ws.context = &impl->context;
+                ws.ready({id + route});
             }
         }
         impl->run();
@@ -292,7 +288,7 @@ namespace nil::service::http
     {
         for (auto& ws : state->wss)
         {
-            ws.second.impl->context = nullptr;
+            ws.second.context = nullptr;
         }
         impl.reset();
     }
@@ -306,9 +302,8 @@ namespace nil::service::http
         state->routes.emplace(std::move(route), Route{std::move(content_type), std::move(body)});
     }
 
-    WebSocket& Server::use_ws(std::string route)
+    IService& Server::use_ws(std::string route)
     {
-        return state->wss.emplace(std::move(route), std::make_unique<WebSocket::Impl>())
-            .first->second;
+        return state->wss[std::move(route)];
     }
 }
