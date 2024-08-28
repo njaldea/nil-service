@@ -8,7 +8,7 @@
 
 namespace nil::service::http
 {
-    class WebSocket final: private IService
+    class WebSocket final: public IService
     {
         friend class Server;
 
@@ -26,20 +26,16 @@ namespace nil::service::http
         void publish(std::vector<std::uint8_t> data) override;
         void send(const ID& id, std::vector<std::uint8_t> data) override;
 
-        using IService::on_connect;
-        using IService::on_disconnect;
-        using IService::on_message;
-        using IService::on_ready;
-        using IService::publish;
-        using IService::send;
+        using IMessagingService::publish;
+        using IMessagingService::send;
 
-    private:
-        void run() override;
-        void stop() override;
-        void restart() override;
+        using IObservableService::on_connect;
+        using IObservableService::on_disconnect;
+        using IObservableService::on_message;
+        using IObservableService::on_ready;
     };
 
-    class Server final
+    class Server final: public IRunnableService
     {
     public:
         struct Options final
@@ -53,16 +49,16 @@ namespace nil::service::http
         /**
          * @note make sure the service is not running before destroying it.
          */
-        ~Server() noexcept;
+        ~Server() noexcept override;
 
         Server(Server&&) noexcept = delete;
         Server& operator=(Server&&) noexcept = delete;
         Server(const Server&) = delete;
         Server& operator=(const Server&) = delete;
 
-        void run();
-        void stop();
-        void restart();
+        void run() override;
+        void stop() override;
+        void restart() override;
 
         template <typename T>
         void use(const std::string& route, const std::string& content_type, T body)

@@ -7,7 +7,7 @@
 
 namespace nil::service::udp
 {
-    class Server final: public IService
+    class Server final: public IStandaloneService
     {
     public:
         struct Options final
@@ -40,12 +40,13 @@ namespace nil::service::udp
         void publish(std::vector<std::uint8_t> data) override;
         void send(const ID& id, std::vector<std::uint8_t> data) override;
 
-        using IService::on_connect;
-        using IService::on_disconnect;
-        using IService::on_message;
-        using IService::on_ready;
-        using IService::publish;
-        using IService::send;
+        using IMessagingService::publish;
+        using IMessagingService::send;
+
+        using IObservableService::on_connect;
+        using IObservableService::on_disconnect;
+        using IObservableService::on_message;
+        using IObservableService::on_ready;
 
     private:
         Options options;

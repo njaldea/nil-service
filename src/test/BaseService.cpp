@@ -25,7 +25,7 @@ namespace nil::service
     };
 }
 
-class TestService: public nil::service::IService
+class TestService: public nil::service::IStandaloneService
 {
 public:
     explicit TestService(std::string peer_id)
@@ -74,8 +74,13 @@ public:
         (void)message;
     }
 
-    using nil::service::IService::publish;
-    using nil::service::IService::send;
+    using IMessagingService::publish;
+    using IMessagingService::send;
+
+    using IObservableService::on_connect;
+    using IObservableService::on_disconnect;
+    using IObservableService::on_message;
+    using IObservableService::on_ready;
 
 private:
     std::string id;

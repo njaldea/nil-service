@@ -12,18 +12,6 @@ namespace nil::service::http
 
     WebSocket::~WebSocket() noexcept = default;
 
-    void WebSocket::run()
-    {
-    }
-
-    void WebSocket::stop()
-    {
-    }
-
-    void WebSocket::restart()
-    {
-    }
-
     void WebSocket::publish(std::vector<std::uint8_t> data)
     {
         if (impl->context != nullptr)

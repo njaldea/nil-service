@@ -10,20 +10,19 @@
 
 namespace nil::service
 {
-    class IService
+    struct IRunnableService
     {
-    public:
-        IService() = default;
+        IRunnableService() = default;
 
         /**
          * @note make sure the service is not running before destroying it.
          */
-        virtual ~IService() noexcept = default;
+        virtual ~IRunnableService() noexcept = default;
 
-        IService(IService&&) noexcept = delete;
-        IService(const IService&) = delete;
-        IService& operator=(IService&&) noexcept = delete;
-        IService& operator=(const IService&) = delete;
+        IRunnableService(IRunnableService&&) noexcept = delete;
+        IRunnableService(const IRunnableService&) = delete;
+        IRunnableService& operator=(IRunnableService&&) noexcept = delete;
+        IRunnableService& operator=(const IRunnableService&) = delete;
 
         /**
          * @brief run the service. blocking.
@@ -41,6 +40,18 @@ namespace nil::service
          *  Call before calling other methods.
          */
         virtual void restart() = 0;
+    };
+
+    struct IMessagingService
+    {
+        IMessagingService() = default;
+
+        virtual ~IMessagingService() noexcept = default;
+
+        IMessagingService(IMessagingService&&) noexcept = delete;
+        IMessagingService(const IMessagingService&) = delete;
+        IMessagingService& operator=(IMessagingService&&) noexcept = delete;
+        IMessagingService& operator=(const IMessagingService&) = delete;
 
         /**
          * @brief Broadcast a message to all listeners
@@ -98,6 +109,18 @@ namespace nil::service
             const auto* ptr = static_cast<const std::uint8_t*>(data);
             send(id, std::vector<std::uint8_t>(ptr, ptr + size));
         }
+    };
+
+    struct IObservableService
+    {
+        IObservableService() = default;
+
+        virtual ~IObservableService() noexcept = default;
+
+        IObservableService(IObservableService&&) noexcept = delete;
+        IObservableService(const IObservableService&) = delete;
+        IObservableService& operator=(IObservableService&&) noexcept = delete;
+        IObservableService& operator=(const IObservableService&) = delete;
 
         /**
          * @brief Add a message handler.
@@ -150,5 +173,17 @@ namespace nil::service
     protected:
         // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
         detail::Handlers handlers;
+    };
+
+    struct IService
+        : public IMessagingService
+        , public IObservableService
+    {
+    };
+
+    struct IStandaloneService
+        : public IService
+        , public IRunnableService
+    {
     };
 }

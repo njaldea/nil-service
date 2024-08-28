@@ -6,9 +6,11 @@ Simplification is done by abstracting the actual implementation of server/client
 
 ## Classes
 
-The classes provided by this library conforms in similar API. available protocols are `tcp` | `udp` | `ws`.
+The classes provided by this library conforms in similar API. available protocols are `tcp` | `udp` | `ws` | `http`.
 
-### `nil::service::<protocol>:::Server`
+All classes are in `nil::service` namespace.
+
+### `<protocol>:::Server`
 
 - Options
 
@@ -18,7 +20,7 @@ The classes provided by this library conforms in similar API. available protocol
 | buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
 | timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
 
-### `nil::service::<protocol>:::Client`
+### `<protocol>:::Client`
 
 - Options
 
@@ -29,7 +31,7 @@ The classes provided by this library conforms in similar API. available protocol
 | buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
 | timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
 
-### `nil::service::Self`
+### `Self`
 
 - No Options
 
@@ -38,7 +40,31 @@ All messages sent will be sent to itself and forwarded to a message handler.
 
 Messages are still serialized/deserialized.
 
+## Interfaces
+
+### `IMessagingService`
+
+TODO
+
+### `IObservableService`
+
+TODO
+
+### `IRunnableService`
+
+TODO
+
+### `IService`
+
+TODO
+
+### `IStandaloneService`
+
+TODO
+
 ## methods
+
+TODO: revise
 
 ```cpp
 service.run();      // runs the service - blocking

@@ -4,7 +4,7 @@
 
 namespace nil::service
 {
-    class Self final: public IService
+    class Self final: public IStandaloneService
     {
     public:
         Self();
@@ -23,8 +23,13 @@ namespace nil::service
         void publish(std::vector<std::uint8_t> data) override;
         void send(const ID& id, std::vector<std::uint8_t> data) override;
 
-        using IService::publish;
-        using IService::send;
+        using IMessagingService::publish;
+        using IMessagingService::send;
+
+        using IObservableService::on_connect;
+        using IObservableService::on_disconnect;
+        using IObservableService::on_message;
+        using IObservableService::on_ready;
 
     private:
         struct Impl;
