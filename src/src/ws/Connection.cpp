@@ -1,30 +1,20 @@
 #include "Connection.hpp"
 
-#include "../utils.hpp"
-
 namespace nil::service::ws
 {
     Connection::Connection(
-        std::uint64_t buffer,
+        ID ini_id,
+        std::uint64_t init_buffer,
         boost::beast::websocket::stream<boost::beast::tcp_stream> init_ws,
-        IImpl& init_impl
+        ConnectedImpl<Connection>& init_impl
     )
-        : identifier(utils::to_id(                    //
-              boost::beast::get_lowest_layer(init_ws) //
-                  .socket()
-                  .remote_endpoint()
-          ))
+        : identifier(std::move(ini_id))
         , ws(std::move(init_ws))
+        , flat_buffer(init_buffer)
         , impl(init_impl)
-        , flat_buffer(
-              [](std::vector<std::uint8_t>& r, std::size_t size)
-              {
-                  r.resize(size);
-                  return boost::beast::flat_static_buffer_base(r.data(), r.size());
-              }(r_buffer, buffer)
-          )
     {
         ws.binary(true);
+        impl.connect(this);
         read();
     }
 
@@ -42,7 +32,7 @@ namespace nil::service::ws
                     return;
                 }
 
-                impl.message(id(), r_buffer.data(), count);
+                impl.message(id(), flat_buffer.cdata().data(), count);
                 flat_buffer.consume(count);
                 read();
             }

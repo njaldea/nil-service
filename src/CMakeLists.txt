@@ -38,10 +38,14 @@ set(
         src/tcp/Client.cpp
         src/tcp/Server.cpp
         src/tcp/Connection.cpp
+        src/tcp/Connection.hpp
         src/ws/Client.cpp
         src/ws/Server.cpp
         src/ws/Connection.cpp
+        src/ws/Connection.hpp
         src/http/Server.cpp
+        src/http/WebSocket.cpp
+        src/http/WebSocketImpl.hpp
 )
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})

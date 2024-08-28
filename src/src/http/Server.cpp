@@ -1,4 +1,9 @@
+#include <boost/asio/strand.hpp>
+#include <boost/beast/websocket/rfc6455.hpp>
 #include <nil/service/http/Server.hpp>
+
+#include "../utils.hpp"
+#include "WebSocketImpl.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -9,6 +14,8 @@
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
+
+#include <iostream>
 
 namespace nil::service::http
 {
@@ -22,11 +29,13 @@ namespace nil::service::http
     {
     public:
         explicit Connection(
+            std::unordered_map<std::string, WebSocket>& init_wss,
             const std::unordered_map<std::string, Route>& init_routes,
             std::uint64_t buffer_size,
             boost::asio::ip::tcp::socket init_socket
         )
-            : routes(init_routes)
+            : wss(init_wss)
+            , routes(init_routes)
             , socket(std::move(init_socket))
             , buffer(buffer_size)
             , deadline(socket.get_executor(), std::chrono::seconds(60))
@@ -61,6 +70,7 @@ namespace nil::service::http
         }
 
     private:
+        std::unordered_map<std::string, WebSocket>& wss;      // NOLINT
         const std::unordered_map<std::string, Route>& routes; // NOLINT
         boost::asio::ip::tcp::socket socket;
 
@@ -78,36 +88,92 @@ namespace nil::service::http
             switch (request.method())
             {
                 case boost::beast::http::verb::get:
+                {
                     response.result(boost::beast::http::status::ok);
                     response.set(boost::beast::http::field::server, "Beast");
-                    create_response();
+
+                    {
+                        auto it = wss.find(request.target());
+                        if (it != wss.end())
+                        {
+                            if (boost::beast::websocket::is_upgrade(request))
+                            {
+                                auto id = utils::to_id(socket.remote_endpoint());
+                                auto ws = std::make_unique<
+                                    boost::beast::websocket::stream<boost::beast::tcp_stream>>(
+                                    std::move(socket)
+                                );
+                                ws->set_option(
+                                    boost::beast::websocket::stream_base::timeout::suggested(
+                                        boost::beast::role_type::server
+                                    )
+                                );
+                                ws->set_option(boost::beast::websocket::stream_base::decorator(
+                                    [](boost::beast::websocket::response_type& res)
+                                    {
+                                        res.set(
+                                            boost::beast::http::field::server,
+                                            std::string(BOOST_BEAST_VERSION_STRING)
+                                                + " websocket-server-async"
+                                        );
+                                    }
+                                ));
+                                auto* ws_ptr = ws.get();
+                                ws_ptr->async_accept(
+                                    request,
+                                    [it, id, ws = std::move(ws)](boost::beast::error_code ec)
+                                    {
+                                        if (ec)
+                                        {
+                                            return;
+                                        }
+                                        auto connection = std::make_unique<ws::Connection>(
+                                            id,
+                                            8192,
+                                            std::move(*ws),
+                                            *it->second.impl
+                                        );
+                                        it->second.impl->connections.emplace(
+                                            id,
+                                            std::move(connection)
+                                        );
+                                    }
+                                );
+                            }
+                            return;
+                        }
+                    }
+                    {
+                        const auto it = routes.find(request.target());
+                        if (it != routes.end())
+                        {
+                            const auto& route = it->second;
+                            response.set(
+                                boost::beast::http::field::content_type,
+                                it->second.content_type
+                            );
+                            auto os = boost::beast::ostream(response.body());
+                            route.body->call(os);
+                        }
+                        else
+                        {
+                            response.result(boost::beast::http::status::unknown);
+                            response.set(boost::beast::http::field::content_type, "text/plain");
+                            boost::beast::ostream(response.body()) << "invalid\r\n";
+                        }
+                    }
                     break;
+                }
 
                 default:
+                {
                     response.result(boost::beast::http::status::bad_request);
                     response.set(boost::beast::http::field::content_type, "text/plain");
                     break;
+                }
             }
 
             write_response();
-        }
-
-        void create_response()
-        {
-            const auto it = routes.find(request.target());
-            if (it != routes.end())
-            {
-                const auto& route = it->second;
-                response.set(boost::beast::http::field::content_type, it->second.content_type);
-                auto os = boost::beast::ostream(response.body());
-                route.body->call(os);
-            }
-            else
-            {
-                response.result(boost::beast::http::status::unknown);
-                response.set(boost::beast::http::field::content_type, "text/plain");
-                boost::beast::ostream(response.body()) << "invalid\r\n";
-            }
         }
 
         void write_response()
@@ -126,17 +192,19 @@ namespace nil::service::http
         }
     };
 
-    struct Server::Routes: std::unordered_map<std::string, Route>
+    struct Server::State: std::unordered_map<std::string, Route>
     {
+        std::unordered_map<std::string, WebSocket> wss;
+        std::unordered_map<std::string, Route> routes;
     };
 
     struct Server::Impl
     {
     public:
         explicit Impl(Server& parent)
-            : routes(*parent.routes)
+            : wss(parent.state->wss)
+            , routes(parent.state->routes)
             , buffer_size(parent.options.buffer)
-            , context(1)
             , acceptor(
                   context,
                   {boost::beast::net::ip::make_address("0.0.0.0"), parent.options.port}
@@ -163,11 +231,7 @@ namespace nil::service::http
                 {
                     if (!ec)
                     {
-                        // TODO: not thread safe when user tries to stop the service.
-                        //  routes might die before the main thread finishes.
-                        //  users are expected to wait for the parent thread to join
-                        //  before destroying the service.
-                        std::make_shared<Connection>(routes, buffer_size, std::move(socket))
+                        std::make_shared<Connection>(wss, routes, buffer_size, std::move(socket))
                             ->start();
                     }
                     accept();
@@ -175,17 +239,21 @@ namespace nil::service::http
             );
         }
 
+        std::unordered_map<std::string, WebSocket>& wss;
         const std::unordered_map<std::string, Route>& routes;
         std::uint64_t buffer_size;
 
-        boost::asio::io_context context;
+    public:
+        // TODO: fix later
+        boost::asio::io_context context; // NOLINT
+
+    private:
         boost::asio::ip::tcp::acceptor acceptor;
     };
 
     Server::Server(Options init_options)
         : options(init_options)
-        , routes(std::make_unique<Routes>())
-        , impl(std::make_unique<Impl>(*this))
+        , state(std::make_unique<State>())
     {
     }
 
@@ -193,22 +261,36 @@ namespace nil::service::http
 
     void Server::run()
     {
-        if (ready)
+        if (!impl)
         {
-            ready->call({"0.0.0.0:" + std::to_string(options.port)});
+            if (ready)
+            {
+                ready->call({"0.0.0.0:" + std::to_string(options.port)});
+            }
+            impl = std::make_unique<Impl>(*this);
+            for (auto& ws : state->wss)
+            {
+                ws.second.impl->context = &impl->context;
+            }
         }
         impl->run();
     }
 
     void Server::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Server::restart()
     {
+        for (auto& ws : state->wss)
+        {
+            ws.second.impl->context = nullptr;
+        }
         impl.reset();
-        impl = std::make_unique<Impl>(*this);
     }
 
     void Server::use_impl(
@@ -217,6 +299,12 @@ namespace nil::service::http
         std::unique_ptr<detail::ICallable<std::ostream&>> body
     )
     {
-        routes->emplace(std::move(route), Route{std::move(content_type), std::move(body)});
+        state->routes.emplace(std::move(route), Route{std::move(content_type), std::move(body)});
+    }
+
+    WebSocket& Server::use_ws(std::string route)
+    {
+        return state->wss.emplace(std::move(route), std::make_unique<WebSocket::Impl>())
+            .first->second;
     }
 }

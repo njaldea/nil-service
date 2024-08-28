@@ -1,13 +1,44 @@
 #pragma once
 
 #include "../detail/Callable.hpp"
-#include "../detail/create_handler.hpp"
+#include "nil/service/IService.hpp"
 
 #include <cstdint>
 #include <memory>
 
 namespace nil::service::http
 {
+    class WebSocket final: private IService
+    {
+        friend class Server;
+
+    public:
+        struct Impl;
+        std::unique_ptr<Impl> impl;
+
+        explicit WebSocket(std::unique_ptr<Impl> init_impl);
+        ~WebSocket() noexcept override;
+        WebSocket(WebSocket&&) = delete;
+        WebSocket(const WebSocket&) = delete;
+        WebSocket& operator=(WebSocket&&) = delete;
+        WebSocket& operator=(const WebSocket&) = delete;
+
+        void publish(std::vector<std::uint8_t> data) override;
+        void send(const ID& id, std::vector<std::uint8_t> data) override;
+
+        using IService::on_connect;
+        using IService::on_disconnect;
+        using IService::on_message;
+        using IService::on_ready;
+        using IService::publish;
+        using IService::send;
+
+    private:
+        void run() override;
+        void stop() override;
+        void restart() override;
+    };
+
     class Server final
     {
     public:
@@ -43,6 +74,8 @@ namespace nil::service::http
             );
         }
 
+        WebSocket& use_ws(std::string route);
+
         template <typename Handler>
         void on_ready(Handler handler)
         {
@@ -59,8 +92,8 @@ namespace nil::service::http
         Options options;
         std::unique_ptr<detail::ICallable<const ID&>> ready;
 
-        struct Routes;
-        std::unique_ptr<Routes> routes;
+        struct State;
+        std::unique_ptr<State> state;
 
         struct Impl;
         std::unique_ptr<Impl> impl;

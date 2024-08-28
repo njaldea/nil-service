@@ -10,12 +10,12 @@
 
 namespace nil::service::ws
 {
-    struct Client::Impl final: IImpl
+    struct Client::Impl final: ConnectedImpl<Connection>
     {
     public:
-        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
-            : options(init_options)
-            , handlers(init_handlers)
+        explicit Impl(const Client& parent)
+            : options(parent.options)
+            , handlers(parent.handlers)
             , strand(boost::asio::make_strand(context))
             , reconnection(strand)
         {
@@ -42,7 +42,7 @@ namespace nil::service::ws
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, id, msg = std::move(data)]()
                 {
@@ -56,7 +56,7 @@ namespace nil::service::ws
 
         void publish(std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, msg = std::move(data)]()
                 {
@@ -69,9 +69,17 @@ namespace nil::service::ws
         }
 
     private:
+        void connect(ws::Connection* target_connection) override
+        {
+            if (handlers.connect)
+            {
+                handlers.connect->call(target_connection->id());
+            }
+        }
+
         void disconnect(Connection* target_connection) override
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, target_connection]()
                 {
@@ -88,7 +96,7 @@ namespace nil::service::ws
             );
         }
 
-        void message(const ID& id, const std::uint8_t* data, std::uint64_t size) override
+        void message(const ID& id, const void* data, std::uint64_t size) override
         {
             if (handlers.msg)
             {
@@ -140,16 +148,17 @@ namespace nil::service::ws
                                 reconnect();
                                 return;
                             }
+                            auto id = utils::to_id(                 //
+                                boost::beast::get_lowest_layer(*ws) //
+                                    .socket()
+                                    .remote_endpoint()
+                            );
                             connection = std::make_unique<Connection>(
+                                id,
                                 options.buffer,
                                 std::move(*ws),
                                 *this
                             );
-
-                            if (handlers.connect)
-                            {
-                                handlers.connect->call(connection->id());
-                            }
                         }
                     );
                 }
@@ -181,7 +190,6 @@ namespace nil::service::ws
 
     Client::Client(Client::Options init_options)
         : options{std::move(init_options)}
-        , impl(std::make_unique<Impl>(options, handlers))
     {
     }
 
@@ -189,27 +197,36 @@ namespace nil::service::ws
 
     void Client::run()
     {
+        impl = std::make_unique<Impl>(*this);
         impl->run();
     }
 
     void Client::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Client::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(options, handlers);
     }
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        impl->send(id, std::move(data));
+        if (impl)
+        {
+            impl->send(id, std::move(data));
+        }
     }
 
     void Client::publish(std::vector<std::uint8_t> data)
     {
-        impl->publish(std::move(data));
+        if (impl)
+        {
+            impl->publish(std::move(data));
+        }
     }
 }

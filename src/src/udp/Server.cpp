@@ -12,9 +12,9 @@ namespace nil::service::udp
     struct Server::Impl final
     {
     public:
-        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
-            : options(init_options)
-            , handlers(init_handlers)
+        explicit Impl(const Server& parent)
+            : options(parent.options)
+            , handlers(parent.handlers)
             , strand(boost::asio::make_strand(context))
             , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), options.port})
         {
@@ -29,7 +29,7 @@ namespace nil::service::udp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void run()
+        void ready()
         {
             if (handlers.ready)
             {
@@ -39,6 +39,10 @@ namespace nil::service::udp
                 );
             }
             receive();
+        }
+
+        void run()
+        {
             context.run();
         }
 
@@ -49,7 +53,7 @@ namespace nil::service::udp
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
                 )
@@ -71,7 +75,7 @@ namespace nil::service::udp
 
         void publish(std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)]()
                 {
@@ -210,7 +214,6 @@ namespace nil::service::udp
 
     Server::Server(Server::Options init_options)
         : options{init_options}
-        , impl(std::make_unique<Impl>(options, handlers))
     {
     }
 
@@ -218,27 +221,40 @@ namespace nil::service::udp
 
     void Server::run()
     {
+        if (!impl)
+        {
+            impl = std::make_unique<Impl>(*this);
+            impl->ready();
+        }
         impl->run();
     }
 
     void Server::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Server::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(options, handlers);
     }
 
     void Server::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        impl->send(id, std::move(data));
+        if (impl)
+        {
+            impl->send(id, std::move(data));
+        }
     }
 
     void Server::publish(std::vector<std::uint8_t> data)
     {
-        impl->publish(std::move(data));
+        if (impl)
+        {
+            impl->publish(std::move(data));
+        }
     }
 }

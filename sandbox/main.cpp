@@ -173,15 +173,43 @@ void add_http_node(nil::clix::Node& node)
                 "text/html",
                 [](std::ostream& oss)
                 {
-                    oss << "<!DOCTYPE html>"    //
-                        << "<html lang=\"en\">" //
-                        << "<head></head>"      //
+                    oss << "<!DOCTYPE html>"                                          //
+                        << "<html lang=\"en\">"                                       //
+                        << "<head>"                                                   //
+                        << "<script type=\"module\">"                                 //
+                        << "const foo = () => {"                                      //
+                        << "    let nil = new WebSocket(\"ws://localhost:8080/ws\");" //
+                        << "    nil.onopen = () => console.log(\"open\");"            //
+                        << "    nil.onclose = () => console.log(\"close\");"          //
+                        << "    nil.onmessage = (e) => console.log(\"message\", e);"  //
+                        << "    return nil;"                                          //
+                        << "};"                                                       //
+                        << "globalThis.nil = foo();"                                  //
+                        << "</script>"                                                //
+                        << "</head>"                                                  //
                         << "<body>hello world</body>";
                 }
             );
             server.on_ready(                                        //
                 [](const auto& id)                                  //
                 { std::cout << "ready: " << id.text << std::endl; } //
+            );
+            auto& ws = server.use_ws("/ws");
+            ws.on_ready(                                                  //
+                [](const auto& id)                                        //
+                { std::cout << "ready      : " << id.text << std::endl; } //
+            );
+            ws.on_connect(                                                //
+                [](const auto& id)                                        //
+                { std::cout << "connect    : " << id.text << std::endl; } //
+            );
+            ws.on_disconnect(                                             //
+                [](const auto& id)                                        //
+                { std::cout << "disconnect : " << id.text << std::endl; } //
+            );
+            ws.on_message(                                                                      //
+                [](const auto& id, const std::string& content)                                  //
+                { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
             );
             server.run();
             return 0;

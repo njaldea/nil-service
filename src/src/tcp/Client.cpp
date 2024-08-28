@@ -10,12 +10,12 @@
 
 namespace nil::service::tcp
 {
-    struct Client::Impl final: IImpl
+    struct Client::Impl final: ConnectedImpl<Connection>
     {
     public:
-        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
-            : options(init_options)
-            , handlers(init_handlers)
+        explicit Impl(const Client& parent)
+            : options(parent.options)
+            , handlers(parent.handlers)
             , strand(boost::asio::make_strand(context))
             , reconnection(strand)
         {
@@ -29,9 +29,13 @@ namespace nil::service::tcp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void run()
+        void ready()
         {
             connect();
+        }
+
+        void run()
+        {
             context.run();
         }
 
@@ -42,7 +46,7 @@ namespace nil::service::tcp
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, id, msg = std::move(data)]()
                 {
@@ -56,7 +60,7 @@ namespace nil::service::tcp
 
         void publish(std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, msg = std::move(data)]()
                 {
@@ -69,9 +73,17 @@ namespace nil::service::tcp
         }
 
     private:
+        void connect(Connection* target_connection) override
+        {
+            if (handlers.connect)
+            {
+                handlers.connect->call(target_connection->id());
+            }
+        }
+
         void disconnect(Connection* target_connection) override
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, target_connection]()
                 {
@@ -88,7 +100,7 @@ namespace nil::service::tcp
             );
         }
 
-        void message(const ID& id, const std::uint8_t* data, std::uint64_t size) override
+        void message(const ID& id, const void* data, std::uint64_t size) override
         {
             if (handlers.msg)
             {
@@ -115,10 +127,6 @@ namespace nil::service::tcp
                             std::move(*socket),
                             *this
                         );
-                        if (handlers.connect)
-                        {
-                            handlers.connect->call(connection->id());
-                        }
                         return;
                     }
                     reconnect();
@@ -151,7 +159,6 @@ namespace nil::service::tcp
 
     Client::Client(Client::Options init_options)
         : options{std::move(init_options)}
-        , impl(std::make_unique<Impl>(options, handlers))
     {
     }
 
@@ -159,27 +166,40 @@ namespace nil::service::tcp
 
     void Client::run()
     {
+        if (!impl)
+        {
+            impl = std::make_unique<Impl>(*this);
+            impl->ready();
+        }
         impl->run();
     }
 
     void Client::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Client::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(options, handlers);
     }
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        impl->send(id, std::move(data));
+        if (impl)
+        {
+            impl->send(id, std::move(data));
+        }
     }
 
     void Client::publish(std::vector<std::uint8_t> data)
     {
-        impl->publish(std::move(data));
+        if (impl)
+        {
+            impl->publish(std::move(data));
+        }
     }
 }

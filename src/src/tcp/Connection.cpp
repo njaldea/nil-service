@@ -7,14 +7,15 @@ namespace nil::service::tcp
     Connection::Connection(
         std::uint64_t buffer,
         boost::asio::ip::tcp::socket init_socket,
-        IImpl& init_impl
+        ConnectedImpl<Connection>& init_impl
     )
         : identifier(utils::to_id(init_socket.remote_endpoint()))
         , socket(std::move(init_socket))
         , impl(init_impl)
     {
-        this->r_buffer.resize(buffer);
+        r_buffer.resize(buffer);
         readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
+        impl.connect(this);
     }
 
     Connection::~Connection() noexcept = default;

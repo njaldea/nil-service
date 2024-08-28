@@ -9,12 +9,12 @@
 
 namespace nil::service::ws
 {
-    struct Server::Impl final: IImpl
+    struct Server::Impl final: ConnectedImpl<Connection>
     {
     public:
-        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
-            : options(init_options)
-            , handlers(init_handlers)
+        explicit Impl(const Server& parent)
+            : options(parent.options)
+            , handlers(parent.handlers)
             , strand(boost::asio::make_strand(context))
             , endpoint(boost::asio::ip::make_address("0.0.0.0"), options.port)
             , acceptor(strand, endpoint, true)
@@ -46,7 +46,7 @@ namespace nil::service::ws
 
         void send(const ID& id, std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, id, msg = std::move(data)]()
                 {
@@ -61,7 +61,7 @@ namespace nil::service::ws
 
         void publish(std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, msg = std::move(data)]()
                 {
@@ -74,9 +74,17 @@ namespace nil::service::ws
         }
 
     private:
+        void connect(ws::Connection* connection) override
+        {
+            if (handlers.connect)
+            {
+                handlers.connect->call(connection->id());
+            }
+        }
+
         void disconnect(Connection* connection) override
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, id = connection->id()]()
                 {
@@ -92,7 +100,7 @@ namespace nil::service::ws
             );
         }
 
-        void message(const ID& id, const std::uint8_t* data, std::uint64_t size) override
+        void message(const ID& id, const void* data, std::uint64_t size) override
         {
             if (handlers.msg)
             {
@@ -103,7 +111,7 @@ namespace nil::service::ws
         void accept()
         {
             acceptor.async_accept(
-                boost::asio::make_strand(context),
+                context,
                 [this](
                     const boost::system::error_code& acceptor_ec,
                     boost::asio::ip::tcp::socket socket
@@ -136,17 +144,18 @@ namespace nil::service::ws
                                 {
                                     return;
                                 }
+                                auto id = utils::to_id(                 //
+                                    boost::beast::get_lowest_layer(*ws) //
+                                        .socket()
+                                        .remote_endpoint()
+                                );
                                 auto connection = std::make_unique<Connection>(
+                                    id,
                                     options.buffer,
                                     std::move(*ws),
                                     *this
                                 );
-                                auto id = connection->id();
-                                connections.emplace(id, std::move(connection));
-                                if (handlers.connect)
-                                {
-                                    handlers.connect->call(id);
-                                }
+                                connections.emplace(std::move(id), std::move(connection));
                             }
                         );
                     }
@@ -167,7 +176,6 @@ namespace nil::service::ws
 
     Server::Server(Server::Options init_options)
         : options{init_options}
-        , impl(std::make_unique<Impl>(options, handlers))
     {
     }
 
@@ -175,27 +183,36 @@ namespace nil::service::ws
 
     void Server::run()
     {
+        impl = std::make_unique<Impl>(*this);
         impl->run();
     }
 
     void Server::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Server::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(options, handlers);
     }
 
     void Server::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        impl->send(id, std::move(data));
+        if (impl)
+        {
+            impl->send(id, std::move(data));
+        }
     }
 
     void Server::publish(std::vector<std::uint8_t> data)
     {
-        impl->publish(std::move(data));
+        if (impl)
+        {
+            impl->publish(std::move(data));
+        }
     }
 }

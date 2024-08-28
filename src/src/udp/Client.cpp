@@ -12,9 +12,9 @@ namespace nil::service::udp
     struct Client::Impl final
     {
     public:
-        explicit Impl(const Options& init_options, const detail::Handlers& init_handlers)
-            : options(init_options)
-            , handlers(init_handlers)
+        explicit Impl(const Client& parent)
+            : options(parent.options)
+            , handlers(parent.handlers)
             , strand(boost::asio::make_strand(context))
             , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), 0})
             , pingtimer(strand)
@@ -61,7 +61,7 @@ namespace nil::service::udp
 
         void publish(std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 strand,
                 [this, msg = std::move(data)]()
                 {
@@ -182,7 +182,6 @@ namespace nil::service::udp
 
     Client::Client(Client::Options init_options)
         : options{std::move(init_options)}
-        , impl(std::make_unique<Impl>(options, handlers))
     {
     }
 
@@ -190,27 +189,36 @@ namespace nil::service::udp
 
     void Client::run()
     {
+        impl = std::make_unique<Impl>(*this);
         impl->run();
     }
 
     void Client::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Client::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(options, handlers);
     }
 
     void Client::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        impl->send(id, std::move(data));
+        if (impl)
+        {
+            impl->send(id, std::move(data));
+        }
     }
 
     void Client::publish(std::vector<std::uint8_t> data)
     {
-        impl->publish(std::move(data));
+        if (impl)
+        {
+            impl->publish(std::move(data));
+        }
     }
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../ConnectedImpl.hpp"
+
 #include <nil/service/ID.hpp>
 
 #include <boost/asio/io_context.hpp>
@@ -11,29 +13,14 @@ namespace nil::service::tcp
 {
     class Connection;
 
-    struct IImpl
-    {
-        IImpl() = default;
-        virtual ~IImpl() noexcept = default;
-
-        IImpl(IImpl&&) noexcept = delete;
-        IImpl& operator=(IImpl&&) noexcept = delete;
-
-        IImpl(const IImpl&) = delete;
-        IImpl& operator=(const IImpl&) = delete;
-
-        virtual void message(
-            const ID& id,
-            const std::uint8_t* data,
-            std::uint64_t size //
-        ) = 0;
-        virtual void disconnect(Connection* connection) = 0;
-    };
-
     class Connection final
     {
     public:
-        Connection(std::uint64_t buffer, boost::asio::ip::tcp::socket socket, IImpl& impl);
+        Connection(
+            std::uint64_t buffer,
+            boost::asio::ip::tcp::socket socket,
+            ConnectedImpl<Connection>& impl
+        );
         ~Connection() noexcept;
 
         Connection(Connection&&) noexcept = delete;
@@ -50,7 +37,7 @@ namespace nil::service::tcp
 
         ID identifier;
         boost::asio::ip::tcp::socket socket;
-        IImpl& impl;
+        ConnectedImpl<Connection>& impl;
         std::vector<std::uint8_t> r_buffer;
     };
 }

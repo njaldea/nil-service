@@ -2,8 +2,8 @@
 
 #include <boost/asio/executor_work_guard.hpp>
 
-#include <boost/asio/dispatch.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
 
 namespace nil::service
 {
@@ -17,7 +17,7 @@ namespace nil::service
         void run()
         {
             auto _ = boost::asio::make_work_guard(context);
-            boost::asio::dispatch(
+            boost::asio::post(
                 context,
                 [this]()
                 {
@@ -45,7 +45,7 @@ namespace nil::service
 
         void publish(std::vector<std::uint8_t> data)
         {
-            boost::asio::dispatch(
+            boost::asio::post(
                 context,
                 [this, msg = std::move(data)]()
                 {
@@ -63,37 +63,40 @@ namespace nil::service
         ID id = {"self"};
     };
 
-    Self::Self()
-        : impl(std::make_unique<Impl>(handlers))
-    {
-    }
+    Self::Self() = default;
 
     Self::~Self() noexcept = default;
 
     void Self::run()
     {
+        impl = std::make_unique<Impl>(handlers);
         impl->run();
     }
 
     void Self::stop()
     {
-        impl->stop();
+        if (impl)
+        {
+            impl->stop();
+        }
     }
 
     void Self::restart()
     {
         impl.reset();
-        impl = std::make_unique<Impl>(handlers);
     }
 
     void Self::publish(std::vector<std::uint8_t> data)
     {
-        impl->publish(std::move(data));
+        if (impl)
+        {
+            impl->publish(std::move(data));
+        }
     }
 
     void Self::send(const ID& id, std::vector<std::uint8_t> data)
     {
-        if ("self" == id.text)
+        if (impl && "self" == id.text)
         {
             impl->publish(std::move(data));
         }

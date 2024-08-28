@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../ConnectedImpl.hpp"
+
 #include <nil/service/ID.hpp>
 
 #include <boost/asio/io_context.hpp>
@@ -7,33 +9,16 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 
-#include <vector>
-
 namespace nil::service::ws
 {
-    class Connection;
-
-    struct IImpl
-    {
-        IImpl() = default;
-        virtual ~IImpl() noexcept = default;
-
-        IImpl(IImpl&&) = delete;
-        IImpl(const IImpl&) = delete;
-        IImpl& operator=(IImpl&&) = delete;
-        IImpl& operator=(const IImpl&) = delete;
-
-        virtual void message(const ID& id, const std::uint8_t* data, std::uint64_t size) = 0;
-        virtual void disconnect(Connection* connection) = 0;
-    };
-
     class Connection final
     {
     public:
         Connection(
-            std::uint64_t buffer,
-            boost::beast::websocket::stream<boost::beast::tcp_stream> ws,
-            IImpl& impl
+            ID ini_id,
+            std::uint64_t init_buffer,
+            boost::beast::websocket::stream<boost::beast::tcp_stream> init_ws,
+            ConnectedImpl<Connection>& init_impl
         );
         ~Connection() noexcept;
 
@@ -51,8 +36,7 @@ namespace nil::service::ws
 
         ID identifier;
         boost::beast::websocket::stream<boost::beast::tcp_stream> ws;
-        IImpl& impl;
-        std::vector<std::uint8_t> r_buffer;
-        boost::beast::flat_static_buffer_base flat_buffer;
+        boost::beast::flat_buffer flat_buffer;
+        ConnectedImpl<Connection>& impl;
     };
 }
