@@ -44,7 +44,6 @@ set(
         src/ws/Connection.hpp
         src/http/Server.cpp
         src/http/WebSocket.cpp
-        src/http/WebSocketImpl.hpp
         src/self/Server.cpp
 )
 
