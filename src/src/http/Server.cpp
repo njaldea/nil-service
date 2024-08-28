@@ -121,7 +121,9 @@ namespace nil::service::http
                                 auto* ws_ptr = ws.get();
                                 ws_ptr->async_accept(
                                     request,
-                                    [it, id, ws = std::move(ws)](boost::beast::error_code ec)
+                                    [it,
+                                     id = std::move(id),
+                                     ws = std::move(ws)](boost::beast::error_code ec)
                                     {
                                         if (ec)
                                         {
@@ -263,14 +265,16 @@ namespace nil::service::http
     {
         if (!impl)
         {
+            auto id = "0.0.0.0:" + std::to_string(options.port);
             if (ready)
             {
-                ready->call({"0.0.0.0:" + std::to_string(options.port)});
+                ready->call({id});
             }
             impl = std::make_unique<Impl>(*this);
-            for (auto& ws : state->wss)
+            for (auto& [route, ws] : state->wss)
             {
-                ws.second.impl->context = &impl->context;
+                ws.impl->context = &impl->context;
+                ws.impl->ready({id + route});
             }
         }
         impl->run();

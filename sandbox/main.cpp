@@ -190,9 +190,9 @@ void add_http_node(nil::clix::Node& node)
                         << "<body>hello world</body>";
                 }
             );
-            server.on_ready(                                        //
-                [](const auto& id)                                  //
-                { std::cout << "ready: " << id.text << std::endl; } //
+            server.on_ready(                                              //
+                [](const auto& id)                                        //
+                { std::cout << "ready      : " << id.text << std::endl; } //
             );
             auto& ws = server.use_ws("/ws");
             ws.on_ready(                                                  //

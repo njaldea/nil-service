@@ -12,6 +12,14 @@ namespace nil::service::http
         boost::asio::io_context* context = nullptr;
         std::unordered_map<ID, std::unique_ptr<ws::Connection>> connections;
 
+        void ready(const ID& id) const
+        {
+            if (parent->handlers.ready)
+            {
+                parent->handlers.ready->call(id);
+            }
+        }
+
         void connect(ws::Connection* connection) override
         {
             if (parent->handlers.connect)

@@ -119,15 +119,16 @@ namespace nil::service::ws
                 {
                     if (!acceptor_ec)
                     {
-                        namespace websocket = boost::beast::websocket;
-                        auto ws = std::make_unique<websocket::stream<boost::beast::tcp_stream>>(
+                        auto id = utils::to_id(socket.remote_endpoint());
+                        auto ws = std::make_unique<
+                            boost::beast::websocket::stream<boost::beast::tcp_stream>>(
                             std::move(socket)
                         );
-                        ws->set_option(websocket::stream_base::timeout::suggested(
+                        ws->set_option(boost::beast::websocket::stream_base::timeout::suggested(
                             boost::beast::role_type::server
                         ));
-                        ws->set_option(websocket::stream_base::decorator(
-                            [](websocket::response_type& res)
+                        ws->set_option(boost::beast::websocket::stream_base::decorator(
+                            [](boost::beast::websocket::response_type& res)
                             {
                                 res.set(
                                     boost::beast::http::field::server,
@@ -138,24 +139,21 @@ namespace nil::service::ws
                         ));
                         auto* ws_ptr = ws.get();
                         ws_ptr->async_accept(
-                            [this, ws = std::move(ws)](boost::beast::error_code ec)
+                            [this,
+                             id = std::move(id),
+                             ws = std::move(ws)](boost::beast::error_code ec)
                             {
                                 if (ec)
                                 {
                                     return;
                                 }
-                                auto id = utils::to_id(                 //
-                                    boost::beast::get_lowest_layer(*ws) //
-                                        .socket()
-                                        .remote_endpoint()
-                                );
                                 auto connection = std::make_unique<Connection>(
                                     id,
                                     options.buffer,
                                     std::move(*ws),
                                     *this
                                 );
-                                connections.emplace(std::move(id), std::move(connection));
+                                connections.emplace(id, std::move(connection));
                             }
                         );
                     }
