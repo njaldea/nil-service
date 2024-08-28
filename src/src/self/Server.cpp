@@ -1,13 +1,13 @@
-#include <nil/service/Self.hpp>
+#include <nil/service/self/Server.hpp>
 
 #include <boost/asio/executor_work_guard.hpp>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
 
-namespace nil::service
+namespace nil::service::self
 {
-    struct Self::Impl
+    struct Server::Impl
     {
         explicit Impl(const detail::Handlers& init_handlers)
             : handlers(init_handlers)
@@ -63,17 +63,17 @@ namespace nil::service
         ID id = {"self"};
     };
 
-    Self::Self() = default;
+    Server::Server() = default;
 
-    Self::~Self() noexcept = default;
+    Server::~Server() noexcept = default;
 
-    void Self::run()
+    void Server::run()
     {
         impl = std::make_unique<Impl>(handlers);
         impl->run();
     }
 
-    void Self::stop()
+    void Server::stop()
     {
         if (impl)
         {
@@ -81,12 +81,12 @@ namespace nil::service
         }
     }
 
-    void Self::restart()
+    void Server::restart()
     {
         impl.reset();
     }
 
-    void Self::publish(std::vector<std::uint8_t> data)
+    void Server::publish(std::vector<std::uint8_t> data)
     {
         if (impl)
         {
@@ -94,7 +94,7 @@ namespace nil::service
         }
     }
 
-    void Self::send(const ID& id, std::vector<std::uint8_t> data)
+    void Server::send(const ID& id, std::vector<std::uint8_t> data)
     {
         if (impl && "self" == id.text)
         {

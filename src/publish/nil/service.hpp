@@ -1,7 +1,7 @@
 #pragma once
 
-#include "service/Self.hpp"        // IWYU pragma: export
 #include "service/http/Server.hpp" // IWYU pragma: export
+#include "service/self/Server.hpp" // IWYU pragma: export
 #include "service/tcp/Client.hpp"  // IWYU pragma: export
 #include "service/tcp/Server.hpp"  // IWYU pragma: export
 #include "service/udp/Client.hpp"  // IWYU pragma: export

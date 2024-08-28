@@ -1,20 +1,20 @@
 #pragma once
 
-#include "IService.hpp"
+#include "../IService.hpp"
 
-namespace nil::service
+namespace nil::service::self
 {
-    class Self final: public IStandaloneService
+    class Server final: public IStandaloneService
     {
     public:
-        Self();
-        ~Self() noexcept override;
+        Server();
+        ~Server() noexcept override;
 
-        Self(Self&&) noexcept = delete;
-        Self& operator=(Self&&) noexcept = delete;
+        Server(Server&&) noexcept = delete;
+        Server& operator=(Server&&) noexcept = delete;
 
-        Self(const Self&) = delete;
-        Self& operator=(const Self&) = delete;
+        Server(const Server&) = delete;
+        Server& operator=(const Server&) = delete;
 
         void run() override;
         void stop() override;

@@ -10,7 +10,6 @@ set(
         publish/nil/service/consume.hpp
         publish/nil/service/ID.hpp
         publish/nil/service/IService.hpp
-        publish/nil/service/Self.hpp
         publish/nil/service/map.hpp
         publish/nil/service/detail/Callable.hpp
         publish/nil/service/detail/create_handler.hpp
@@ -23,6 +22,7 @@ set(
         publish/nil/service/tcp/Server.hpp
         publish/nil/service/ws/Client.hpp
         publish/nil/service/ws/Server.hpp
+        publish/nil/service/self/Server.hpp
         publish/nil/service/http/Server.hpp
         src/tcp/Connection.hpp
         src/ws/Connection.hpp
@@ -32,7 +32,6 @@ set(
 set(
     SOURCES
         src/codec.cpp
-        src/Self.cpp
         src/udp/Client.cpp
         src/udp/Server.cpp
         src/tcp/Client.cpp
@@ -46,6 +45,7 @@ set(
         src/http/Server.cpp
         src/http/WebSocket.cpp
         src/http/WebSocketImpl.hpp
+        src/self/Server.cpp
 )
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})

@@ -32,7 +32,7 @@ T make_service(const nil::clix::Options& options)
 }
 
 template <typename T>
-    requires std::is_same_v<T, nil::service::Self>
+    requires std::is_same_v<T, nil::service::self::Server>
 T make_service(const nil::clix::Options& options)
 {
     (void)options;
@@ -43,7 +43,7 @@ template <typename T>
 void add_end_node(nil::clix::Node& node)
 {
     node.flag("help", {.skey = 'h', .msg = "this help"});
-    if constexpr (!std::is_same_v<T, nil::service::Self>)
+    if constexpr (!std::is_same_v<T, nil::service::self::Server>)
     {
         node.number(
             "port",
@@ -223,7 +223,7 @@ int main(int argc, const char** argv)
 
     nil::clix::Node root;
     root.runner(help);
-    root.add("self", "use self protocol", add_end_node<Self>);
+    root.add("self", "use self protocol", add_end_node<self::Server>);
     root.add("udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
     root.add("tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
     root.add("ws", "use ws protocol", add_sub_nodes<ws::Server, ws::Client>);

@@ -31,7 +31,7 @@ All classes are in `nil::service` namespace.
 | buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
 | timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
 
-### `Self`
+### `self::Server`
 
 - No Options
 
