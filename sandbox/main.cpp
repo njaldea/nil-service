@@ -1,15 +1,10 @@
 #include <nil/clix.hpp>
+#include <nil/clix/node.hpp>
 #include <nil/clix/prebuilt/Help.hpp>
 #include <nil/service.hpp>
 
 #include <iostream>
 #include <thread>
-
-int help(const nil::clix::Options& options)
-{
-    options.help(std::cout);
-    return 0;
-}
 
 template <typename T>
     requires                                        //
@@ -18,7 +13,7 @@ template <typename T>
     || std::is_same_v<T, nil::service::ws::Server>
 T make_service(const nil::clix::Options& options)
 {
-    return T({.port = std::uint16_t(options.number("port"))});
+    return T({.port = std::uint16_t(number(options, "port"))});
 }
 
 template <typename T>
@@ -28,7 +23,7 @@ template <typename T>
     || std::is_same_v<T, nil::service::ws::Client>
 T make_service(const nil::clix::Options& options)
 {
-    return T({.host = "127.0.0.1", .port = std::uint16_t(options.number("port"))});
+    return T({.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
 }
 
 template <typename T>
@@ -42,10 +37,11 @@ T make_service(const nil::clix::Options& options)
 template <typename T>
 void add_end_node(nil::clix::Node& node)
 {
-    node.flag("help", {.skey = 'h', .msg = "this help"});
+    flag(node, "help", {.skey = 'h', .msg = "this help"});
     if constexpr (!std::is_same_v<T, nil::service::self::Server>)
     {
-        node.number(
+        number(
+            node,
             "port",
             {
                 .skey = 'p',
@@ -55,12 +51,13 @@ void add_end_node(nil::clix::Node& node)
             }
         );
     }
-    node.runner(
+    use(node,
         [](const nil::clix::Options& options)
         {
-            if (options.flag("help"))
+            if (flag(options, "help"))
             {
-                return help(options);
+                help(options, std::cout);
+                return 0;
             }
             auto service = make_service<T>(options);
             {
@@ -134,22 +131,22 @@ void add_end_node(nil::clix::Node& node)
                 }
             }
             return 0;
-        }
-    );
+        });
 }
 
 template <typename Server, typename Client>
 void add_sub_nodes(nil::clix::Node& node)
 {
-    node.runner(help);
-    node.add("server", "server", add_end_node<Server>);
-    node.add("client", "client", add_end_node<Client>);
+    use(node, nil::clix::prebuilt::Help(&std::cout));
+    sub(node, "server", "server", add_end_node<Server>);
+    sub(node, "client", "client", add_end_node<Client>);
 }
 
 void add_http_node(nil::clix::Node& node)
 {
-    node.flag("help", {.skey = 'h', .msg = "this help"});
-    node.number(
+    flag(node, "help", {.skey = 'h', .msg = "this help"});
+    number(
+        node,
         "port",
         {
             .skey = 'p',
@@ -158,15 +155,16 @@ void add_http_node(nil::clix::Node& node)
             .implicit = 8080 //
         }
     );
-    node.runner(
+    use(node,
         [](const nil::clix::Options& options)
         {
-            if (options.flag("help"))
+            if (flag(options, "help"))
             {
-                return help(options);
+                help(options, std::cout);
+                return 0;
             }
             nil::service::http::Server server(
-                {.port = std::uint16_t(options.number("port")), .buffer = 1024}
+                {.port = std::uint16_t(number(options, "port")), .buffer = 1024}
             );
             server.use(
                 "/",
@@ -213,20 +211,19 @@ void add_http_node(nil::clix::Node& node)
             );
             server.run();
             return 0;
-        }
-    );
+        });
 }
 
 int main(int argc, const char** argv)
 {
     using namespace nil::service;
 
-    nil::clix::Node root;
-    root.runner(help);
-    root.add("self", "use self protocol", add_end_node<self::Server>);
-    root.add("udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
-    root.add("tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
-    root.add("ws", "use ws protocol", add_sub_nodes<ws::Server, ws::Client>);
-    root.add("http", "serve http server", add_http_node);
-    return root.run(argc, argv);
+    auto root = nil::clix::create_node();
+    use(root, nil::clix::prebuilt::Help(&std::cout));
+    sub(root, "self", "use self protocol", add_end_node<self::Server>);
+    sub(root, "udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
+    sub(root, "tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
+    sub(root, "ws", "use ws protocol", add_sub_nodes<ws::Server, ws::Client>);
+    sub(root, "http", "serve http server", add_http_node);
+    return run(root, argc, argv);
 }

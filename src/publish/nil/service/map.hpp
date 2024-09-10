@@ -3,6 +3,7 @@
 #include "consume.hpp"
 #include "detail/create_message_handler.hpp"
 
+#include <array>
 #include <cstdint>
 #include <utility>
 
@@ -24,19 +25,30 @@ namespace nil::service
     template <typename T, typename... Handlers>
     auto map(Mapping<T, Handlers>... handlers)
     {
-        constexpr static auto handle
-            = [](const auto& handler, const ID& i, const void* d, std::uint64_t s)
+        struct Map
         {
-            handler->call(i, d, s);
-            return true;
+            T value;
+            std::unique_ptr<detail::icallable_t> handler;
         };
-        return //
-            [... tags = std::move(handlers.value),
-             ... handlers = detail::create_message_handler(std::move(handlers.callable))] //
+
+        using internal_t = std::array<Map, sizeof...(Handlers)>;
+        auto internal_handlers = internal_t{
+            Map(std::move(handlers.value),
+                detail::create_message_handler(std::move(handlers.callable)))...
+        };
+        return                                                 //
+            [internal_handlers = std::move(internal_handlers)] //
             (const ID& id, const void* data, std::uint64_t size)
         {
             const auto value = consume<T>(data, size);
-            ((value == tags && handle(handlers, id, data, size)) || ...);
+            for (const auto& [tag, handler] : internal_handlers)
+            {
+                if (value == tag)
+                {
+                    handler->call(id, data, size);
+                    return;
+                }
+            }
         };
     }
 }

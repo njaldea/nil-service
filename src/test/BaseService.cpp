@@ -88,7 +88,7 @@ private:
 
 TEST(BaseService, on_message)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
@@ -110,7 +110,7 @@ TEST(BaseService, on_message)
 
 TEST(BaseService, on_message_with_id)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
@@ -141,7 +141,7 @@ TEST(BaseService, on_message_with_id)
 
 TEST(BaseService, on_message_with_id_with_raw)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
@@ -172,7 +172,7 @@ TEST(BaseService, on_message_with_id_with_raw)
 
 TEST(BaseService, on_message_with_id_with_codec)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
@@ -203,7 +203,7 @@ TEST(BaseService, on_message_with_id_with_codec)
 
 TEST(BaseService, on_message_without_id_with_raw)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
@@ -228,7 +228,7 @@ TEST(BaseService, on_message_without_id_with_raw)
 
 TEST(BaseService, on_message_without_id_with_codec)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
@@ -250,7 +250,7 @@ TEST(BaseService, on_message_without_id_with_codec)
 
 TEST(BaseService, map_without_id_with_raw)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     const auto handler //
@@ -272,7 +272,7 @@ TEST(BaseService, map_without_id_with_raw)
 
 TEST(BaseService, map_without_id_with_codec)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     const auto handler                             //
@@ -293,7 +293,7 @@ TEST(BaseService, map_without_id_with_codec)
 
 TEST(BaseService, on_message_map_with_id_with_raw)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     const auto handler //
@@ -319,7 +319,7 @@ TEST(BaseService, on_message_map_with_id_with_raw)
 
 TEST(BaseService, on_message_map_with_id_with_codec)
 {
-    testing::InSequence _;
+    const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     const auto handler //
