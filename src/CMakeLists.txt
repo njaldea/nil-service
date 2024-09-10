@@ -64,4 +64,6 @@ target_include_directories(
 )
 
 add_test_subdirectory()
-install_for_package(${PROJECT_NAME})
+
+nil_install_headers()
+nil_install_targets(${PROJECT_NAME})
