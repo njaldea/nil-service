@@ -29,13 +29,17 @@ namespace nil::service::ws
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void run()
+        void ready()
         {
             if (handlers.ready)
             {
                 handlers.ready->call(utils::to_id(acceptor.local_endpoint()));
             }
             accept();
+        }
+
+        void run()
+        {
             context.run();
         }
 
@@ -181,7 +185,11 @@ namespace nil::service::ws
 
     void Server::run()
     {
-        impl = std::make_unique<Impl>(*this);
+        if (!impl)
+        {
+            impl = std::make_unique<Impl>(*this);
+            impl->ready();
+        }
         impl->run();
     }
 

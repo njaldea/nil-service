@@ -29,9 +29,13 @@ namespace nil::service::ws
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void run()
+        void ready()
         {
             connect();
+        }
+
+        void run()
+        {
             context.run();
         }
 
@@ -192,7 +196,11 @@ namespace nil::service::ws
 
     void Client::run()
     {
-        impl = std::make_unique<Impl>(*this);
+        if (!impl)
+        {
+            impl = std::make_unique<Impl>(*this);
+            impl->ready();
+        }
         impl->run();
     }
 

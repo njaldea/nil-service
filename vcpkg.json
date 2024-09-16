@@ -1,15 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "dependencies": [
-        {
-            "name": "boost-asio",
-            "version>=": "1.82.0"
-        },
-        {
-            "name": "boost-beast",
-            "version>=": "1.82.0"
-        }
-    ],
+    "dependencies": [ "boost-asio",  "boost-beast" ],
     "features": {
         "sandbox": {
             "description": "Enable sandboxes",

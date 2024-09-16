@@ -32,17 +32,18 @@ namespace nil::service::udp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void run()
+        void ready()
         {
             if (handlers.ready)
             {
-                handlers.ready->call(
-                    {socket.local_endpoint().address().to_string() + ":"
-                     + std::to_string(socket.local_endpoint().port())}
-                );
+                handlers.ready->call(utils::to_id(socket.local_endpoint()));
             }
             ping();
             receive();
+        }
+
+        void run()
+        {
             context.run();
         }
 
@@ -189,7 +190,11 @@ namespace nil::service::udp
 
     void Client::run()
     {
-        impl = std::make_unique<Impl>(*this);
+        if (!impl)
+        {
+            impl = std::make_unique<Impl>(*this);
+            impl->ready();
+        }
         impl->run();
     }
 

@@ -33,10 +33,7 @@ namespace nil::service::udp
         {
             if (handlers.ready)
             {
-                handlers.ready->call(
-                    {socket.local_endpoint().address().to_string() + ":"
-                     + std::to_string(socket.local_endpoint().port())}
-                );
+                handlers.ready->call(utils::to_id(socket.local_endpoint()));
             }
             receive();
         }

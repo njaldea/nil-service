@@ -243,10 +243,8 @@ namespace nil::service::http
 
     public:
         // TODO: fix later
-        boost::asio::io_context context; // NOLINT
-
-    private:
-        boost::asio::ip::tcp::acceptor acceptor;
+        boost::asio::io_context context;         // NOLINT
+        boost::asio::ip::tcp::acceptor acceptor; // NOLINT
     };
 
     Server::Server(Options init_options)
@@ -261,16 +259,16 @@ namespace nil::service::http
     {
         if (!impl)
         {
-            auto id = "0.0.0.0:" + std::to_string(options.port);
+            impl = std::make_unique<Impl>(*this);
+            auto id = utils::to_id(impl->acceptor.local_endpoint());
             if (ready)
             {
-                ready->call({id});
+                ready->call(id);
             }
-            impl = std::make_unique<Impl>(*this);
             for (auto& [route, ws] : state->wss)
             {
                 ws.context = &impl->context;
-                ws.ready({id + route});
+                ws.ready({id.text + route});
             }
         }
         impl->run();

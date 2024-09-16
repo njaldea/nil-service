@@ -14,9 +14,8 @@ namespace nil::service::self
         {
         }
 
-        void run()
+        void ready()
         {
-            auto _ = boost::asio::make_work_guard(context);
             boost::asio::post(
                 context,
                 [this]()
@@ -31,6 +30,11 @@ namespace nil::service::self
                     }
                 }
             );
+        }
+
+        void run()
+        {
+            auto _ = boost::asio::make_work_guard(context);
             context.run();
         }
 
@@ -69,7 +73,11 @@ namespace nil::service::self
 
     void Server::run()
     {
-        impl = std::make_unique<Impl>(handlers);
+        if (!impl)
+        {
+            impl = std::make_unique<Impl>(handlers);
+            impl->ready();
+        }
         impl->run();
     }
 

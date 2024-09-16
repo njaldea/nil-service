@@ -37,9 +37,6 @@ namespace nil::service::http
         void message(const ID& id, const void* data, std::uint64_t size) override;
         void disconnect(ws::Connection* connection) override;
 
-    private:
-
-    public:
         boost::asio::io_context* context = nullptr;
         std::unordered_map<ID, std::unique_ptr<ws::Connection>> connections;
     };
