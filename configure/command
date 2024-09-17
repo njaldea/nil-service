@@ -24,7 +24,7 @@ HELP()
     echo "s         Enable Sandboxes"
 }
 
-while getopts ":hdtsnx" option; do
+while getopts ":hdts" option; do
     case $option in
         h)
             HELP
