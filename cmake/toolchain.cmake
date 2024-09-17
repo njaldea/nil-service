@@ -26,7 +26,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clan
     add_compile_options(-Wconversion)
     add_compile_options(-Wsign-conversion)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    add_compile_options("/GR-")    # -fno-rtti
+    add_compile_options("/MT")
+    add_compile_options("/GR")
+    # add_compile_options("/GR-")    # -fno-rtti
     add_compile_options("/GL")     # -flto
     # add_compile_options("/Wall")   # -Wall
     # add_compile_options("/WX")     # -Werror
@@ -34,6 +36,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # add_compile_options("/wd4464") # "../" warning for relative include
     # add_compile_options("/wd4514") # unreferenced inline function has been removed
     # [TODO] figure out how to ignore 3rd party headers
+    add_definitions(-D_WIN32_WINNT=0x0A00)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

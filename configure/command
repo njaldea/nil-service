@@ -26,7 +26,7 @@ HELP()
     echo "n         Use libc++ (triplet)"
 }
 
-while getopts ":hdtsn" option; do
+while getopts ":hdtsnx" option; do
     case $option in
         h)
             HELP
@@ -43,6 +43,8 @@ while getopts ":hdtsn" option; do
             ENABLE_SANDBOX="ON";;
         n)
             TRIPLET="-DVCPKG_TARGET_TRIPLET=nil-libcxx -DVCPKG_HOST_TRIPLET=nil-libcxx";;
+        x)
+            TRIPLET="-DVCPKG_TARGET_TRIPLET=x86-windows-static -DVCPKG_HOST_TRIPLET=x86-windows-static";;
         \?)
             echo "unknown option is provided: ${option}"
             HELP
@@ -54,13 +56,13 @@ export VCPKG_BINARY_SOURCES="default"
 export CMAKE_BUILD_PARALLEL_LEVEL=8
 
 cmake                                                                       \
-    -B${REPO_PATH}/.build                                                   \
-    -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake   \
-    -DCMAKE_INSTALL_PREFIX=${REPO_PATH}/.build/out                          \
-    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}                                  \
-    -G${GENERATOR}                                                          \
-    -DVCPKG_MANIFEST_FEATURES=${VCPKG_MANIFEST_FEATURES}                    \
-    -DVCPKG_OVERLAY_TRIPLETS=${REPO_PATH}/triplets                          \
+    -B "${REPO_PATH}/.build"                                                \
+    -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
+    -DCMAKE_INSTALL_PREFIX="${REPO_PATH}/.build/out"                        \
+    -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}"                                \
+    -G "${GENERATOR}"                                                       \
+    -DVCPKG_MANIFEST_FEATURES="${VCPKG_MANIFEST_FEATURES}"                  \
+    -DVCPKG_OVERLAY_TRIPLETS="${REPO_PATH}/triplets"                        \
     -DENABLE_SANDBOX=${ENABLE_SANDBOX}                                      \
     -DENABLE_TEST=${ENABLE_TEST}                                            \
     ${TRIPLET}
