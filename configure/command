@@ -13,7 +13,6 @@ VCPKG_MANIFEST_FEATURES="core"
 ENABLE_SANDBOX="OFF"
 ENABLE_TEST="OFF"
 GENERATOR="Ninja"
-TRIPLET=""
 
 HELP()
 {
@@ -23,7 +22,6 @@ HELP()
     echo "d         Configure Debug Build (default: Release)"
     echo "t         Enable Tests"
     echo "s         Enable Sandboxes"
-    echo "n         Use libc++ (triplet)"
 }
 
 while getopts ":hdtsnx" option; do
@@ -41,10 +39,6 @@ while getopts ":hdtsnx" option; do
             SANDBOX="sandbox"
             VCPKG_MANIFEST_FEATURES="${SANDBOX};${VCPKG_MANIFEST_FEATURES}"
             ENABLE_SANDBOX="ON";;
-        n)
-            TRIPLET="-DVCPKG_TARGET_TRIPLET=nil-libcxx -DVCPKG_HOST_TRIPLET=nil-libcxx";;
-        x)
-            TRIPLET="-DVCPKG_TARGET_TRIPLET=x86-windows-static -DVCPKG_HOST_TRIPLET=x86-windows-static";;
         \?)
             echo "unknown option is provided: ${option}"
             HELP

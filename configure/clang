@@ -7,6 +7,7 @@ fi
 
 export CC=`(which clang-18)`
 export CXX=`(which clang++-18)`
+export TRIPLET="-DVCPKG_TARGET_TRIPLET=nil-libcxx -DVCPKG_HOST_TRIPLET=nil-libcxx"
 
 SCRIPT_PATH=`(dirname $BASH_SOURCE)`
 REPO_PATH=`(realpath $SCRIPT_PATH/..)`
