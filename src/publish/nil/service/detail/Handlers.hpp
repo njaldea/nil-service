@@ -4,14 +4,24 @@
 #include "Callable.hpp"
 
 #include <memory>
+#include <vector>
 
 namespace nil::service::detail
 {
     struct Handlers
     {
-        std::unique_ptr<ICallable<const ID&, const void*, std::uint64_t>> msg;
-        std::unique_ptr<ICallable<const ID&>> ready;
-        std::unique_ptr<ICallable<const ID&>> connect;
-        std::unique_ptr<ICallable<const ID&>> disconnect;
+        std::vector<std::unique_ptr<ICallable<const ID&, const void*, std::uint64_t>>> on_message;
+        std::vector<std::unique_ptr<ICallable<const ID&>>> on_ready;
+        std::vector<std::unique_ptr<ICallable<const ID&>>> on_connect;
+        std::vector<std::unique_ptr<ICallable<const ID&>>> on_disconnect;
     };
+
+    template <typename... T>
+    void invoke(auto& invocables, const T&... args)
+    {
+        for (const auto& invocable : invocables)
+        {
+            invocable->call(args...);
+        }
+    }
 }

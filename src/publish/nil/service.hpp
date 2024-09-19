@@ -1,13 +1,19 @@
 #pragma once
 
-#include "service/http/Server.hpp" // IWYU pragma: export
-#include "service/self/Server.hpp" // IWYU pragma: export
-#include "service/tcp/Client.hpp"  // IWYU pragma: export
-#include "service/tcp/Server.hpp"  // IWYU pragma: export
-#include "service/udp/Client.hpp"  // IWYU pragma: export
-#include "service/udp/Server.hpp"  // IWYU pragma: export
-#include "service/ws/Client.hpp"   // IWYU pragma: export
-#include "service/ws/Server.hpp"   // IWYU pragma: export
+#include <nil/service/structs.hpp> // IWYU pragma: export
+
+#include <nil/service/self/create.hpp> // IWYU pragma: export
+
+#include <nil/service/tcp/client/create.hpp> // IWYU pragma: export
+#include <nil/service/tcp/server/create.hpp> // IWYU pragma: export
+
+#include <nil/service/udp/client/create.hpp> // IWYU pragma: export
+#include <nil/service/udp/server/create.hpp> // IWYU pragma: export
+
+#include <nil/service/ws/client/create.hpp> // IWYU pragma: export
+#include <nil/service/ws/server/create.hpp> // IWYU pragma: export
+
+#include <nil/service/http/server/create.hpp> // IWYU pragma: export
 
 #include "service/codec.hpp"   // IWYU pragma: export
 #include "service/concat.hpp"  // IWYU pragma: export

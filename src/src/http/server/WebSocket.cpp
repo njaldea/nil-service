@@ -1,29 +1,20 @@
 #include "WebSocket.hpp"
 
-namespace nil::service::http
+namespace nil::service::http::server
 {
     void WebSocket::ready(const ID& id) const
     {
-        if (handlers.ready)
-        {
-            handlers.ready->call(id);
-        }
+        detail::invoke(handlers.on_ready, id);
     }
 
     void WebSocket::connect(ws::Connection* connection)
     {
-        if (handlers.connect)
-        {
-            handlers.connect->call(connection->id());
-        }
+        detail::invoke(handlers.on_connect, connection->id());
     }
 
     void WebSocket::message(const ID& id, const void* data, std::uint64_t size)
     {
-        if (handlers.msg)
-        {
-            handlers.msg->call(id, data, size);
-        }
+        detail::invoke(handlers.on_message, id, data, size);
     }
 
     void WebSocket::disconnect(ws::Connection* connection)
@@ -36,10 +27,7 @@ namespace nil::service::http
                 {
                     connections.erase(id);
                 }
-                if (handlers.disconnect)
-                {
-                    handlers.disconnect->call(id);
-                }
+                detail::invoke(handlers.on_disconnect, id);
             }
         );
     }

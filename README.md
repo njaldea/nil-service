@@ -1,28 +1,30 @@
 # nil/service
 
-This library is only intended to simplify creation of `tcp`/`udp`/`websocket` client/server.
+This library is only intended to simplify creation of different services for network communincation.
 
-Simplification is done by abstracting the actual implementation of server/client and simply exposing addition of handlers for specific message types.
+Here are the services provided by this library:
 
-## Classes
+| name   | description                                                                       |
+| ------ | --------------------------------------------------------------------------------- |
+| _self_ | works like an echo server. messages sent/published is handled by its own handlers |
+| _udp_  | client/server                                                                     |
+| _tcp_  | client/server                                                                     |
+| _ws_   | client/server                                                                     |
+| _http_ | server. supports routes and promotion to websocket. Current API is not final.     |
 
-The classes provided by this library conforms in similar API. available protocols are `tcp` | `udp` | `ws` | `http`.
+## Options
 
-All classes are in `nil::service` namespace.
+The following are properties of the Option struct required for creating the services.
 
-### `<protocol>:::Server`
-
-- Options
+### `<protocol>::server::Options`
 
 | name    | protocol         | description                              | default   |
 | ------- | ---------------- | ---------------------------------------- | --------- |
 | port    | tcp/udp/ws/http  | network port to use                      |           |
 | buffer  | tcp/udp/ws/http  | buffer size to use                       | 1024      |
-| timeout | udp              | timeuout to consier a connection is lost | 2 seconds |
+| timeout | udp              | timeout to consider a connection is lost | 2 seconds |
 
-### `<protocol>:::Client`
-
-- Options
+### `<protocol>::client::Options`
 
 | name    | protocol    | description                              | default   |
 | ------- | ----------- | ---------------------------------------- | --------- |
@@ -31,66 +33,96 @@ All classes are in `nil::service` namespace.
 | buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
 | timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
 
-### `self::Server`
+## Creating The Services
 
-- No Options
-
-This service is intended to be just a self invoking event loop.
-All messages sent will be sent to itself and forwarded to a message handler.
-
-Messages are still serialized/deserialized.
-
-## Interfaces
-
-### `IMessagingService`
-
-TODO
-
-### `IObservableService`
-
-TODO
-
-### `IRunnableService`
-
-TODO
-
-### `IService`
-
-TODO
-
-### `IStandaloneService`
-
-TODO
-
-## methods
-
-TODO: revise
+Each service has their own create method.
 
 ```cpp
-service.run();      // runs the service - blocking
-service.stop();     // stops the service - releases run
-service.restart();  // restarts the service 
-                    // required after stopping and before re-running
-
-service.on_connect(handler);
-service.on_disconnect(handler);
-service.on_message(handler);
-
-service.send(id, buffer, buffer_size);
-service.send(id, message_with_codec);
-service.send(id, vector_of_uint8);
-
-service.publish(buffer, buffer_size);
-service.publish(message_with_codec);
-service.publish(vector_of_uint8);
+namespace ns = nil::service;
+auto a = ns::self::create();
+auto a = ns::udp::server::create({...});
+auto a = ns::udp::client::create({...});
+auto a = ns::tcp::server::create({...});
+auto a = ns::tcp::client::create({...});
+auto a = ns::ws::server::create({...});
+auto a = ns::ws::client::create({...});
+auto s = ns::http::server::create({...});
 ```
 
-### `Service::on_message` overloads
+### Proxy Types
+
+The create methods returns a proxy object that is responsible for the following:
+- owning the object and managing its lifetime
+- conversion to different types to allow necessary conversion to matching supported API
+
+There are 3 types of Proxies:
+
+| type | description               | observable    | runnable | messaging |
+| ---- | ------------------------- | ------------- | -------- | --------- |
+| _A_  | standalone service proxy  | yes           | yes      | yes       |
+| _H_  | http service proxy        | on_ready      | yes      | no        |
+| _S_  | service proxy             | yes           | no       | yes       |
+
+## APIs
+
+### Service
+
+```cpp
+on_ready(service, handler);
+on_connect(service, handler);
+on_disconnect(service, handler);
+on_message(service, handler);
+
+send(service, id, buffer, buffer_size);
+send(service, id, message_with_codec);
+send(service, id, vector_of_uint8);
+
+publish(service, buffer, buffer_size);
+publish(service, message_with_codec);
+publish(service, vector_of_uint8);
+```
+
+### Standalone Service
+
+Standalone service also support the basic Service methods.
+
+```cpp
+auto service = nil::service::...::create({...});
+
+start(service);    // runs the service - blocking
+stop(service);     // stops the service - releases run
+restart(service);  // restarts the service 
+                   // required after stopping and before re-running
+
+```
+
+### HTTP Service
+
+```cpp
+auto service = nil::service::http::server::create({...});
+
+// only supports on_ready
+on_ready(service, handler);
+
+// special api for creating routes
+use(
+    service,
+    "/route/here",
+    "text/html",
+    [](std::ostream& oss) { oss << "your html here"; }
+);
+
+// special api for creating route with websocket.
+// returns a Service (S proxy)
+auto s = use_ws(service, "/ws");
+```
+
+### `on_message` overloads
 
 - the following callable signatures will be handled:
 
 ```cpp
-service.on_message(handler);
+on_message(service, handler);
 
 // the following are possible signatures for the call operator of handler
 [](){};
@@ -135,11 +167,8 @@ This utilizes `codec`s which will be discussesd at the end.
 This utility method provides a way to concatenate multiple payloads into one.
 
 ```cpp
-void send(nil::service::IService& service)
-{
-    service.publish(nil::service::concat(0u, "message for 0"s));
-    service.publish(nil::service::concat(1u, false));
-}
+publish(service, nil::service::concat(0u, "message for 0"s));
+publish(service, nil::service::concat(1u, false));
 ```
 
 This utilizes `codec`s which will be discussesd at the end.
@@ -226,18 +255,11 @@ namespace nil::service
 }
 
 // Include your codec
-#include "my_codec.hpp"
-#include <nil/service.hpp>
 
-void setup(nil::service::IService& service)
-{
-    service.on_message([](const auto& id, const CustomType& message){});
-}
+on_message(service, [](const auto& id, const CustomType& message){});
 
-void publish(nil::service::IService& service, const CustomType& message)
-{
-    service.publish(message);
-}
+CustomType message;
+publish(service, message);
 ```
 
 ## NOTES:

@@ -1,19 +1,17 @@
 #pragma once
 
-#include <nil/service/http/Server.hpp>
+#include "../../structs/Service.hpp"
 
-#include "../ConnectedImpl.hpp"
-#include "../ws/Connection.hpp"
+#include "../../ConnectedImpl.hpp"
+#include "../../ws/Connection.hpp"
 
-namespace nil::service::http
+namespace nil::service::http::server
 {
-    class WebSocket final
-        : public IService
+    struct WebSocket final
+        : public Service
         , public ConnectedImpl<ws::Connection>
     {
     public:
-        friend class Server;
-
         explicit WebSocket() = default;
         ~WebSocket() noexcept override = default;
         WebSocket(WebSocket&&) = delete;
@@ -23,14 +21,6 @@ namespace nil::service::http
 
         void publish(std::vector<std::uint8_t> data) override;
         void send(const ID& id, std::vector<std::uint8_t> data) override;
-
-        using IMessagingService::publish;
-        using IMessagingService::send;
-
-        using IObservableService::on_connect;
-        using IObservableService::on_disconnect;
-        using IObservableService::on_message;
-        using IObservableService::on_ready;
 
         void ready(const ID& id) const;
         void connect(ws::Connection* connection) override;

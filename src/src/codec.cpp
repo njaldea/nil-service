@@ -13,7 +13,7 @@ namespace nil::service::detail
     std::string deserialize(tag<std::string> t, const void* data, std::uint64_t& size)
     {
         (void)t;
-        return std::string(static_cast<const char*>(data), std::exchange(size, 0ul));
+        return std::string(static_cast<const char*>(data), std::exchange(size, 0ul)); // NOLINT
     }
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)

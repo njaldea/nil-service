@@ -12,7 +12,6 @@ namespace nil::service
 
         ConnectedImpl(ConnectedImpl&&) noexcept = delete;
         ConnectedImpl& operator=(ConnectedImpl&&) noexcept = delete;
-
         ConnectedImpl(const ConnectedImpl&) = delete;
         ConnectedImpl& operator=(const ConnectedImpl&) = delete;
 

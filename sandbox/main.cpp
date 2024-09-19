@@ -1,160 +1,181 @@
-#include <nil/clix.hpp>
-#include <nil/clix/node.hpp>
-#include <nil/clix/prebuilt/Help.hpp>
 #include <nil/service.hpp>
+
+#include <nil/clix.hpp>
+#include <nil/clix/prebuilt/Help.hpp>
 
 #include <iostream>
 #include <thread>
 
-template <typename T>
-    requires                                        //
-    std::is_same_v<T, nil::service::udp::Server>    //
-    || std::is_same_v<T, nil::service::tcp::Server> //
-    || std::is_same_v<T, nil::service::ws::Server>
-T make_service(const nil::clix::Options& options)
-{
-    return T({.port = std::uint16_t(number(options, "port"))});
-}
-
-template <typename T>
-    requires                                        //
-    std::is_same_v<T, nil::service::udp::Client>    //
-    || std::is_same_v<T, nil::service::tcp::Client> //
-    || std::is_same_v<T, nil::service::ws::Client>
-T make_service(const nil::clix::Options& options)
-{
-    return T({.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
-}
-
-template <typename T>
-    requires std::is_same_v<T, nil::service::self::Server>
-T make_service(const nil::clix::Options& options)
-{
-    (void)options;
-    return T();
-}
-
-template <typename T>
-void add_end_node(nil::clix::Node& node)
+void add_help(nil::clix::Node& node)
 {
     flag(node, "help", {.skey = 'h', .msg = "this help"});
-    if constexpr (!std::is_same_v<T, nil::service::self::Server>)
-    {
-        number(
-            node,
-            "port",
-            {
-                .skey = 'p',
-                .msg = "port",
-                .fallback = 8000,
-                .implicit = 8000 //
-            }
-        );
-    }
-    use(node,
-        [](const nil::clix::Options& options)
-        {
-            if (flag(options, "help"))
-            {
-                help(options, std::cout);
-                return 0;
-            }
-            auto service = make_service<T>(options);
-            {
-                service.on_message( //
-                    nil::service::map(
-                        nil::service::mapping(
-                            0u,
-                            [](const auto& id, const std::string& m)
-                            {
-                                std::cout << "from         : " << id.text << std::endl;
-                                std::cout << "type         : " << 0 << std::endl;
-                                std::cout << "message      : " << m << std::endl;
-                            }
-                        ),
-                        nil::service::mapping(
-                            1u,
-                            [](const auto& id, const void* data, std::uint64_t size)
-                            {
-                                const auto m = nil::service::consume<std::string>(data, size);
-                                std::cout << "from         : " << id.text << std::endl;
-                                std::cout << "type         : " << 1 << std::endl;
-                                std::cout << "message      : " << m << std::endl;
-                            }
-                        )
-                    )
-                );
-                service.on_ready(                                               //
-                    [](const auto& id) {                                        //
-                        std::cout << "local        : " << id.text << std::endl; //
-                    }
-                );
-                service.on_connect(                                             //
-                    [](const nil::service::ID& id) {                            //
-                        std::cout << "connected    : " << id.text << std::endl; //
-                    }
-                );
-                service.on_disconnect(                                          //
-                    [](const nil::service::ID& id) {                            //
-                        std::cout << "disconnected : " << id.text << std::endl; //
-                    }
-                );
-            }
-
-            {
-                using namespace std::string_literals;
-                while (true)
-                {
-                    std::thread t1([&]() { service.run(); });
-                    std::string message;
-                    std::uint32_t type = 0;
-                    while (std::getline(std::cin, message))
-                    {
-                        if (message == "reconnect")
-                        {
-                            break;
-                        }
-
-                        service.publish(nil::service::concat(
-                            type,
-                            "typed > "s,
-                            message,
-                            " : "s,
-                            "secondary here"s
-                        ));
-
-                        type = (type + 1) % 2;
-                    }
-                    service.stop();
-                    t1.join();
-                    service.restart();
-                }
-            }
-            return 0;
-        });
 }
 
-template <typename Server, typename Client>
-void add_sub_nodes(nil::clix::Node& node)
+void add_port(nil::clix::Node& node)
 {
-    use(node, nil::clix::prebuilt::Help(&std::cout));
-    sub(node, "server", "server", add_end_node<Server>);
-    sub(node, "client", "client", add_end_node<Client>);
+    number(node, "port", {.skey = 'p', .msg = "port", .fallback = 8000, .implicit = 8000});
 }
+
+template <typename R, typename T>
+auto create_server(const nil::clix::Options& options, R (*maker)(T))
+{
+    return maker(T{.port = std::uint16_t(number(options, "port"))});
+}
+
+template <typename R, typename T>
+auto create_client(const nil::clix::Options& options, R (*maker)(T))
+{
+    return maker(T{.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
+}
+
+template <typename R>
+auto create_self(const nil::clix::Options& options, R (*maker)())
+{
+    (void)options;
+    return maker();
+}
+
+auto input_output(auto& service)
+{
+    using namespace std::string_literals;
+    std::string message;
+    std::uint32_t type = 0;
+    while (std::getline(std::cin, message))
+    {
+        if (message == "reconnect")
+        {
+            break;
+        }
+
+        publish(
+            service,
+            nil::service::concat(type, "typed > "s, message, " : "s, "secondary here"s)
+        );
+
+        type = (type + 1) % 2;
+    }
+}
+
+template <typename R, typename... T>
+struct Runner
+{
+    Runner(R (*init_creator)(const nil::clix::Options&, R (*)(T...)), R (*init_maker)(T...))
+        : creator(init_creator)
+        , maker(init_maker)
+    {
+    }
+
+    int operator()(const nil::clix::Options& options) const
+    {
+        if (flag(options, "help"))
+        {
+            help(options, std::cout);
+            return 0;
+        }
+        auto service = creator(options, maker);
+        {
+            on_message(
+                service,
+                nil::service::map(
+                    nil::service::mapping(
+                        0u,
+                        [](const auto& id, const std::string& m)
+                        {
+                            std::cout << "from         : " << id.text << std::endl;
+                            std::cout << "type         : " << 0 << std::endl;
+                            std::cout << "message      : " << m << std::endl;
+                        }
+                    ),
+                    nil::service::mapping(
+                        1u,
+                        [](const auto& id, const void* data, std::uint64_t size)
+                        {
+                            const auto m = nil::service::consume<std::string>(data, size);
+                            std::cout << "from         : " << id.text << std::endl;
+                            std::cout << "type         : " << 1 << std::endl;
+                            std::cout << "message      : " << m << std::endl;
+                        }
+                    )
+                )
+            );
+            on_ready(                                                       //
+                service,                                                    //
+                [](const auto& id) {                                        //
+                    std::cout << "local        : " << id.text << std::endl; //
+                }
+            );
+            on_connect(
+                service,                                                    //
+                [](const nil::service::ID& id) {                            //
+                    std::cout << "connected    : " << id.text << std::endl; //
+                }
+            );
+            on_disconnect(
+                service,                                                    //
+                [](const nil::service::ID& id) {                            //
+                    std::cout << "disconnected : " << id.text << std::endl; //
+                }
+            );
+        }
+
+        {
+            while (true)
+            {
+                std::thread t1([&]() { start(service); });
+                input_output(service);
+                stop(service);
+                t1.join();
+                restart(service);
+            }
+        }
+        return 0;
+    }
+
+    R (*creator)(const nil::clix::Options&, R (*)(T...));
+    R (*maker)(T...);
+};
+
+template <typename SR, typename SO, typename CR, typename CO>
+struct CS_Sub
+{
+    CS_Sub(SR (*init_server_maker)(SO), CR (*init_client_maker)(CO))
+        : server_maker(init_server_maker)
+        , client_maker(init_client_maker)
+    {
+    }
+
+    void operator()(nil::clix::Node& node) const
+    {
+        add_help(node);
+        use(node, nil::clix::prebuilt::Help(&std::cout));
+        sub(node,
+            "server",
+            "server",
+            [this](auto& nn)
+            {
+                add_help(nn);
+                add_port(nn);
+                use(nn, Runner(&create_server, server_maker));
+            });
+        sub(node,
+            "client",
+            "client",
+            [this](auto& nn)
+            {
+                add_help(nn);
+                add_port(nn);
+                use(nn, Runner(&create_client, client_maker));
+            });
+    }
+
+    SR (*server_maker)(SO);
+    CR (*client_maker)(CO);
+};
 
 void add_http_node(nil::clix::Node& node)
 {
-    flag(node, "help", {.skey = 'h', .msg = "this help"});
-    number(
-        node,
-        "port",
-        {
-            .skey = 'p',
-            .msg = "port",
-            .fallback = 8080,
-            .implicit = 8080 //
-        }
-    );
+    add_help(node);
+    add_port(node);
     use(node,
         [](const nil::clix::Options& options)
         {
@@ -163,67 +184,104 @@ void add_http_node(nil::clix::Node& node)
                 help(options, std::cout);
                 return 0;
             }
-            nil::service::http::Server server(
+            auto server = nil::service::http::server::create(
                 {.port = std::uint16_t(number(options, "port")), .buffer = 1024}
             );
-            server.use(
+            use(server,
                 "/",
                 "text/html",
                 [](std::ostream& oss)
                 {
-                    oss << "<!DOCTYPE html>"                                          //
-                        << "<html lang=\"en\">"                                       //
-                        << "<head>"                                                   //
-                        << "<script type=\"module\">"                                 //
-                        << "const foo = () => {"                                      //
-                        << "    let nil = new WebSocket(\"ws://localhost:8080/ws\");" //
-                        << "    nil.onopen = () => console.log(\"open\");"            //
-                        << "    nil.onclose = () => console.log(\"close\");"          //
-                        << "    nil.onmessage = (e) => console.log(\"message\", e);"  //
-                        << "    return nil;"                                          //
-                        << "};"                                                       //
-                        << "globalThis.nil = foo();"                                  //
-                        << "</script>"                                                //
-                        << "</head>"                                                  //
+                    oss << "<!DOCTYPE html>"                                               //
+                        << "<html lang=\"en\">"                                            //
+                        << "<head>"                                                        //
+                        << "<script type=\"module\">"                                      //
+                        << "const foo = () => {"                                           //
+                        << "    let nil = new WebSocket(\"ws://localhost:8000/ws\");"      //
+                        << "    nil.binaryType = \"arraybuffer\";"                         //
+                        << "    nil.onopen = () => console.log(\"open\");"                 //
+                        << "    nil.onclose = () => console.log(\"close\");"               //
+                        << "    nil.onmessage = async (e) => {"                            //
+                        << "        const data = new Uint8Array(event.data);"              //
+                        << "        const tag = new DataView(data.buffer)"                 //
+                        << "            .getUint32(0, false);"                             //
+                        << "        const rest = new TextDecoder().decode(data.slice(4));" //
+                        << "        console.log(tag, rest);"                               //
+                        << "    };"                                                        //
+                        << "    return nil;"                                               //
+                        << "};"                                                            //
+                        << "globalThis.foo = foo;"                                         //
+                        << "</script>"                                                     //
+                        << "</head>"                                                       //
                         << "<body>hello world</body>";
-                }
-            );
-            server.on_ready(                                              //
+                });
+            on_ready(
+                server,                                                   //
                 [](const auto& id)                                        //
                 { std::cout << "ready      : " << id.text << std::endl; } //
             );
-            auto& ws = server.use_ws("/ws");
-            ws.on_ready(                                                  //
+            auto ws = use_ws(server, "/ws");
+            on_ready(
+                ws,                                                       //
                 [](const auto& id)                                        //
                 { std::cout << "ready      : " << id.text << std::endl; } //
             );
-            ws.on_connect(                                                //
+            on_connect(
+                ws,                                                       //
                 [](const auto& id)                                        //
                 { std::cout << "connect    : " << id.text << std::endl; } //
             );
-            ws.on_disconnect(                                             //
+            on_disconnect(
+                ws,                                                       //
                 [](const auto& id)                                        //
                 { std::cout << "disconnect : " << id.text << std::endl; } //
             );
-            ws.on_message(                                                                      //
+            on_message(
+                ws,                                                                             //
                 [](const auto& id, const std::string& content)                                  //
                 { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
             );
-            server.run();
+
+            {
+                while (true)
+                {
+                    std::thread t1([&]() { start(server); });
+                    input_output(ws);
+                    stop(server);
+                    t1.join();
+                    restart(server);
+                }
+            }
             return 0;
         });
 }
 
 int main(int argc, const char** argv)
 {
-    using namespace nil::service;
+    auto node = nil::clix::create_node();
+    add_help(node);
+    use(node, nil::clix::prebuilt::Help(&std::cout));
+    sub(node,
+        "self",
+        "use self protocol",
+        [](auto& n)
+        {
+            add_help(n);
+            use(n, Runner(&create_self, &nil::service::self::create));
+        });
+    sub(node,
+        "udp",
+        "use udp protocol",
+        CS_Sub(&nil::service::udp::server::create, &nil::service::udp::client::create));
+    sub(node,
+        "tcp",
+        "use tcp protocol",
+        CS_Sub(&nil::service::tcp::server::create, &nil::service::tcp::client::create));
+    sub(node,
+        "ws",
+        "use ws protocol",
+        CS_Sub(&nil::service::ws::server::create, &nil::service::ws::client::create));
 
-    auto root = nil::clix::create_node();
-    use(root, nil::clix::prebuilt::Help(&std::cout));
-    sub(root, "self", "use self protocol", add_end_node<self::Server>);
-    sub(root, "udp", "use udp protocol", add_sub_nodes<udp::Server, udp::Client>);
-    sub(root, "tcp", "use tcp protocol", add_sub_nodes<tcp::Server, tcp::Client>);
-    sub(root, "ws", "use ws protocol", add_sub_nodes<ws::Server, ws::Client>);
-    sub(root, "http", "serve http server", add_http_node);
-    return run(root, argc, argv);
+    sub(node, "http", "serve http server", add_http_node);
+    nil::clix::run(node, argc, argv);
 }

@@ -11,8 +11,6 @@
 
 namespace nil::service::tcp
 {
-    class Connection;
-
     class Connection final
     {
     public:

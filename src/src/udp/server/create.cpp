@@ -1,27 +1,38 @@
-#include <nil/service/udp/Server.hpp>
+#include <nil/service/udp/server/create.hpp>
 
-#include "../utils.hpp"
+#include "../../structs/StandaloneService.hpp"
+#include "../../utils.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
-namespace nil::service::udp
+namespace nil::service::udp::server
 {
-    struct Server::Impl final
+    struct Context
+    {
+        explicit Context(std::uint16_t port)
+            : strand(make_strand(ctx))
+            , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), port})
+        {
+        }
+
+        boost::asio::io_context ctx;
+        boost::asio::strand<boost::asio::io_context::executor_type> strand;
+        boost::asio::ip::udp::socket socket;
+    };
+
+    struct Impl final: StandaloneService
     {
     public:
-        explicit Impl(const Server& parent)
-            : options(parent.options)
-            , handlers(parent.handlers)
-            , strand(boost::asio::make_strand(context))
-            , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), options.port})
+        explicit Impl(Options init_options)
+            : options(init_options)
         {
             buffer.resize(options.buffer);
         }
 
-        ~Impl() noexcept = default;
+        ~Impl() noexcept override = default;
 
         Impl(Impl&&) noexcept = delete;
         Impl& operator=(Impl&&) noexcept = delete;
@@ -29,29 +40,34 @@ namespace nil::service::udp
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void ready()
+        void start() override
         {
-            if (handlers.ready)
+            if (!context)
             {
-                handlers.ready->call(utils::to_id(socket.local_endpoint()));
+                context = std::make_unique<Context>(options.port);
+                detail::invoke(handlers.on_ready, utils::to_id(context->socket.local_endpoint()));
+                receive();
             }
-            receive();
+            context->ctx.run();
         }
 
-        void run()
+        void stop() override
         {
-            context.run();
+            if (context)
+            {
+                context->ctx.stop();
+            }
         }
 
-        void stop()
+        void restart() override
         {
-            context.stop();
+            context.reset();
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data)
+        void send(const ID& id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
-                strand,
+                context->strand,
                 [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
                 )
                 {
@@ -63,17 +79,17 @@ namespace nil::service::udp
                     {
                         if (cid == id)
                         {
-                            socket.send_to(b, connection->endpoint);
+                            context->socket.send_to(b, connection->endpoint);
                         }
                     }
                 }
             );
         }
 
-        void publish(std::vector<std::uint8_t> data)
+        void publish(std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
-                strand,
+                context->strand,
                 [this, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)]()
                 {
                     const auto b = std::array<boost::asio::const_buffer, 3>{
@@ -82,7 +98,7 @@ namespace nil::service::udp
                     };
                     for (const auto& connection : connections)
                     {
-                        socket.send_to(b, connection.second->endpoint);
+                        context->socket.send_to(b, connection.second->endpoint);
                     }
                 }
             );
@@ -94,11 +110,8 @@ namespace nil::service::udp
             auto& connection = connections[id];
             if (!connection)
             {
-                connection = std::make_unique<Connection>(endpoint, strand);
-                if (handlers.connect)
-                {
-                    handlers.connect->call(id);
-                }
+                connection = std::make_unique<Connection>(endpoint, context->strand);
+                detail::invoke(handlers.on_connect, id);
             }
             connection->timer.expires_after(options.timeout);
             connection->timer.async_wait(
@@ -108,15 +121,12 @@ namespace nil::service::udp
                     {
                         return;
                     }
-                    if (handlers.disconnect)
-                    {
-                        handlers.disconnect->call(id);
-                    }
+                    detail::invoke(handlers.on_disconnect, id);
                     connections.erase(id);
                 }
             );
 
-            socket.send_to(
+            context->socket.send_to(
                 boost::asio::buffer(utils::to_array(utils::UDP_INTERNAL_MESSAGE)),
                 endpoint
             );
@@ -124,10 +134,7 @@ namespace nil::service::udp
 
         void usermsg(const ID& id, const std::uint8_t* data, std::uint64_t size)
         {
-            if (handlers.msg)
-            {
-                handlers.msg->call(id, data, size);
-            }
+            detail::invoke(handlers.on_message, id, data, size);
         }
 
         void message(
@@ -157,7 +164,7 @@ namespace nil::service::udp
         {
             auto receiver = std::make_unique<boost::asio::ip::udp::endpoint>();
             auto& capture = *receiver;
-            socket.async_receive_from(
+            context->socket.async_receive_from(
                 boost::asio::buffer(buffer),
                 capture,
                 [this, receiver = std::move(receiver)](
@@ -174,15 +181,11 @@ namespace nil::service::udp
             );
         }
 
-        const Options& options;
-        const detail::Handlers& handlers;
-
-        boost::asio::io_context context;
-        boost::asio::strand<boost::asio::io_context::executor_type> strand;
-        boost::asio::ip::udp::socket socket;
-
         struct Connection final
         {
+            boost::asio::ip::udp::endpoint endpoint;
+            boost::asio::steady_timer timer;
+
             Connection(
                 boost::asio::ip::udp::endpoint init_endpoint,
                 boost::asio::strand<boost::asio::io_context::executor_type>& strand
@@ -191,67 +194,22 @@ namespace nil::service::udp
                 , timer(strand)
             {
             }
-
-            ~Connection() noexcept = default;
-
-            Connection(const Connection&) = delete;
-            Connection(Connection&&) noexcept = delete;
-            Connection& operator=(const Connection&) = delete;
-            Connection& operator=(Connection&&) noexcept = delete;
-
-            boost::asio::ip::udp::endpoint endpoint;
-            boost::asio::steady_timer timer;
         };
 
         using Connections = std::unordered_map<ID, std::unique_ptr<Connection>>;
-        Connections connections;
 
+        Options options;
+        std::unique_ptr<Context> context;
+        Connections connections;
         std::vector<std::uint8_t> buffer;
     };
 
-    Server::Server(Server::Options init_options)
-        : options{init_options}
+    A create(Options options)
     {
-    }
-
-    Server::~Server() noexcept = default;
-
-    void Server::run()
-    {
-        if (!impl)
-        {
-            impl = std::make_unique<Impl>(*this);
-            impl->ready();
-        }
-        impl->run();
-    }
-
-    void Server::stop()
-    {
-        if (impl)
-        {
-            impl->stop();
-        }
-    }
-
-    void Server::restart()
-    {
-        impl.reset();
-    }
-
-    void Server::send(const ID& id, std::vector<std::uint8_t> data)
-    {
-        if (impl)
-        {
-            impl->send(id, std::move(data));
-        }
-    }
-
-    void Server::publish(std::vector<std::uint8_t> data)
-    {
-        if (impl)
-        {
-            impl->publish(std::move(data));
-        }
+        constexpr auto deleter = [](StandaloneService* obj) { //
+            auto ptr = static_cast<Impl*>(obj);               // NOLINT
+            std::default_delete<Impl>()(ptr);
+        };
+        return {{new Impl(options), deleter}};
     }
 }

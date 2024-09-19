@@ -1,23 +1,36 @@
-#include <nil/service/tcp/Client.hpp>
+#include <nil/service/tcp/client/create.hpp>
 
-#include "../utils.hpp"
-#include "Connection.hpp"
+#include "../../structs/StandaloneService.hpp"
+#include "../../utils.hpp"
+#include "../Connection.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
-namespace nil::service::tcp
+namespace nil::service::tcp::client
 {
-    struct Client::Impl final: ConnectedImpl<Connection>
+    struct Context
+    {
+        explicit Context()
+            : strand(make_strand(ctx))
+            , reconnection(strand)
+        {
+        }
+
+        boost::asio::io_context ctx;
+        boost::asio::strand<boost::asio::io_context::executor_type> strand;
+        boost::asio::steady_timer reconnection;
+    };
+
+    struct Impl final
+        : StandaloneService
+        , ConnectedImpl<Connection>
     {
     public:
-        explicit Impl(const Client& parent)
-            : options(parent.options)
-            , handlers(parent.handlers)
-            , strand(boost::asio::make_strand(context))
-            , reconnection(strand)
+        explicit Impl(Options init_options)
+            : options(std::move(init_options))
         {
         }
 
@@ -25,29 +38,36 @@ namespace nil::service::tcp
 
         Impl(Impl&&) noexcept = delete;
         Impl& operator=(Impl&&) noexcept = delete;
-
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void ready()
+        void start() override
         {
-            connect();
+            if (!context)
+            {
+                context = std::make_unique<Context>();
+                connect();
+            }
+            context->ctx.run();
         }
 
-        void run()
+        void stop() override
         {
-            context.run();
+            if (context)
+            {
+                context->ctx.stop();
+            }
         }
 
-        void stop()
+        void restart() override
         {
-            context.stop();
+            context.reset();
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data)
+        void send(const ID& id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
-                strand,
+                context->strand,
                 [this, id, msg = std::move(data)]()
                 {
                     if (connection != nullptr && connection->id() == id)
@@ -58,10 +78,10 @@ namespace nil::service::tcp
             );
         }
 
-        void publish(std::vector<std::uint8_t> data)
+        void publish(std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
-                strand,
+                context->strand,
                 [this, msg = std::move(data)]()
                 {
                     if (connection != nullptr)
@@ -75,24 +95,18 @@ namespace nil::service::tcp
     private:
         void connect(Connection* target_connection) override
         {
-            if (handlers.connect)
-            {
-                handlers.connect->call(target_connection->id());
-            }
+            detail::invoke(handlers.on_connect, target_connection->id());
         }
 
         void disconnect(Connection* target_connection) override
         {
             boost::asio::post(
-                strand,
+                context->strand,
                 [this, target_connection]()
                 {
                     if (connection.get() == target_connection)
                     {
-                        if (handlers.disconnect)
-                        {
-                            handlers.disconnect->call(connection->id());
-                        }
+                        detail::invoke(handlers.on_disconnect, connection->id());
                         connection.reset();
                     }
                     reconnect();
@@ -102,15 +116,12 @@ namespace nil::service::tcp
 
         void message(const ID& id, const void* data, std::uint64_t size) override
         {
-            if (handlers.msg)
-            {
-                handlers.msg->call(id, data, size);
-            }
+            detail::invoke(handlers.on_message, id, data, size);
         }
 
         void connect()
         {
-            auto socket = std::make_unique<boost::asio::ip::tcp::socket>(strand);
+            auto socket = std::make_unique<boost::asio::ip::tcp::socket>(context->strand);
             auto* socket_ptr = socket.get();
             socket_ptr->async_connect(
                 {boost::asio::ip::make_address(options.host.data()), options.port},
@@ -118,10 +129,7 @@ namespace nil::service::tcp
                 {
                     if (!ec)
                     {
-                        if (handlers.ready)
-                        {
-                            handlers.ready->call(utils::to_id(socket->local_endpoint()));
-                        }
+                        detail::invoke(handlers.on_ready, utils::to_id(socket->local_endpoint()));
                         connection = std::make_unique<Connection>(
                             options.buffer,
                             std::move(*socket),
@@ -136,8 +144,8 @@ namespace nil::service::tcp
 
         void reconnect()
         {
-            reconnection.expires_after(std::chrono::milliseconds(25));
-            reconnection.async_wait(
+            context->reconnection.expires_after(std::chrono::milliseconds(25));
+            context->reconnection.async_wait(
                 [this](const boost::system::error_code& ec)
                 {
                     if (ec != boost::asio::error::operation_aborted)
@@ -148,58 +156,17 @@ namespace nil::service::tcp
             );
         }
 
-        const Options& options;
-        const detail::Handlers& handlers;
-
-        boost::asio::io_context context;
-        boost::asio::strand<boost::asio::io_context::executor_type> strand;
-        boost::asio::steady_timer reconnection;
+        Options options;
+        std::unique_ptr<Context> context;
         std::unique_ptr<Connection> connection;
     };
 
-    Client::Client(Client::Options init_options)
-        : options{std::move(init_options)}
+    A create(Options options)
     {
-    }
-
-    Client::~Client() noexcept = default;
-
-    void Client::run()
-    {
-        if (!impl)
-        {
-            impl = std::make_unique<Impl>(*this);
-            impl->ready();
-        }
-        impl->run();
-    }
-
-    void Client::stop()
-    {
-        if (impl)
-        {
-            impl->stop();
-        }
-    }
-
-    void Client::restart()
-    {
-        impl.reset();
-    }
-
-    void Client::send(const ID& id, std::vector<std::uint8_t> data)
-    {
-        if (impl)
-        {
-            impl->send(id, std::move(data));
-        }
-    }
-
-    void Client::publish(std::vector<std::uint8_t> data)
-    {
-        if (impl)
-        {
-            impl->publish(std::move(data));
-        }
+        constexpr auto deleter = [](StandaloneService* obj) { //
+            auto ptr = static_cast<Impl*>(obj);               // NOLINT
+            std::default_delete<Impl>()(ptr);
+        };
+        return {{new Impl(std::move(options)), deleter}};
     }
 }

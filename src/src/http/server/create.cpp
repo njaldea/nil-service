@@ -1,11 +1,12 @@
-#include <nil/service/http/Server.hpp>
+#include <nil/service/http/server/create.hpp>
 
-#include "../utils.hpp"
-#include "WebSocket.hpp"
+#include "../../structs/HTTPService.hpp"
+#include "../../utils.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
+#include <boost/asio/strand.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
 #include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http/dynamic_body.hpp>
@@ -13,29 +14,45 @@
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
 
-#include <iostream>
-
-namespace nil::service::http
+namespace nil::service::http::server
 {
-    struct Route
+    struct Context
     {
-        std::string content_type;
-        std::unique_ptr<detail::ICallable<std::ostream&>> body;
+        explicit Context(std::uint16_t port)
+            : strand(make_strand(ctx))
+            , acceptor(strand, {boost::asio::ip::make_address("0.0.0.0"), port})
+        {
+        }
+
+        boost::asio::io_context ctx;
+        boost::asio::strand<boost::asio::io_context::executor_type> strand;
+        boost::asio::ip::tcp::acceptor acceptor;
     };
 
-    class Transaction final: public std::enable_shared_from_this<Transaction>
+    struct Impl: HTTPService
     {
     public:
-        explicit Transaction(
-            std::unordered_map<std::string, WebSocket>& init_wss,
-            const std::unordered_map<std::string, Route>& init_routes,
-            std::uint64_t buffer_size,
-            boost::asio::ip::tcp::socket init_socket
-        )
-            : wss(init_wss)
-            , routes(init_routes)
+        explicit Impl(Options init_options)
+            : options(init_options)
+        {
+        }
+
+        void start() override;
+        void stop() override;
+        void restart() override;
+
+    private:
+        void accept();
+
+        Options options;
+        std::unique_ptr<Context> context;
+    };
+
+    struct Transaction final: public std::enable_shared_from_this<Transaction>
+    {
+        explicit Transaction(Impl& init_parent, boost::asio::ip::tcp::socket init_socket)
+            : parent(init_parent)
             , socket(std::move(init_socket))
-            , buffer(buffer_size)
             , deadline(socket.get_executor(), std::chrono::seconds(60))
         {
         }
@@ -67,9 +84,7 @@ namespace nil::service::http
             );
         }
 
-    private:
-        std::unordered_map<std::string, WebSocket>& wss;      // NOLINT
-        const std::unordered_map<std::string, Route>& routes; // NOLINT
+        HTTPService& parent; // NOLINT
         boost::asio::ip::tcp::socket socket;
 
         boost::beast::flat_buffer buffer;
@@ -91,8 +106,8 @@ namespace nil::service::http
                     response.set(boost::beast::http::field::server, "Beast");
 
                     {
-                        auto it = wss.find(request.target());
-                        if (it != wss.end())
+                        auto it = parent.wss.find(request.target());
+                        if (it != parent.wss.end())
                         {
                             if (boost::beast::websocket::is_upgrade(request))
                             {
@@ -142,8 +157,8 @@ namespace nil::service::http
                         }
                     }
                     {
-                        const auto it = routes.find(request.target());
-                        if (it != routes.end())
+                        const auto it = parent.routes.find(request.target());
+                        if (it != parent.routes.end())
                         {
                             const auto& route = it->second;
                             response.set(
@@ -190,118 +205,56 @@ namespace nil::service::http
         }
     };
 
-    struct Server::State: std::unordered_map<std::string, Route>
+    void Impl::start()
     {
-        std::unordered_map<std::string, WebSocket> wss;
-        std::unordered_map<std::string, Route> routes;
-    };
-
-    struct Server::Impl
-    {
-    public:
-        explicit Impl(Server& parent)
-            : wss(parent.state->wss)
-            , routes(parent.state->routes)
-            , buffer_size(parent.options.buffer)
-            , acceptor(
-                  context,
-                  {boost::beast::net::ip::make_address("0.0.0.0"), parent.options.port}
-              )
+        if (!context)
         {
-            accept();
-        }
-
-        void run()
-        {
-            context.run();
-        }
-
-        void stop()
-        {
-            context.stop();
-        }
-
-    private:
-        void accept()
-        {
-            acceptor.async_accept(
-                [this](boost::beast::error_code ec, boost::asio::ip::tcp::socket socket)
-                {
-                    if (!ec)
-                    {
-                        std::make_shared<Transaction>(wss, routes, buffer_size, std::move(socket))
-                            ->start();
-                    }
-                    accept();
-                }
-            );
-        }
-
-        std::unordered_map<std::string, WebSocket>& wss;
-        const std::unordered_map<std::string, Route>& routes;
-        std::uint64_t buffer_size;
-
-    public:
-        // TODO: fix later
-        boost::asio::io_context context;         // NOLINT
-        boost::asio::ip::tcp::acceptor acceptor; // NOLINT
-    };
-
-    Server::Server(Options init_options)
-        : options(init_options)
-        , state(std::make_unique<State>())
-    {
-    }
-
-    Server::~Server() noexcept = default;
-
-    void Server::run()
-    {
-        if (!impl)
-        {
-            impl = std::make_unique<Impl>(*this);
-            auto id = utils::to_id(impl->acceptor.local_endpoint());
-            if (ready)
+            context = std::make_unique<Context>(options.port);
+            auto id = utils::to_id(context->acceptor.local_endpoint());
+            detail::invoke(on_ready, id);
+            for (auto& [route, ws] : wss)
             {
-                ready->call(id);
-            }
-            for (auto& [route, ws] : state->wss)
-            {
-                ws.context = &impl->context;
+                ws.context = &context->ctx;
                 ws.ready({id.text + route});
             }
+            accept();
         }
-        impl->run();
+        context->ctx.run();
     }
 
-    void Server::stop()
+    void Impl::stop()
     {
-        if (impl)
+        if (context)
         {
-            impl->stop();
+            context->ctx.stop();
         }
     }
 
-    void Server::restart()
+    void Impl::restart()
     {
-        for (auto& ws : state->wss)
-        {
-            ws.second.context = nullptr;
-        }
-        impl.reset();
+        context.reset();
     }
 
-    void Server::use_impl(
-        std::string route,
-        std::string content_type,
-        std::unique_ptr<detail::ICallable<std::ostream&>> body
-    )
+    void Impl::accept()
     {
-        state->routes.emplace(std::move(route), Route{std::move(content_type), std::move(body)});
+        context->acceptor.async_accept(
+            [this](boost::beast::error_code ec, boost::asio::ip::tcp::socket socket)
+            {
+                if (!ec)
+                {
+                    std::make_shared<Transaction>(*this, std::move(socket))->start();
+                }
+                accept();
+            }
+        );
     }
 
-    IService& Server::use_ws(std::string route)
+    H create(Options options)
     {
-        return state->wss[std::move(route)];
+        constexpr auto deleter = [](HTTPService* obj) { //
+            auto ptr = static_cast<Impl*>(obj);         // NOLINT
+            std::default_delete<Impl>()(ptr);
+        };
+        return {{new Impl(options), deleter}};
     }
 }
