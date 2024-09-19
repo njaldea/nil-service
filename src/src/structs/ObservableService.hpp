@@ -1,7 +1,5 @@
 #pragma once
 
-#include <nil/service/structs.hpp>
-
 #include <nil/service/detail/Handlers.hpp>
 
 namespace nil::service

@@ -1,6 +1,9 @@
 #pragma once
 
-#include <nil/service/structs.hpp>
+#include <nil/service/ID.hpp>
+
+#include <cstdint>
+#include <vector>
 
 namespace nil::service
 {

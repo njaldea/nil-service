@@ -1,7 +1,5 @@
 #pragma once
 
-#include <nil/service/structs.hpp>
-
 namespace nil::service
 {
     struct RunnableService

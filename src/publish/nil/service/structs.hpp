@@ -16,6 +16,18 @@ namespace nil::service
     struct MessagingService;
     struct ObservableService;
 
+    // Service Proxy
+    // - returned by use_ws when a route is added to handle web socket connection.
+    // - does not own the object and provides conversion mechanism to supported api
+    // - the object is owned by the parent service (HTTPService/H)
+    struct S
+    {
+        Service* ptr;
+        operator Service&() const;           // NOLINT
+        operator MessagingService&() const;  // NOLINT
+        operator ObservableService&() const; // NOLINT
+    };
+
     // StandaloneService Proxy
     // - mainly returned by create methods
     // - owns the object and provides conversion mechanism to supported api
@@ -23,11 +35,12 @@ namespace nil::service
     {
         std::unique_ptr<StandaloneService, void (*)(StandaloneService*)> ptr;
 
-        operator StandaloneService&() const; // NOLINT;
-        operator Service&() const;           // NOLINT;
-        operator RunnableService&() const;   // NOLINT;
-        operator MessagingService&() const;  // NOLINT;
-        operator ObservableService&() const; // NOLINT;
+        operator StandaloneService&() const; // NOLINT
+        operator Service&() const;           // NOLINT
+        operator RunnableService&() const;   // NOLINT
+        operator MessagingService&() const;  // NOLINT
+        operator ObservableService&() const; // NOLINT
+        operator S() const;                  // NOLINT
     };
 
     // HTTPService Proxy
@@ -37,20 +50,8 @@ namespace nil::service
     {
         std::unique_ptr<HTTPService, void (*)(HTTPService*)> ptr;
 
-        operator HTTPService&() const;     // NOLINT;
-        operator RunnableService&() const; // NOLINT;
-    };
-
-    // Service Proxy
-    // - returned by use_ws when a route is added to handle web socket connection.
-    // - does not own the object and provides conversion mechanism to supported api
-    // - the object is owned by the parent service (HTTPService/H)
-    struct S
-    {
-        Service* ptr;
-        operator Service&() const;           // NOLINT;
-        operator MessagingService&() const;  // NOLINT;
-        operator ObservableService&() const; // NOLINT;
+        operator HTTPService&() const;     // NOLINT
+        operator RunnableService&() const; // NOLINT
     };
 
     namespace impl

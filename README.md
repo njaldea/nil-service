@@ -57,11 +57,11 @@ The create methods returns a proxy object that is responsible for the following:
 
 There are 3 types of Proxies:
 
-| type | description               | observable    | runnable | messaging |
-| ---- | ------------------------- | ------------- | -------- | --------- |
-| _A_  | standalone service proxy  | yes           | yes      | yes       |
-| _H_  | http service proxy        | on_ready      | yes      | no        |
-| _S_  | service proxy             | yes           | no       | yes       |
+| type | description                                   | observable    | runnable | messaging |
+| ---- | --------------------------------------------- | ------------- | -------- | --------- |
+| _A_  | standalone service proxy. convertible to _S_  | yes           | yes      | yes       |
+| _H_  | http service proxy                            | on_ready      | yes      | no        |
+| _S_  | service proxy                                 | yes           | no       | yes       |
 
 ## APIs
 

@@ -34,6 +34,9 @@ set(
         src/structs/RunnableService.hpp
         src/structs/Service.hpp
         src/structs/StandaloneService.hpp
+        src/proxies/S.cpp
+        src/proxies/A.cpp
+        src/proxies/H.cpp
         src/self/create.cpp
         src/udp/client/create.cpp
         src/udp/server/create.cpp

@@ -1,60 +1,10 @@
 #include <nil/service/structs.hpp>
 
-#include "structs/HTTPService.hpp"
-#include "structs/StandaloneService.hpp"
+#include "./structs/HTTPService.hpp"
+#include "./structs/ObservableService.hpp"
 
 namespace nil::service
 {
-    A::operator StandaloneService&() const
-    {
-        return *this->ptr;
-    }
-
-    A::operator Service&() const
-    {
-        return *this->ptr;
-    }
-
-    A::operator RunnableService&() const
-    {
-        return *this->ptr;
-    }
-
-    A::operator MessagingService&() const
-    {
-        return *this->ptr;
-    }
-
-    A::operator ObservableService&() const
-    {
-        return *this->ptr;
-    }
-
-    H::operator HTTPService&() const
-    {
-        return *this->ptr;
-    }
-
-    H::operator RunnableService&() const
-    {
-        return *this->ptr;
-    }
-
-    S::operator Service&() const
-    {
-        return *this->ptr;
-    }
-
-    S::operator MessagingService&() const
-    {
-        return *this->ptr;
-    }
-
-    S::operator ObservableService&() const
-    {
-        return *this->ptr;
-    }
-
     namespace impl
     {
         void on_ready(
