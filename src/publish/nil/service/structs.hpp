@@ -107,7 +107,7 @@ namespace nil::service
      * @param id    identifier
      * @param data  data
      */
-    void send(MessagingService& service, std::vector<std::uint8_t> payload);
+    void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload);
 
     /**
      * @brief Broadcast a message to all listeners
