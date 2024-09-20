@@ -3,6 +3,7 @@
 #include "codec.hpp"
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 namespace nil::service

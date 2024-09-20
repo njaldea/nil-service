@@ -5,6 +5,7 @@
 #include "detail/create_message_handler.hpp"
 
 #include <memory>
+#include <type_traits>
 
 namespace nil::service
 {

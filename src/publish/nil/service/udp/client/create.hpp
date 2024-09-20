@@ -3,6 +3,8 @@
 #include "../../structs.hpp"
 
 #include <chrono>
+#include <cstdint>
+#include <string>
 
 namespace nil::service::udp::client
 {

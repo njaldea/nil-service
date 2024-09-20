@@ -4,21 +4,11 @@
     "features": {
         "sandbox": {
             "description": "Enable sandboxes",
-            "dependencies": [
-                {
-                    "name": "nil-clix",
-                    "version>=": "0.0.1"
-                }
-            ]
+            "dependencies": [ "nil-clix" ]
         },
         "test": {
             "description": "Enable tests",
-            "dependencies": [
-                {
-                    "name": "gtest",
-                    "version>=": "1.13.0"
-                }
-            ]
+            "dependencies": [ "gtest" ]
         }
     }
 }

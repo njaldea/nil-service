@@ -5,6 +5,12 @@
 #include "../http/server/Route.hpp"
 #include "../http/server/WebSocket.hpp"
 
+#include <nil/service/detail/Callable.hpp>
+
+#include <memory>
+#include <string>
+#include <vector>
+
 namespace nil::service
 {
     struct HTTPService: RunnableService

@@ -6,6 +6,7 @@
 #include <boost/asio/ip/udp.hpp>
 
 #include <array>
+#include <cstdint>
 
 namespace nil::service::utils
 {

@@ -2,6 +2,8 @@
 
 #include "../../structs.hpp"
 
+#include <cstdint>
+
 namespace nil::service::tcp::server
 {
     struct Options final

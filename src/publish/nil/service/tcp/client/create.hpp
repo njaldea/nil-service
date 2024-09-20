@@ -2,6 +2,9 @@
 
 #include "../../structs.hpp"
 
+#include <cstdint>
+#include <string>
+
 namespace nil::service::tcp::client
 {
     struct Options final

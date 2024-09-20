@@ -2,6 +2,8 @@
 
 #include "../../structs.hpp"
 
+#include <cstdint>
+
 namespace nil::service::http::server
 {
     struct Options final

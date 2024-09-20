@@ -2,7 +2,9 @@
 
 #include "detail/errors.hpp"
 
+#include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace nil::service
