@@ -33,6 +33,7 @@ namespace nil::service
         const std::istream& body
     )
     {
+        transaction.response.result(boost::beast::http::status::ok);
         transaction.response.set(boost::beast::http::field::content_type, content_type);
         boost::beast::ostream(transaction.response.body()) << body.rdbuf();
     }
