@@ -187,34 +187,40 @@ void add_http_node(nil::clix::Node& node)
             auto server = nil::service::http::server::create(
                 {.port = std::uint16_t(number(options, "port")), .buffer = 1024}
             );
-            use(server,
-                "/",
-                "text/html",
-                [](std::ostream& oss)
+            on_get(
+                server,
+                [](const nil::service::HTTPTransaction& transaction) -> void
                 {
-                    oss << "<!DOCTYPE html>"                                               //
-                        << "<html lang=\"en\">"                                            //
-                        << "<head>"                                                        //
-                        << "<script type=\"module\">"                                      //
-                        << "const foo = () => {"                                           //
-                        << "    let nil = new WebSocket(\"ws://localhost:8000/ws\");"      //
-                        << "    nil.binaryType = \"arraybuffer\";"                         //
-                        << "    nil.onopen = () => console.log(\"open\");"                 //
-                        << "    nil.onclose = () => console.log(\"close\");"               //
-                        << "    nil.onmessage = async (e) => {"                            //
-                        << "        const data = new Uint8Array(event.data);"              //
-                        << "        const tag = new DataView(data.buffer)"                 //
-                        << "            .getUint32(0, false);"                             //
-                        << "        const rest = new TextDecoder().decode(data.slice(4));" //
-                        << "        console.log(tag, rest);"                               //
-                        << "    };"                                                        //
-                        << "    return nil;"                                               //
-                        << "};"                                                            //
-                        << "globalThis.foo = foo;"                                         //
-                        << "</script>"                                                     //
-                        << "</head>"                                                       //
-                        << "<body>hello world</body>";
-                });
+                    if ("/" != get_route(transaction))
+                    {
+                        return;
+                    }
+                    std::stringstream oss;
+                    oss << "<!DOCTYPE html>"
+                           "<html lang=\"en\">"
+                           "<head>"
+                           "<script type=\"module\">"
+                           "const foo = () => {"
+                           "    let nil = new WebSocket(\"ws://localhost:8000/ws\");"
+                           "    nil.binaryType = \"arraybuffer\";"
+                           "    nil.onopen = () => console.log(\"open\");"
+                           "    nil.onclose = () => console.log(\"close\");"
+                           "    nil.onmessage = async (e) => {"
+                           "        const data = new Uint8Array(event.data);"
+                           "        const tag = new DataView(data.buffer)"
+                           "            .getUint32(0, false);"
+                           "        const rest = new TextDecoder().decode(data.slice(4));"
+                           "        console.log(tag, rest);"
+                           "    };"
+                           "    return nil;"
+                           "};"
+                           "globalThis.foo = foo;"
+                           "</script>"
+                           "</head>"
+                           "<body>hello world</body>";
+                    send(transaction, "text/html", oss);
+                }
+            );
             on_ready(
                 server,                                                   //
                 [](const auto& id)                                        //

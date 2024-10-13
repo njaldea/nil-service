@@ -79,17 +79,12 @@ namespace nil::service
 
     namespace impl
     {
-        void use(
+        void on_get(
             HTTPService& service,
-            std::string route,
-            std::string content_type,
-            std::unique_ptr<detail::ICallable<std::ostream&>> body
+            std::unique_ptr<detail::ICallable<const HTTPTransaction&>> callback
         )
         {
-            service.routes.emplace(
-                std::move(route),
-                http::server::Route{std::move(content_type), std::move(body)}
-            );
+            service.on_get = std::move(callback);
         }
 
         void on_ready(HTTPService& service, std::unique_ptr<detail::ICallable<const ID&>> handler)

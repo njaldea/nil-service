@@ -2,7 +2,6 @@
 
 #include "RunnableService.hpp"
 
-#include "../http/server/Route.hpp"
 #include "../http/server/WebSocket.hpp"
 
 #include <nil/service/detail/Callable.hpp>
@@ -13,6 +12,8 @@
 
 namespace nil::service
 {
+    struct HTTPTransaction;
+
     struct HTTPService: RunnableService
     {
         HTTPService() = default;
@@ -23,7 +24,7 @@ namespace nil::service
         HTTPService& operator=(HTTPService&&) = delete;
 
         std::vector<std::unique_ptr<detail::ICallable<const ID&>>> on_ready;
+        std::unique_ptr<detail::ICallable<const HTTPTransaction&>> on_get;
         std::unordered_map<std::string, http::server::WebSocket> wss;
-        std::unordered_map<std::string, http::server::Route> routes;
     };
 }

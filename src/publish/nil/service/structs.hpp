@@ -193,39 +193,8 @@ namespace nil::service
 
     namespace impl
     {
-        void use(
-            HTTPService& service,
-            std::string route,
-            std::string content_type,
-            std::unique_ptr<detail::ICallable<std::ostream&>> body
-        );
         void on_ready(HTTPService& service, std::unique_ptr<detail::ICallable<const ID&>> handler);
     }
-
-    template <typename T>
-    void use(
-        HTTPService& service,
-        const std::string& route,
-        const std::string& content_type,
-        T body
-    )
-    {
-        impl::use(
-            service,
-            route,
-            content_type,
-            std::make_unique<detail::Callable<T, std::ostream&>>(std::move(body))
-        );
-    }
-
-    /**
-     * @brief Add a websocket server for a specific route
-     *
-     * @param service
-     * @param route
-     * @return S
-     */
-    S use_ws(HTTPService& service, std::string route);
 
     /**
      * @brief Add ready handler for service events.
@@ -238,4 +207,39 @@ namespace nil::service
     {
         impl::on_ready(service, detail::create_handler(std::move(handler)));
     }
+
+    /**
+     * @brief Add a websocket server for a specific route
+     *
+     * @param service
+     * @param route
+     * @return S
+     */
+    S use_ws(HTTPService& service, std::string route);
+
+    struct HTTPTransaction;
+
+    namespace impl
+    {
+        void on_get(
+            HTTPService& service,
+            std::unique_ptr<detail::ICallable<const HTTPTransaction&>> callback
+        );
+    }
+
+    template <typename T>
+    void on_get(HTTPService& service, T callback)
+    {
+        impl::on_get(
+            service,
+            std::make_unique<detail::Callable<T, const HTTPTransaction&>>(std::move(callback))
+        );
+    }
+
+    std::string get_route(const HTTPTransaction& transaction);
+    void send(
+        const HTTPTransaction& transaction,
+        std::string_view content_type,
+        const std::istream& body
+    );
 }

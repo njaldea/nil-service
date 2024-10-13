@@ -14,6 +14,30 @@
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
 
+namespace nil::service
+{
+    struct HTTPTransaction
+    {
+        boost::beast::http::request<boost::beast::http::dynamic_body>& request;   // NOLINT
+        boost::beast::http::response<boost::beast::http::dynamic_body>& response; // NOLINT
+    };
+
+    std::string get_route(const HTTPTransaction& transaction)
+    {
+        return transaction.request.target();
+    }
+
+    void send(
+        const HTTPTransaction& transaction,
+        std::string_view content_type,
+        const std::istream& body
+    )
+    {
+        transaction.response.set(boost::beast::http::field::content_type, content_type);
+        boost::beast::ostream(transaction.response.body()) << body.rdbuf();
+    }
+}
+
 namespace nil::service::http::server
 {
     struct Context
@@ -93,7 +117,46 @@ namespace nil::service::http::server
 
         boost::asio::steady_timer deadline;
 
+        void handle_ws(http::server::WebSocket& websocket)
+        {
+            namespace bb = boost::beast;
+            namespace bbws = bb::websocket;
+            if (bbws::is_upgrade(request))
+            {
+                auto id = utils::to_id(socket.remote_endpoint());
+                auto ws = std::make_unique<bbws::stream<bb::tcp_stream>>(std::move(socket));
+                ws->set_option(bbws::stream_base::timeout::suggested(bb::role_type::server));
+                ws->set_option(bbws::stream_base::decorator(
+                    [](bbws::response_type& res) {
+                        res.set(
+                            bb::http::field::server,
+                            BOOST_BEAST_VERSION_STRING " websocket-server-async"
+                        );
+                    }
+                ));
+                auto* ws_ptr = ws.get();
+                ws_ptr->async_accept(
+                    request,
+                    [this, &websocket, id = std::move(id), ws = std::move(ws)] //
+                    (bb::error_code ec)
+                    {
+                        if (!ec)
+                        {
+                            auto connection = std::make_unique<ws::Connection>(
+                                id,
+                                buffer.capacity(),
+                                std::move(*ws),
+                                websocket
+                            );
+                            websocket.connections.emplace(id, std::move(connection));
+                        }
+                    }
+                );
+            }
+        }
+
         void process_request()
+
         {
             response.version(request.version());
             response.keep_alive(false);
@@ -104,89 +167,28 @@ namespace nil::service::http::server
                 {
                     response.result(boost::beast::http::status::ok);
                     response.set(boost::beast::http::field::server, "Beast");
-
+                    auto it = parent.wss.find(request.target());
+                    if (it != parent.wss.end())
                     {
-                        auto it = parent.wss.find(request.target());
-                        if (it != parent.wss.end())
-                        {
-                            if (boost::beast::websocket::is_upgrade(request))
-                            {
-                                auto id = utils::to_id(socket.remote_endpoint());
-                                auto ws = std::make_unique<
-                                    boost::beast::websocket::stream<boost::beast::tcp_stream>>(
-                                    std::move(socket)
-                                );
-                                ws->set_option(
-                                    boost::beast::websocket::stream_base::timeout::suggested(
-                                        boost::beast::role_type::server
-                                    )
-                                );
-                                ws->set_option(boost::beast::websocket::stream_base::decorator(
-                                    [](boost::beast::websocket::response_type& res)
-                                    {
-                                        res.set(
-                                            boost::beast::http::field::server,
-                                            std::string(BOOST_BEAST_VERSION_STRING)
-                                                + " websocket-server-async"
-                                        );
-                                    }
-                                ));
-                                auto* ws_ptr = ws.get();
-                                ws_ptr->async_accept(
-                                    request,
-                                    [this, it, id = std::move(id), ws = std::move(ws)](
-                                        boost::beast::error_code ec
-                                    )
-                                    {
-                                        if (!ec)
-                                        {
-                                            it->second.connections.emplace(
-                                                id,
-                                                std::make_unique<ws::Connection>(
-                                                    id,
-                                                    buffer.capacity(),
-                                                    std::move(*ws),
-                                                    it->second
-                                                )
-                                            );
-                                        }
-                                    }
-                                );
-                            }
-                            return;
-                        }
+                        handle_ws(it->second);
                     }
+                    else if (parent.on_get)
                     {
-                        const auto it = parent.routes.find(request.target());
-                        if (it != parent.routes.end())
-                        {
-                            const auto& route = it->second;
-                            response.set(
-                                boost::beast::http::field::content_type,
-                                it->second.content_type
-                            );
-                            auto os = boost::beast::ostream(response.body());
-                            route.body->call(os);
-                        }
-                        else
-                        {
-                            response.result(boost::beast::http::status::unknown);
-                            response.set(boost::beast::http::field::content_type, "text/plain");
-                            boost::beast::ostream(response.body()) << "invalid\r\n";
-                        }
+                        response.result(boost::beast::http::status::bad_request);
+                        HTTPTransaction transaction = {request, response};
+                        parent.on_get->call(transaction);
+                        write_response();
                     }
-                    break;
                 }
-
+                break;
                 default:
                 {
                     response.result(boost::beast::http::status::bad_request);
                     response.set(boost::beast::http::field::content_type, "text/plain");
+                    write_response();
                     break;
                 }
             }
-
-            write_response();
         }
 
         void write_response()
