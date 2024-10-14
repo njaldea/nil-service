@@ -75,9 +75,14 @@ namespace nil::service::http::server
 
     struct Transaction final: public std::enable_shared_from_this<Transaction>
     {
-        explicit Transaction(Impl& init_parent, boost::asio::ip::tcp::socket init_socket)
+        explicit Transaction(
+            Impl& init_parent,
+            std::uint64_t init_buffer,
+            boost::asio::ip::tcp::socket init_socket
+        )
             : parent(init_parent)
             , socket(std::move(init_socket))
+            , buffer(init_buffer)
             , deadline(socket.get_executor(), std::chrono::seconds(60))
         {
         }
@@ -245,7 +250,8 @@ namespace nil::service::http::server
             {
                 if (!ec)
                 {
-                    std::make_shared<Transaction>(*this, std::move(socket))->start();
+                    std::make_shared<Transaction>(*this, options.buffer, std::move(socket))
+                        ->start();
                 }
                 accept();
             }
