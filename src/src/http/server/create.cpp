@@ -150,7 +150,7 @@ namespace nil::service::http::server
                         {
                             auto connection = std::make_unique<ws::Connection>(
                                 id,
-                                buffer.capacity(),
+                                buffer.max_size(),
                                 std::move(*ws),
                                 websocket
                             );

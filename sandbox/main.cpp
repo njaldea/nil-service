@@ -185,7 +185,7 @@ void add_http_node(nil::clix::Node& node)
                 return 0;
             }
             auto server = nil::service::http::server::create(
-                {.port = std::uint16_t(number(options, "port")), .buffer = 1024}
+                {.port = std::uint16_t(number(options, "port")), .buffer = 1024ul * 1024ul * 100ul}
             );
             on_get(
                 server,
