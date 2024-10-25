@@ -64,28 +64,6 @@ namespace nil::service::udp::server
             context.reset();
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data) override
-        {
-            boost::asio::post(
-                context->strand,
-                [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
-                )
-                {
-                    const auto b = std::array<boost::asio::const_buffer, 2>{
-                        boost::asio::buffer(i),
-                        boost::asio::buffer(msg)
-                    };
-                    for (const auto& [cid, connection] : connections)
-                    {
-                        if (cid == id)
-                        {
-                            context->socket.send_to(b, connection->endpoint);
-                        }
-                    }
-                }
-            );
-        }
-
         void publish(std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
@@ -99,6 +77,51 @@ namespace nil::service::udp::server
                     for (const auto& connection : connections)
                     {
                         context->socket.send_to(b, connection.second->endpoint);
+                    }
+                }
+            );
+        }
+
+        void send(const ID& id, std::vector<std::uint8_t> data) override
+        {
+            boost::asio::post(
+                context->strand,
+                [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
+                )
+                {
+                    const auto b = std::array<boost::asio::const_buffer, 2>{
+                        boost::asio::buffer(i),
+                        boost::asio::buffer(msg)
+                    };
+                    auto it = connections.find(id);
+                    if (it != connections.end())
+                    {
+                        context->socket.send_to(b, it->second->endpoint);
+                    }
+                }
+            );
+        }
+
+        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
+        {
+            boost::asio::post(
+                context->strand,
+                [this,
+                 ids,
+                 i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
+                 msg = std::move(data)]()
+                {
+                    const auto b = std::array<boost::asio::const_buffer, 2>{
+                        boost::asio::buffer(i),
+                        boost::asio::buffer(msg)
+                    };
+                    for (const auto& id : ids)
+                    {
+                        auto it = connections.find(id);
+                        if (it != connections.end())
+                        {
+                            context->socket.send_to(b, it->second->endpoint);
+                        }
                     }
                 }
             );

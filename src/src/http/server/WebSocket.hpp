@@ -21,6 +21,7 @@ namespace nil::service::http::server
 
         void publish(std::vector<std::uint8_t> data) override;
         void send(const ID& id, std::vector<std::uint8_t> data) override;
+        void send(const std::vector<ID>& id, std::vector<std::uint8_t> data) override;
 
         void ready(const ID& id) const;
         void connect(ws::Connection* connection) override;

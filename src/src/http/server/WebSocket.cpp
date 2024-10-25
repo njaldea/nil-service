@@ -66,4 +66,25 @@ namespace nil::service::http::server
             );
         }
     }
+
+    void WebSocket::send(const std::vector<ID>& ids, std::vector<std::uint8_t> data)
+    {
+        if (context != nullptr)
+        {
+            boost::asio::post(
+                *context,
+                [this, ids, msg = std::move(data)]()
+                {
+                    for (const auto& id : ids)
+                    {
+                        auto it = connections.find(id);
+                        if (it != connections.end())
+                        {
+                            it->second->write(msg.data(), msg.size());
+                        }
+                    }
+                }
+            );
+        }
+    }
 }

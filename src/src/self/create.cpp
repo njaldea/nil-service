@@ -27,9 +27,18 @@ namespace nil::service::self
 
         void send(const ID& to, std::vector<std::uint8_t> payload) override
         {
-            if ("self" == to.text)
+            if (id == to)
             {
                 publish(std::move(payload));
+            }
+        }
+
+        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
+        {
+            auto it = std::find(ids.begin(), ids.end(), id);
+            if (it != ids.end())
+            {
+                this->send(*it, std::move(data));
             }
         }
 

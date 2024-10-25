@@ -52,6 +52,17 @@ namespace nil::service
         service.send(id, std::vector<std::uint8_t>(ptr, ptr + size));
     }
 
+    void send(
+        MessagingService& service,
+        const std::vector<ID>& ids,
+        const void* data,
+        std::uint64_t size
+    )
+    {
+        const auto* ptr = static_cast<const std::uint8_t*>(data);
+        service.send(ids, std::vector<std::uint8_t>(ptr, ptr + size));
+    }
+
     void publish(MessagingService& service, std::vector<std::uint8_t> payload)
     {
         service.publish(std::move(payload));
@@ -60,6 +71,15 @@ namespace nil::service
     void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload)
     {
         service.send(id, std::move(payload));
+    }
+
+    void send(
+        MessagingService& service,
+        const std::vector<ID>& ids,
+        std::vector<std::uint8_t> payload
+    )
+    {
+        service.send(ids, std::move(payload));
     }
 
     void start(RunnableService& service)

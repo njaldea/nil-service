@@ -176,90 +176,93 @@ void add_http_node(nil::clix::Node& node)
 {
     add_help(node);
     add_port(node);
-    use(node,
-        [](const nil::clix::Options& options)
-        {
-            if (flag(options, "help"))
-            {
-                help(options, std::cout);
-                return 0;
-            }
-            auto server = nil::service::http::server::create(
-                {.port = std::uint16_t(number(options, "port")), .buffer = 1024ul * 1024ul * 100ul}
-            );
-            on_get(
-                server,
-                [](const nil::service::HTTPTransaction& transaction) -> void
-                {
-                    if ("/" != get_route(transaction))
-                    {
-                        return;
-                    }
-                    std::stringstream oss;
-                    oss << "<!DOCTYPE html>"
-                           "<html lang=\"en\">"
-                           "<head>"
-                           "<script type=\"module\">"
-                           "const foo = () => {"
-                           "    let nil = new WebSocket(\"ws://localhost:8000/ws\");"
-                           "    nil.binaryType = \"arraybuffer\";"
-                           "    nil.onopen = () => console.log(\"open\");"
-                           "    nil.onclose = () => console.log(\"close\");"
-                           "    nil.onmessage = async (e) => {"
-                           "        const data = new Uint8Array(event.data);"
-                           "        const tag = new DataView(data.buffer)"
-                           "            .getUint32(0, false);"
-                           "        const rest = new TextDecoder().decode(data.slice(4));"
-                           "        console.log(tag, rest);"
-                           "    };"
-                           "    return nil;"
-                           "};"
-                           "globalThis.foo = foo;"
-                           "</script>"
-                           "</head>"
-                           "<body>hello world</body>";
-                    send(transaction, "text/html", oss);
-                }
-            );
-            on_ready(
-                server,                                                   //
-                [](const auto& id)                                        //
-                { std::cout << "ready      : " << id.text << std::endl; } //
-            );
-            auto ws = use_ws(server, "/ws");
-            on_ready(
-                ws,                                                       //
-                [](const auto& id)                                        //
-                { std::cout << "ready      : " << id.text << std::endl; } //
-            );
-            on_connect(
-                ws,                                                       //
-                [](const auto& id)                                        //
-                { std::cout << "connect    : " << id.text << std::endl; } //
-            );
-            on_disconnect(
-                ws,                                                       //
-                [](const auto& id)                                        //
-                { std::cout << "disconnect : " << id.text << std::endl; } //
-            );
-            on_message(
-                ws,                                                                             //
-                [](const auto& id, const std::string& content)                                  //
-                { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
-            );
 
-            {
-                while (true)
-                {
-                    std::thread t1([&]() { start(server); });
-                    input_output(ws);
-                    stop(server);
-                    t1.join();
-                    restart(server);
-                }
-            }
+    constexpr auto http_runner = [](const nil::clix::Options& options)
+    {
+        if (flag(options, "help"))
+        {
+            help(options, std::cout);
             return 0;
-        });
+        }
+        auto server = nil::service::http::server::create(
+            {.port = std::uint16_t(number(options, "port")), .buffer = 1024ul * 1024ul * 100ul}
+        );
+        on_get(
+            server,
+            [](const nil::service::HTTPTransaction& transaction) -> void
+            {
+                if ("/" != get_route(transaction))
+                {
+                    return;
+                }
+                set_content_type(transaction, "text/html");
+                send(
+                    transaction,
+                    "<!DOCTYPE html>"
+                    "<html lang=\"en\">"
+                    "<head>"
+                    "<script type=\"module\">"
+                    "const foo = () => {"
+                    "    let nil = new WebSocket(\"ws://localhost:8000/ws\");"
+                    "    nil.binaryType = \"arraybuffer\";"
+                    "    nil.onopen = () => console.log(\"open\");"
+                    "    nil.onclose = () => console.log(\"close\");"
+                    "    nil.onmessage = async (e) => {"
+                    "        const data = new Uint8Array(event.data);"
+                    "        const tag = new DataView(data.buffer)"
+                    "            .getUint32(0, false);"
+                    "        const rest = new TextDecoder().decode(data.slice(4));"
+                    "        console.log(tag, rest);"
+                    "    };"
+                    "    return nil;"
+                    "};"
+                    "globalThis.foo = foo;"
+                    "</script>"
+                    "</head>"
+                    "<body>hello world</body>"
+                );
+            }
+        );
+        on_ready(
+            server,                                                   //
+            [](const auto& id)                                        //
+            { std::cout << "ready      : " << id.text << std::endl; } //
+        );
+        auto ws = use_ws(server, "/ws");
+        on_ready(
+            ws,                                                       //
+            [](const auto& id)                                        //
+            { std::cout << "ready      : " << id.text << std::endl; } //
+        );
+        on_connect(
+            ws,                                                       //
+            [](const auto& id)                                        //
+            { std::cout << "connect    : " << id.text << std::endl; } //
+        );
+        on_disconnect(
+            ws,                                                       //
+            [](const auto& id)                                        //
+            { std::cout << "disconnect : " << id.text << std::endl; } //
+        );
+        on_message(
+            ws,                                                                             //
+            [](const auto& id, const std::string& content)                                  //
+            { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
+        );
+
+        {
+            while (true)
+            {
+                std::thread t1([&]() { start(server); });
+                input_output(ws);
+                stop(server);
+                t1.join();
+                restart(server);
+            }
+        }
+        return 0;
+    };
+    use(node, http_runner);
 }
 
 int main(int argc, const char** argv)

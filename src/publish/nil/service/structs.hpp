@@ -92,42 +92,15 @@ namespace nil::service
      */
     void restart(RunnableService& service);
 
-    /**
-     * @brief Broadcast a message to all listeners
-     *
-     * @param type  message type
-     * @param data  payload
-     * @param size  payload size
-     */
+    // clang-format off
     void publish(MessagingService& service, std::vector<std::uint8_t> payload);
-
-    /**
-     * @brief Send a message to a specific id.
-     *  Does nothing if id is unknown.
-     *
-     * @param id    identifier
-     * @param data  data
-     */
     void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload);
+    void send(MessagingService& service, const std::vector<ID>& ids, std::vector<std::uint8_t> payload);
 
-    /**
-     * @brief Broadcast a message to all listeners
-     *
-     * @param type  message type
-     * @param data  payload
-     * @param size  payload size
-     */
     void publish(MessagingService& service, const void* data, std::uint64_t size);
-
-    /**
-     * @brief Send a message to a specific id.
-     *  Does nothing if id is unknown.
-     *
-     * @param id    identifier
-     * @param data  payload
-     * @param size  payload size
-     */
     void send(MessagingService& service, const ID& id, const void* data, std::uint64_t size);
+    void send(MessagingService& service, const std::vector<ID>& ids, const void* data, std::uint64_t size);
+    // clang-format on
 
     template <typename T>
         requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
@@ -141,6 +114,13 @@ namespace nil::service
     void send(MessagingService& service, const ID& id, const T& data)
     {
         send(service, id, codec<T>::serialize(data));
+    }
+
+    template <typename T>
+        requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
+    void send(MessagingService& service, const std::vector<ID>& ids, const T& data)
+    {
+        send(service, ids, codec<T>::serialize(data));
     }
 
     /**
@@ -237,9 +217,7 @@ namespace nil::service
     }
 
     std::string get_route(const HTTPTransaction& transaction);
-    void send(
-        const HTTPTransaction& transaction,
-        std::string_view content_type,
-        const std::istream& body
-    );
+    void set_content_type(const HTTPTransaction& transaction, std::string_view type);
+    void send(const HTTPTransaction& transaction, std::string_view body);
+    void send(const HTTPTransaction& transaction, const std::istream& body);
 }

@@ -64,6 +64,20 @@ namespace nil::service::tcp::server
             context.reset();
         }
 
+        void publish(std::vector<std::uint8_t> data) override
+        {
+            boost::asio::post(
+                context->strand,
+                [this, msg = std::move(data)]()
+                {
+                    for (const auto& item : connections)
+                    {
+                        item.second->write(msg.data(), msg.size());
+                    }
+                }
+            );
+        }
+
         void send(const ID& id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
@@ -79,15 +93,19 @@ namespace nil::service::tcp::server
             );
         }
 
-        void publish(std::vector<std::uint8_t> data) override
+        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, msg = std::move(data)]()
+                [this, ids, msg = std::move(data)]()
                 {
-                    for (const auto& item : connections)
+                    for (const auto& id : ids)
                     {
-                        item.second->write(msg.data(), msg.size());
+                        const auto it = connections.find(id);
+                        if (it != connections.end())
+                        {
+                            it->second->write(msg.data(), msg.size());
+                        }
                     }
                 }
             );

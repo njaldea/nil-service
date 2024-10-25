@@ -27,14 +27,20 @@ namespace nil::service
         return transaction.request.target();
     }
 
-    void send(
-        const HTTPTransaction& transaction,
-        std::string_view content_type,
-        const std::istream& body
-    )
+    void set_content_type(const HTTPTransaction& transaction, std::string_view type)
+    {
+        transaction.response.set(boost::beast::http::field::content_type, type);
+    }
+
+    void send(const HTTPTransaction& transaction, std::string_view body)
     {
         transaction.response.result(boost::beast::http::status::ok);
-        transaction.response.set(boost::beast::http::field::content_type, content_type);
+        boost::beast::ostream(transaction.response.body()) << body;
+    }
+
+    void send(const HTTPTransaction& transaction, const std::istream& body)
+    {
+        transaction.response.result(boost::beast::http::status::ok);
         boost::beast::ostream(transaction.response.body()) << body.rdbuf();
     }
 }
@@ -171,11 +177,11 @@ namespace nil::service::http::server
             {
                 case boost::beast::http::verb::get:
                 {
-                    response.result(boost::beast::http::status::ok);
                     response.set(boost::beast::http::field::server, "Beast");
                     auto it = parent.wss.find(request.target());
                     if (it != parent.wss.end())
                     {
+                        response.result(boost::beast::http::status::ok);
                         handle_ws(it->second);
                     }
                     else if (parent.on_get)

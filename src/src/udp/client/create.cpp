@@ -70,14 +70,6 @@ namespace nil::service::udp::client
             context.reset();
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data) override
-        {
-            if (targetID == id)
-            {
-                publish(std::move(data));
-            }
-        }
-
         void publish(std::vector<std::uint8_t> data) override
         {
             if (context)
@@ -95,6 +87,23 @@ namespace nil::service::udp::client
                         );
                     }
                 );
+            }
+        }
+
+        void send(const ID& id, std::vector<std::uint8_t> data) override
+        {
+            if (targetID == id)
+            {
+                publish(std::move(data));
+            }
+        }
+
+        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
+        {
+            auto it = std::find(ids.begin(), ids.end(), targetID);
+            if (it != ids.end())
+            {
+                publish(std::move(data));
             }
         }
 
