@@ -1,12 +1,16 @@
 #pragma once
 
-#include "../ID.hpp"
 #include "Callable.hpp"
 #include "errors.hpp"
 
 #include <memory>
 #include <type_traits>
 #include <utility>
+
+namespace nil::service
+{
+    struct ID;
+}
 
 namespace nil::service::detail
 {

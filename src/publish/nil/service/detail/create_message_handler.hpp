@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../ID.hpp"
 #include "../codec.hpp"
 #include "Callable.hpp"
 #include "errors.hpp"
@@ -8,6 +7,11 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
+
+namespace nil::service
+{
+    struct ID;
+}
 
 namespace nil::service::detail
 {
@@ -78,7 +82,7 @@ namespace nil::service::detail
     }
 
     template <typename Handler>
-        requires(std::is_invocable_v<Handler, ID, const void*, std::uint64_t>)
+        requires(std::is_invocable_v<Handler, const ID&, const void*, std::uint64_t>)
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
         using callable_t = Callable<Handler, const ID&, const void*, std::uint64_t>;
@@ -97,7 +101,7 @@ namespace nil::service::detail
     }
 
     template <typename Handler>
-        requires(std::is_invocable_v<Handler, ID>)
+        requires(std::is_invocable_v<Handler, const ID&>)
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
         return create_message_handler(                 //
@@ -109,8 +113,8 @@ namespace nil::service::detail
 
     template <typename Handler>
         requires(
-            !std::is_invocable_v<Handler, ID, Unknown>
-            && std::is_invocable_v<Handler, ID, AutoCast> //
+            !std::is_invocable_v<Handler, const ID&, Unknown>
+            && std::is_invocable_v<Handler, const ID&, AutoCast> //
         )
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
@@ -123,7 +127,7 @@ namespace nil::service::detail
 
     template <typename Handler>
         requires(
-            !std::is_invocable_v<Handler, ID, std::uint64_t>
+            !std::is_invocable_v<Handler, const ID&, std::uint64_t>
             && std::is_invocable_v<Handler, const void*, std::uint64_t> //
         )
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
@@ -137,7 +141,7 @@ namespace nil::service::detail
 
     template <typename Handler>
         requires(
-            !std::is_invocable_v<Handler, ID>         //
+            !std::is_invocable_v<Handler, const ID&>  //
             && !std::is_invocable_v<Handler, Unknown> //
             && std::is_invocable_v<Handler, AutoCast> //
         )

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <nil/service/ID.hpp>
-
 #include <cstdint>
 
 namespace nil::service
 {
+    struct ID;
+
     template <typename Connection>
     struct ConnectedImpl
     {

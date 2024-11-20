@@ -20,6 +20,7 @@ The following are properties of the Option struct required for creating the serv
 
 | name    | protocol         | description                              | default   |
 | ------- | ---------------- | ---------------------------------------- | --------- |
+| host    | tcp/udp/ws/http  | network host to use                      |           |
 | port    | tcp/udp/ws/http  | network port to use                      |           |
 | buffer  | tcp/udp/ws/http  | buffer size to use                       | 1024      |
 | timeout | udp              | timeout to consider a connection is lost | 2 seconds |

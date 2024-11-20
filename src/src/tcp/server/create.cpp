@@ -12,9 +12,9 @@ namespace nil::service::tcp::server
 {
     struct Context
     {
-        explicit Context(std::uint16_t port)
+        explicit Context(const std::string& host, std::uint16_t port)
             : strand(make_strand(ctx))
-            , acceptor(strand, {boost::asio::ip::make_address("0.0.0.0"), port}, true)
+            , acceptor(strand, {boost::asio::ip::make_address(host), port}, true)
         {
         }
 
@@ -29,7 +29,7 @@ namespace nil::service::tcp::server
     {
     public:
         explicit Impl(Options init_options)
-            : options(init_options)
+            : options(std::move(init_options))
         {
         }
 
@@ -44,7 +44,7 @@ namespace nil::service::tcp::server
         {
             if (!context)
             {
-                context = std::make_unique<Context>(options.port);
+                context = std::make_unique<Context>(options.host, options.port);
                 detail::invoke(handlers.on_ready, utils::to_id(context->acceptor.local_endpoint()));
                 accept();
             }
@@ -169,6 +169,6 @@ namespace nil::service::tcp::server
             auto ptr = static_cast<Impl*>(obj);               // NOLINT
             std::default_delete<Impl>()(ptr);
         };
-        return {{new Impl(options), deleter}};
+        return {{new Impl(std::move(options)), deleter}};
     }
 }

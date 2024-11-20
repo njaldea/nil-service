@@ -9,6 +9,8 @@ namespace nil::service::udp::server
 {
     struct Options final
     {
+        std::string host;
+
         std::uint16_t port = 0;
         /**
          * @brief buffer size to use:

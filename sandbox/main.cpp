@@ -13,13 +13,13 @@ void add_help(nil::clix::Node& node)
 
 void add_port(nil::clix::Node& node)
 {
-    number(node, "port", {.skey = 'p', .msg = "port", .fallback = 8000, .implicit = 8000});
+    number(node, "port", {.skey = 'p', .msg = "port", .fallback = 0});
 }
 
 template <typename R, typename T>
 auto create_server(const nil::clix::Options& options, R (*maker)(T))
 {
-    return maker(T{.port = std::uint16_t(number(options, "port"))});
+    return maker(T{.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
 }
 
 template <typename R, typename T>
@@ -185,7 +185,9 @@ void add_http_node(nil::clix::Node& node)
             return 0;
         }
         auto server = nil::service::http::server::create(
-            {.port = std::uint16_t(number(options, "port")), .buffer = 1024ul * 1024ul * 100ul}
+            {.host = "0.0.0.0",
+             .port = std::uint16_t(number(options, "port")),
+             .buffer = 1024ul * 1024ul * 100ul}
         );
         on_get(
             server,
@@ -202,8 +204,8 @@ void add_http_node(nil::clix::Node& node)
                     "<html lang=\"en\">"
                     "<head>"
                     "<script type=\"module\">"
-                    "const foo = () => {"
-                    "    let nil = new WebSocket(\"ws://localhost:8000/ws\");"
+                    "const foo = (host, port) => {"
+                    "    let nil = new WebSocket(`ws://${host}:${port}/ws`);"
                     "    nil.binaryType = \"arraybuffer\";"
                     "    nil.onopen = () => console.log(\"open\");"
                     "    nil.onclose = () => console.log(\"close\");"

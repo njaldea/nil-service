@@ -12,9 +12,9 @@ namespace nil::service::udp::server
 {
     struct Context
     {
-        explicit Context(std::uint16_t port)
+        explicit Context(const std::string& host, std::uint16_t port)
             : strand(make_strand(ctx))
-            , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), port})
+            , socket(strand, {boost::asio::ip::make_address(host), port})
         {
         }
 
@@ -27,7 +27,7 @@ namespace nil::service::udp::server
     {
     public:
         explicit Impl(Options init_options)
-            : options(init_options)
+            : options(std::move(init_options))
         {
             buffer.resize(options.buffer);
         }
@@ -44,7 +44,7 @@ namespace nil::service::udp::server
         {
             if (!context)
             {
-                context = std::make_unique<Context>(options.port);
+                context = std::make_unique<Context>(options.host, options.port);
                 detail::invoke(handlers.on_ready, utils::to_id(context->socket.local_endpoint()));
                 receive();
             }
@@ -233,6 +233,6 @@ namespace nil::service::udp::server
             auto ptr = static_cast<Impl*>(obj);               // NOLINT
             std::default_delete<Impl>()(ptr);
         };
-        return {{new Impl(options), deleter}};
+        return {{new Impl(std::move(options)), deleter}};
     }
 }

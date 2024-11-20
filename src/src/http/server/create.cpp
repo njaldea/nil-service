@@ -49,9 +49,9 @@ namespace nil::service::http::server
 {
     struct Context
     {
-        explicit Context(std::uint16_t port)
+        explicit Context(const std::string& host, std::uint16_t port)
             : strand(make_strand(ctx))
-            , acceptor(strand, {boost::asio::ip::make_address("0.0.0.0"), port})
+            , acceptor(strand, {boost::asio::ip::make_address(host), port})
         {
         }
 
@@ -64,7 +64,7 @@ namespace nil::service::http::server
     {
     public:
         explicit Impl(Options init_options)
-            : options(init_options)
+            : options(std::move(init_options))
         {
         }
 
@@ -223,7 +223,7 @@ namespace nil::service::http::server
     {
         if (!context)
         {
-            context = std::make_unique<Context>(options.port);
+            context = std::make_unique<Context>(options.host, options.port);
             auto id = utils::to_id(context->acceptor.local_endpoint());
             detail::invoke(on_ready, id);
             for (auto& [route, ws] : wss)
@@ -270,6 +270,6 @@ namespace nil::service::http::server
             auto ptr = static_cast<Impl*>(obj);         // NOLINT
             std::default_delete<Impl>()(ptr);
         };
-        return {{new Impl(options), deleter}};
+        return {{new Impl(std::move(options)), deleter}};
     }
 }

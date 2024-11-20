@@ -1,5 +1,6 @@
 #pragma once
 
+#include "service/ID.hpp"      // IWYU pragma: export
 #include "service/structs.hpp" // IWYU pragma: export
 
 #include "service/self/create.hpp" // IWYU pragma: export

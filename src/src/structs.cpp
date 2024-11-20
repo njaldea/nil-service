@@ -1,7 +1,7 @@
 #include <nil/service/structs.hpp>
 
-#include "./structs/HTTPService.hpp"
-#include "./structs/ObservableService.hpp"
+#include "structs/HTTPService.hpp"
+#include "structs/ObservableService.hpp"
 
 namespace nil::service
 {
