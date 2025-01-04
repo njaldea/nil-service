@@ -82,6 +82,28 @@ namespace nil::service::udp::server
             );
         }
 
+        void publish_ex(const ID& id, std::vector<std::uint8_t> data) override
+        {
+            boost::asio::post(
+                context->strand,
+                [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
+                )
+                {
+                    const auto b = std::array<boost::asio::const_buffer, 3>{
+                        boost::asio::buffer(i),
+                        boost::asio::buffer(msg)
+                    };
+                    for (const auto& connection : connections)
+                    {
+                        if (connection.first != id)
+                        {
+                            context->socket.send_to(b, connection.second->endpoint);
+                        }
+                    }
+                }
+            );
+        }
+
         void send(const ID& id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
@@ -124,14 +146,6 @@ namespace nil::service::udp::server
                         }
                     }
                 }
-            );
-        }
-
-        void exec(std::unique_ptr<detail::ICallable<>> executable) override
-        {
-            boost::asio::post(
-                context->strand,
-                [executable = std::move(executable)]() { executable->call(); }
             );
         }
 

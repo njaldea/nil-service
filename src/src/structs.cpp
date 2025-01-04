@@ -38,17 +38,18 @@ namespace nil::service
         {
             service.handlers.on_message.push_back(std::move(handler));
         }
-
-        void exec(RunnableService& service, std::unique_ptr<detail::ICallable<>> executable)
-        {
-            service.exec(std::move(executable));
-        }
     }
 
     void publish(MessagingService& service, const void* data, std::uint64_t size)
     {
         const auto* ptr = static_cast<const std::uint8_t*>(data);
         service.publish(std::vector<std::uint8_t>(ptr, ptr + size));
+    }
+
+    void publish_ex(MessagingService& service, const ID& id, const void* data, std::uint64_t size)
+    {
+        const auto* ptr = static_cast<const std::uint8_t*>(data);
+        service.publish_ex(id, std::vector<std::uint8_t>(ptr, ptr + size));
     }
 
     void send(MessagingService& service, const ID& id, const void* data, std::uint64_t size)
@@ -71,6 +72,11 @@ namespace nil::service
     void publish(MessagingService& service, std::vector<std::uint8_t> payload)
     {
         service.publish(std::move(payload));
+    }
+
+    void publish_ex(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload)
+    {
+        service.publish_ex(id, std::move(payload));
     }
 
     void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload)

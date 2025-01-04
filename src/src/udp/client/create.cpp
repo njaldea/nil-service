@@ -78,13 +78,40 @@ namespace nil::service::udp::client
                     context->strand,
                     [this, msg = std::move(data)]()
                     {
+                        const auto header
+                            = boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE));
                         context->socket.send_to(
                             std::array<boost::asio::const_buffer, 2>{
-                                boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE)),
+                                header,
                                 boost::asio::buffer(msg)
                             },
                             {boost::asio::ip::make_address(options.host), options.port}
                         );
+                    }
+                );
+            }
+        }
+
+        void publish_ex(const ID& id, std::vector<std::uint8_t> data) override
+        {
+            if (context)
+            {
+                boost::asio::post(
+                    context->strand,
+                    [this, id, msg = std::move(data)]()
+                    {
+                        if (targetID != id)
+                        {
+                            const auto header
+                                = boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE));
+                            context->socket.send_to(
+                                std::array<boost::asio::const_buffer, 2>{
+                                    header,
+                                    boost::asio::buffer(msg)
+                                },
+                                {boost::asio::ip::make_address(options.host), options.port}
+                            );
+                        }
                     }
                 );
             }
@@ -105,14 +132,6 @@ namespace nil::service::udp::client
             {
                 publish(std::move(data));
             }
-        }
-
-        void exec(std::unique_ptr<detail::ICallable<>> executable) override
-        {
-            boost::asio::post(
-                context->strand,
-                [executable = std::move(executable)]() { executable->call(); }
-            );
         }
 
     private:

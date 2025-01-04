@@ -1,9 +1,5 @@
 #pragma once
 
-#include <nil/service/detail/Callable.hpp>
-
-#include <memory>
-
 namespace nil::service
 {
     struct RunnableService
@@ -18,6 +14,5 @@ namespace nil::service
         virtual void start() = 0;
         virtual void stop() = 0;
         virtual void restart() = 0;
-        virtual void exec(std::unique_ptr<detail::ICallable<>> executable) = 0;
     };
 }

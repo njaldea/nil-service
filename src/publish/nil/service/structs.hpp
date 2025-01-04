@@ -74,10 +74,6 @@ namespace nil::service
             ObservableService& service,
             std::unique_ptr<detail::ICallable<const ID&, const void*, std::uint64_t>> handler
         );
-        void exec( //
-            RunnableService& service,
-            std::unique_ptr<detail::ICallable<>> executable
-        );
     }
 
     /**
@@ -91,16 +87,6 @@ namespace nil::service
     void stop(RunnableService& service);
 
     /**
-     * @brief execute an implementation to the runnable thread.
-     */
-    template <typename T>
-    void exec(RunnableService& service, T executable)
-    {
-        using callable_t = detail::Callable<T>;
-        impl::exec(service, std::make_unique<callable_t>(std::move(executable)));
-    }
-
-    /**
      * @brief Prepare the service.
      *  Should be called once after stopping and before running.
      *  Call before calling other methods.
@@ -109,10 +95,12 @@ namespace nil::service
 
     // clang-format off
     void publish(MessagingService& service, std::vector<std::uint8_t> payload);
+    void publish_ex(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload);
     void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload);
     void send(MessagingService& service, const std::vector<ID>& ids, std::vector<std::uint8_t> payload);
 
     void publish(MessagingService& service, const void* data, std::uint64_t size);
+    void publish_ex(MessagingService& service, const ID& id, const void* data, std::uint64_t size);
     void send(MessagingService& service, const ID& id, const void* data, std::uint64_t size);
     void send(MessagingService& service, const std::vector<ID>& ids, const void* data, std::uint64_t size);
     // clang-format on

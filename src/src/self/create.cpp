@@ -11,7 +11,7 @@ namespace nil::service::self
     {
         std::unique_ptr<boost::asio::io_context> context;
 
-        ID id = {"self"};
+        ID self = {"self"};
 
         void publish(std::vector<std::uint8_t> payload) override
         {
@@ -20,14 +20,31 @@ namespace nil::service::self
                 boost::asio::post(
                     *context,
                     [this, msg = std::move(payload)]()
-                    { detail::invoke(handlers.on_message, id, msg.data(), msg.size()); }
+                    { detail::invoke(handlers.on_message, self, msg.data(), msg.size()); }
+                );
+            }
+        }
+
+        void publish_ex(const ID& id, std::vector<std::uint8_t> payload) override
+        {
+            if (context)
+            {
+                boost::asio::post(
+                    *context,
+                    [this, id, msg = std::move(payload)]()
+                    {
+                        if (this->self != id)
+                        {
+                            detail::invoke(handlers.on_message, id, msg.data(), msg.size());
+                        }
+                    }
                 );
             }
         }
 
         void send(const ID& to, std::vector<std::uint8_t> payload) override
         {
-            if (id == to)
+            if (self == to)
             {
                 publish(std::move(payload));
             }
@@ -35,7 +52,7 @@ namespace nil::service::self
 
         void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
         {
-            auto it = std::find(ids.begin(), ids.end(), id);
+            auto it = std::find(ids.begin(), ids.end(), self);
             if (it != ids.end())
             {
                 this->send(*it, std::move(data));
@@ -51,8 +68,8 @@ namespace nil::service::self
                     *context,
                     [this]()
                     {
-                        detail::invoke(handlers.on_ready, id);
-                        detail::invoke(handlers.on_connect, id);
+                        detail::invoke(handlers.on_ready, self);
+                        detail::invoke(handlers.on_connect, self);
                     }
                 );
             }
@@ -71,14 +88,6 @@ namespace nil::service::self
         void restart() override
         {
             context.reset();
-        }
-
-        void exec(std::unique_ptr<detail::ICallable<>> executable) override
-        {
-            boost::asio::post(
-                *context,
-                [executable = std::move(executable)]() { executable->call(); }
-            );
         }
     };
 
