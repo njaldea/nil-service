@@ -113,6 +113,14 @@ namespace nil::service::ws::server
             );
         }
 
+        void exec(std::unique_ptr<detail::ICallable<>> executable) override
+        {
+            boost::asio::post(
+                context->strand,
+                [executable = std::move(executable)]() { executable->call(); }
+            );
+        }
+
     private:
         void connect(ws::Connection* connection) override
         {

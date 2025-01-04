@@ -1,8 +1,10 @@
+#include <memory>
 #include <nil/service/tcp/client/create.hpp>
 
 #include "../../structs/StandaloneService.hpp"
 #include "../../utils.hpp"
 #include "../Connection.hpp"
+#include "nil/service/detail/Callable.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -108,6 +110,14 @@ namespace nil::service::tcp::client
                         }
                     }
                 }
+            );
+        }
+
+        void exec(std::unique_ptr<detail::ICallable<>> executable) override
+        {
+            boost::asio::post(
+                context->strand,
+                [executable = std::move(executable)]() { executable->call(); }
             );
         }
 

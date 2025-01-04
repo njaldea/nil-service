@@ -72,6 +72,14 @@ namespace nil::service::self
         {
             context.reset();
         }
+
+        void exec(std::unique_ptr<detail::ICallable<>> executable) override
+        {
+            boost::asio::post(
+                *context,
+                [executable = std::move(executable)]() { executable->call(); }
+            );
+        }
     };
 
     A create()

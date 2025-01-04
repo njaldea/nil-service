@@ -38,6 +38,11 @@ namespace nil::service
         {
             service.handlers.on_message.push_back(std::move(handler));
         }
+
+        void exec(RunnableService& service, std::unique_ptr<detail::ICallable<>> executable)
+        {
+            service.exec(std::move(executable));
+        }
     }
 
     void publish(MessagingService& service, const void* data, std::uint64_t size)

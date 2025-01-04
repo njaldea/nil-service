@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codec.hpp"
+#include "detail/Callable.hpp"
 #include "detail/create_handler.hpp"
 #include "detail/create_message_handler.hpp"
 
@@ -73,6 +74,10 @@ namespace nil::service
             ObservableService& service,
             std::unique_ptr<detail::ICallable<const ID&, const void*, std::uint64_t>> handler
         );
+        void exec( //
+            RunnableService& service,
+            std::unique_ptr<detail::ICallable<>> executable
+        );
     }
 
     /**
@@ -84,6 +89,16 @@ namespace nil::service
      * @brief stop the service. non-blocking.
      */
     void stop(RunnableService& service);
+
+    /**
+     * @brief execute an implementation to the runnable thread.
+     */
+    template <typename T>
+    void exec(RunnableService& service, T executable)
+    {
+        using callable_t = detail::Callable<T>;
+        impl::exec(service, std::make_unique<callable_t>(std::move(executable)));
+    }
 
     /**
      * @brief Prepare the service.

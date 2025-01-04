@@ -71,6 +71,7 @@ namespace nil::service::http::server
         void start() override;
         void stop() override;
         void restart() override;
+        void exec(std::unique_ptr<detail::ICallable<>> executable) override;
 
     private:
         void accept();
@@ -168,7 +169,6 @@ namespace nil::service::http::server
         }
 
         void process_request()
-
         {
             response.version(request.version());
             response.keep_alive(false);
@@ -261,6 +261,14 @@ namespace nil::service::http::server
                 }
                 accept();
             }
+        );
+    }
+
+    void Impl::exec(std::unique_ptr<detail::ICallable<>> executable)
+    {
+        boost::asio::post(
+            context->strand,
+            [executable = std::move(executable)]() { executable->call(); }
         );
     }
 

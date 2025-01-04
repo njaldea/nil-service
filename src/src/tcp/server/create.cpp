@@ -111,6 +111,14 @@ namespace nil::service::tcp::server
             );
         }
 
+        void exec(std::unique_ptr<detail::ICallable<>> executable) override
+        {
+            boost::asio::post(
+                context->strand,
+                [executable = std::move(executable)]() { executable->call(); }
+            );
+        }
+
     private:
         void connect(Connection* connection) override
         {
