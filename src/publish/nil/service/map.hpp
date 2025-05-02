@@ -5,7 +5,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 #include <utility>
 
 namespace nil::service
@@ -29,7 +28,7 @@ namespace nil::service
         struct Map
         {
             T value;
-            std::unique_ptr<detail::icallable_t> handler;
+            std::function<void(const ID&, const void*, std::uint64_t)> handler;
         };
 
         using internal_t = std::array<Map, sizeof...(Handlers)>;
@@ -46,7 +45,7 @@ namespace nil::service
             {
                 if (value == tag)
                 {
-                    handler->call(id, data, size);
+                    handler(id, data, size);
                     return;
                 }
             }

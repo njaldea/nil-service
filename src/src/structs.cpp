@@ -7,33 +7,24 @@ namespace nil::service
 {
     namespace impl
     {
-        void on_ready(
-            ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&>> handler
-        )
+        void on_ready(ObservableService& service, std::function<void(const ID&)> handler)
         {
             service.handlers.on_ready.push_back(std::move(handler));
         }
 
-        void on_connect(
-            ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&>> handler
-        )
+        void on_connect(ObservableService& service, std::function<void(const ID&)> handler)
         {
             service.handlers.on_connect.push_back(std::move(handler));
         }
 
-        void on_disconnect(
-            ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&>> handler
-        )
+        void on_disconnect(ObservableService& service, std::function<void(const ID&)> handler)
         {
             service.handlers.on_disconnect.push_back(std::move(handler));
         }
 
         void on_message(
             ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&, const void*, std::uint64_t>> handler
+            std::function<void(const ID&, const void*, std::uint64_t)> handler
         )
         {
             service.handlers.on_message.push_back(std::move(handler));
@@ -110,18 +101,15 @@ namespace nil::service
 
     namespace impl
     {
-        void on_get(
-            HTTPService& service,
-            std::unique_ptr<detail::ICallable<const HTTPTransaction&>> callback
-        )
-        {
-            service.on_get = std::move(callback);
-        }
-
-        void on_ready(HTTPService& service, std::unique_ptr<detail::ICallable<const ID&>> handler)
+        void on_ready(HTTPService& service, std::function<void(const ID&)> handler)
         {
             service.on_ready.push_back(std::move(handler));
         }
+    }
+
+    void on_get(HTTPService& service, std::function<void(const HTTPTransaction&)> callback)
+    {
+        service.on_get = std::move(callback);
     }
 
     S use_ws(HTTPService& service, std::string route)

@@ -187,7 +187,7 @@ namespace nil::service::http::server
                     {
                         response.result(boost::beast::http::status::bad_request);
                         HTTPTransaction transaction = {request, response};
-                        parent.on_get->call(transaction);
+                        parent.on_get(transaction);
                         write_response();
                     }
                 }

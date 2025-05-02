@@ -1,8 +1,7 @@
 #pragma once
 
-#include "Callable.hpp"
-
-#include <memory>
+#include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace nil::service
@@ -14,10 +13,10 @@ namespace nil::service::detail
 {
     struct Handlers
     {
-        std::vector<std::unique_ptr<ICallable<const ID&, const void*, std::uint64_t>>> on_message;
-        std::vector<std::unique_ptr<ICallable<const ID&>>> on_ready;
-        std::vector<std::unique_ptr<ICallable<const ID&>>> on_connect;
-        std::vector<std::unique_ptr<ICallable<const ID&>>> on_disconnect;
+        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message;
+        std::vector<std::function<void(const ID&)>> on_ready;
+        std::vector<std::function<void(const ID&)>> on_connect;
+        std::vector<std::function<void(const ID&)>> on_disconnect;
     };
 
     template <typename... T>
@@ -25,7 +24,7 @@ namespace nil::service::detail
     {
         for (const auto& invocable : invocables)
         {
-            invocable->call(args...);
+            invocable(args...);
         }
     }
 }

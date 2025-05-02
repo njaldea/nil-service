@@ -4,9 +4,6 @@
 
 #include "../http/server/WebSocket.hpp"
 
-#include <nil/service/detail/Callable.hpp>
-
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,8 +20,8 @@ namespace nil::service
         HTTPService& operator=(const HTTPService&) = delete;
         HTTPService& operator=(HTTPService&&) = delete;
 
-        std::vector<std::unique_ptr<detail::ICallable<const ID&>>> on_ready;
-        std::unique_ptr<detail::ICallable<const HTTPTransaction&>> on_get;
+        std::vector<std::function<void(const ID&)>> on_ready;
+        std::function<void(const HTTPTransaction&)> on_get;
         std::unordered_map<std::string, http::server::WebSocket> wss;
     };
 }

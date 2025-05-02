@@ -1,7 +1,6 @@
 #pragma once
 
 #include "codec.hpp"
-#include "detail/Callable.hpp"
 #include "detail/create_handler.hpp"
 #include "detail/create_message_handler.hpp"
 
@@ -58,21 +57,12 @@ namespace nil::service
 
     namespace impl
     {
-        void on_ready(
-            ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&>> handler
-        );
-        void on_connect(
-            ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&>> handler
-        );
-        void on_disconnect(
-            ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&>> handler
-        );
+        void on_ready(ObservableService& service, std::function<void(const ID&)> handler);
+        void on_connect(ObservableService& service, std::function<void(const ID&)> handler);
+        void on_disconnect(ObservableService& service, std::function<void(const ID&)> handler);
         void on_message(
             ObservableService& service,
-            std::unique_ptr<detail::ICallable<const ID&, const void*, std::uint64_t>> handler
+            std::function<void(const ID&, const void*, std::uint64_t)> handler
         );
     }
 
@@ -133,6 +123,7 @@ namespace nil::service
      * @param handler
      */
     template <typename T>
+        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
     void on_ready(ObservableService& service, T handler)
     {
         impl::on_ready(service, detail::create_handler(std::move(handler)));
@@ -145,6 +136,7 @@ namespace nil::service
      * @param handler
      */
     template <typename T>
+        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
     void on_connect(ObservableService& service, T handler)
     {
         impl::on_connect(service, detail::create_handler(std::move(handler)));
@@ -157,6 +149,7 @@ namespace nil::service
      * @param handler
      */
     template <typename T>
+        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
     void on_disconnect(ObservableService& service, T handler)
     {
         impl::on_disconnect(service, detail::create_handler(std::move(handler)));
@@ -169,6 +162,7 @@ namespace nil::service
      * @param handler
      */
     template <typename T>
+        requires(!std::is_same_v<void, decltype(detail::create_message_handler(std::declval<T>()))>)
     void on_message(ObservableService& service, T handler)
     {
         impl::on_message(service, detail::create_message_handler(std::move(handler)));
@@ -176,7 +170,7 @@ namespace nil::service
 
     namespace impl
     {
-        void on_ready(HTTPService& service, std::unique_ptr<detail::ICallable<const ID&>> handler);
+        void on_ready(HTTPService& service, std::function<void(const ID&)> handler);
     }
 
     /**
@@ -186,6 +180,7 @@ namespace nil::service
      * @param handler
      */
     template <typename Handler>
+        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<Handler>()))>)
     void on_ready(HTTPService& service, Handler handler)
     {
         impl::on_ready(service, detail::create_handler(std::move(handler)));
@@ -202,22 +197,7 @@ namespace nil::service
 
     struct HTTPTransaction;
 
-    namespace impl
-    {
-        void on_get(
-            HTTPService& service,
-            std::unique_ptr<detail::ICallable<const HTTPTransaction&>> callback
-        );
-    }
-
-    template <typename T>
-    void on_get(HTTPService& service, T callback)
-    {
-        impl::on_get(
-            service,
-            std::make_unique<detail::Callable<T, const HTTPTransaction&>>(std::move(callback))
-        );
-    }
+    void on_get(HTTPService& service, std::function<void(const HTTPTransaction&)> callback);
 
     std::string get_route(const HTTPTransaction& transaction);
     void set_content_type(const HTTPTransaction& transaction, std::string_view type);

@@ -1,10 +1,8 @@
 #pragma once
 
-#include "Callable.hpp"
-
 #include <nil/xalt/errors.hpp>
 
-#include <memory>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
@@ -23,34 +21,18 @@ namespace nil::service::detail
      *
      * @tparam Handler
      * @param handler
-     * @return std::unique_ptr<ICallable<const ID&>>
+     * @return std::function<void(const ID&)>
      */
     template <typename Handler>
-    std::unique_ptr<ICallable<const ID&>> create_handler(Handler handler)
+    auto create_handler(Handler handler)
     {
-        constexpr auto match                          //
-            = std::is_invocable_v<Handler, const ID&> //
-            + std::is_invocable_v<Handler>;
-        if constexpr (0 == match) // NOLINTNEXTLINE(bugprone-branch-clone)
+        if constexpr (std::is_invocable_v<Handler>)
         {
-            nil::xalt::undefined<Handler>(); // incorrect argument type detected
-        }
-        else if constexpr (1 < match)
-        {
-            nil::xalt::undefined<Handler>(); // ambiguous argument type detected
+            return [handler = std::move(handler)](const ID&) { handler(); };
         }
         else if constexpr (std::is_invocable_v<Handler, const ID&>)
         {
-            using callable_t = detail::Callable<Handler, const ID&>;
-            return std::make_unique<callable_t>(std::move(handler));
-        }
-        else if constexpr (std::is_invocable_v<Handler>)
-        {
-            return create_handler([handler = std::move(handler)](const ID&) { handler(); });
-        }
-        else
-        {
-            nil::xalt::undefined<Handler>(); // incorrect argument type detected
+            return handler;
         }
     }
 }

@@ -135,16 +135,23 @@ on_message(service, handler);
 
 // we can use `auto` for id
 // use `const auto&` or other variants. up to you.
-[](auto id){};
 [](auto id, const void* buffer, std::uint64_t size){};
 [](auto id, const WithCodec&){};
+[](auto id){};
 
 // use auto will automatically be deduced
-[](auto id, auto data, auto raw){};
+[](auto id, auto buffer, auto size){};
+
+// two auto will be deduced as buffer / size
+[](auto buffer, auto size){};
 
 // custom types can't be deduced with auto
-[](auto id, auto custom_data){}; // custom_data's type is unknown
-[](auto arg){}; // arg is going to be deduced as id
+[](const nil::service::ID& id, auto custom_data){
+    YourType data = custom_data; // has deserialize
+};
+// custom_data's type is unknown
+// an internal type named `AutoCast` is going to be passed
+// which can be casted to the right payload if needed.
 ```
 
 Preferrably, it is better to use distinct types to avoid confusion. but you do you.

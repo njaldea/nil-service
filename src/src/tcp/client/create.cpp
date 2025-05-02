@@ -1,10 +1,8 @@
-#include <memory>
 #include <nil/service/tcp/client/create.hpp>
 
 #include "../../structs/StandaloneService.hpp"
 #include "../../utils.hpp"
 #include "../Connection.hpp"
-#include "nil/service/detail/Callable.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>

@@ -11,7 +11,6 @@ set(
         publish/nil/service/consume.hpp
         publish/nil/service/ID.hpp
         publish/nil/service/map.hpp
-        publish/nil/service/detail/Callable.hpp
         publish/nil/service/detail/create_handler.hpp
         publish/nil/service/detail/create_message_handler.hpp
         publish/nil/service/detail/Handlers.hpp
