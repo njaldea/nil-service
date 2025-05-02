@@ -2,7 +2,8 @@
 
 #include "../codec.hpp"
 #include "Callable.hpp"
-#include "errors.hpp"
+
+#include <nil/xalt/errors.hpp>
 
 #include <memory>
 #include <type_traits>
@@ -77,7 +78,7 @@ namespace nil::service::detail
     std::unique_ptr<icallable_t> create_message_handler(Handler handler)
     {
         (void)handler;
-        error<Handler>("unsupported handler type");
+        xalt::undefined<Handler>(); // unsupported handler type
         return {};
     }
 

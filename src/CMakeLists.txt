@@ -1,6 +1,7 @@
 project(service)
 
 find_package(Boost REQUIRED)
+find_package(nil-xalt REQUIRED)
 
 set(
     HEADERS
@@ -13,7 +14,6 @@ set(
         publish/nil/service/detail/Callable.hpp
         publish/nil/service/detail/create_handler.hpp
         publish/nil/service/detail/create_message_handler.hpp
-        publish/nil/service/detail/errors.hpp
         publish/nil/service/detail/Handlers.hpp
         publish/nil/service/structs.hpp
         publish/nil/service/self/create.hpp
@@ -55,6 +55,11 @@ set(
 )
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+
+target_link_libraries(
+    ${PROJECT_NAME} PUBLIC
+    nil::xalt
+)
 
 target_include_directories(
     ${PROJECT_NAME}

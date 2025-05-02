@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Callable.hpp"
-#include "errors.hpp"
+
+#include <nil/xalt/errors.hpp>
 
 #include <memory>
 #include <type_traits>
@@ -30,13 +31,13 @@ namespace nil::service::detail
         constexpr auto match                          //
             = std::is_invocable_v<Handler, const ID&> //
             + std::is_invocable_v<Handler>;
-        if constexpr (0 == match)
+        if constexpr (0 == match) // NOLINTNEXTLINE(bugprone-branch-clone)
         {
-            error<Handler>("incorrect argument type detected");
+            nil::xalt::undefined<Handler>(); // incorrect argument type detected
         }
         else if constexpr (1 < match)
         {
-            error<Handler>("ambiguous argument type detected");
+            nil::xalt::undefined<Handler>(); // ambiguous argument type detected
         }
         else if constexpr (std::is_invocable_v<Handler, const ID&>)
         {
@@ -49,7 +50,7 @@ namespace nil::service::detail
         }
         else
         {
-            unreachable<Handler>();
+            nil::xalt::undefined<Handler>(); // incorrect argument type detected
         }
     }
 }

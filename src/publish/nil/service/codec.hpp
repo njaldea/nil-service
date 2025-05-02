@@ -1,6 +1,6 @@
 #pragma once
 
-#include "detail/errors.hpp"
+#include <nil/xalt/errors.hpp>
 
 #include <cstdint>
 #include <string>
@@ -68,7 +68,7 @@ namespace nil::service
             }
             else
             {
-                detail::error<T>("codec serialize method is not implemented");
+                xalt::undefined<T>(); // codec serialize method is not implemented
                 return {};
             }
         }
@@ -90,7 +90,7 @@ namespace nil::service
             }
             else
             {
-                detail::error<T>("codec deserialize method is not implemented");
+                xalt::undefined<T>(); // codec deserialize method is not implemented
                 return {};
             }
         }
