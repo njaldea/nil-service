@@ -173,10 +173,24 @@ This utilizes `codec`s which will be discussesd at the end.
 ### `concat(T...)`
 
 This utility method provides a way to concatenate multiple payloads into one.
+and returns it as an `std::vector<std::uint8_t>`
 
 ```cpp
 publish(service, nil::service::concat(0u, "message for 0"s));
 publish(service, nil::service::concat(1u, false));
+```
+
+This utilizes `codec`s which will be discussesd at the end.
+
+### `concat_into(void* output, T...)`
+
+This utility method provides a way to concatenate multiple payloads into one.
+
+It assumes that the buffer has enough memory allocated through `codec<T>::size`
+
+```cpp
+nil::service::concat_into(buffer, 0u, "message for 0"s);
+nil::service::concat_into(buffer, 1u, false);
 ```
 
 This utilizes `codec`s which will be discussesd at the end.
@@ -219,7 +233,7 @@ codec<std::int32_t>
 codec<std::int64_t>
 ```
 
-a `codec` is expected to have `serialize` and `deserialize` method. see example below for more information.
+a `codec` is expected to have `size`, `serialize` and `deserialize` method. see example below for more information.
 
 ```cpp
 // my_codec.hpp
@@ -240,17 +254,25 @@ namespace nil::service
     template <>
     struct codec<CustomType>
     {
-        static std::vector<std::uint8_t> serialize(const CustomType& message)
+        static std::size_t size(const CustomType& message)
         {
-            // nil::service::concat
-            return concat(
+            return codec<std::int64_t>::size(message.content_1)
+                + codec<std::int32_t>::size(message.content_2)
+                + codec<std::int32_t>::size(message.content_3);
+        }
+
+        static std::size_t serialize(void* data, const CustomType& message)
+        {
+            // nil::service::concat_into
+            return concat_into(
+                data,
                 message.content_1,
                 message.content_2,
                 message.content_3
             );
         }
 
-        static CustomType deserialize(const void* data, std::uint64_t& size)
+        static CustomType deserialize(const void* data, std::uint64_t size)
         {
             // nil::service::consume
             CustomType m;

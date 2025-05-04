@@ -2,12 +2,29 @@
 
 #include "codec.hpp"
 
-#include <array>
 #include <cstdint>
+#include <iterator>
 #include <vector>
 
 namespace nil::service
 {
+    /**
+     * @brief concatenates all of the data into one buffer.
+     *  leverages on `codec` to serialize each data.
+     *
+     * @tparam T
+     * @param buffer
+     * @return std::size_t consumed buffer
+     */
+    template <typename... T>
+    std::size_t concat_into(void* buffer, const T&... data)
+    {
+        auto* original_ptr = static_cast<std::uint8_t*>(buffer);
+        auto* moving_ptr = original_ptr;
+        ((original_ptr += codec<T>::serialize(original_ptr, data)), ...);
+        return std::size_t(std::distance(moving_ptr, original_ptr));
+    }
+
     /**
      * @brief concatenates all of the data into one buffer.
      *  leverages on `codec` to serialize each data.
@@ -19,28 +36,10 @@ namespace nil::service
     template <typename... T>
     std::vector<std::uint8_t> concat(const T&... data)
     {
-        const std::array<std::vector<std::uint8_t>, sizeof...(T)> buffers
-            = {codec<T>::serialize(data)...};
-
         std::vector<std::uint8_t> message;
-        message.reserve(
-            [&]()
-            {
-                auto c = 0ul;
-                for (const auto& b : buffers)
-                {
-                    c += b.size();
-                }
-                return c;
-            }()
-        );
-        for (const auto& buffer : buffers)
-        {
-            for (const auto& item : buffer)
-            {
-                message.push_back(item);
-            }
-        }
+        message.resize((0 + ... + codec<T>::size(data)));
+        concat_into(message.data(), data...);
         return message;
     }
+
 }

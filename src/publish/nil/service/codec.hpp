@@ -1,26 +1,41 @@
 #pragma once
 
 #include <nil/xalt/errors.hpp>
+#include <nil/xalt/type_id.hpp>
 
 #include <cstdint>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace nil::service
 {
     namespace detail
     {
-        template <typename T>
-        using tag = std::type_identity<T>;
+        inline std::size_t size(xalt::type_id<std::string> /* tag */, const std::string& message)
+        {
+            return message.size();
+        }
 
-        std::vector<std::uint8_t> serialize(tag<std::string>, const std::string& message);
-        std::string deserialize(tag<std::string>, const void* data, std::uint64_t& size);
+        std::size_t serialize(
+            xalt::type_id<std::string> /* tag */,
+            void* output,
+            const std::string& message
+        );
+
+        std::string deserialize(
+            xalt::type_id<std::string> /* tag */,
+            const void* input,
+            std::uint64_t size
+        );
 
         // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define NIL_SERVICE_CODEC_DECLARE(TYPE)                                                            \
-    std::vector<std::uint8_t> serialize(tag<TYPE>, TYPE message);                                  \
-    TYPE deserialize(tag<TYPE>, const void* data, std::uint64_t& size)
+    inline std::size_t size(xalt::type_id<TYPE>, TYPE data)                                        \
+    {                                                                                              \
+        return sizeof(data);                                                                       \
+    }                                                                                              \
+    std::size_t serialize(xalt::type_id<TYPE>, void* output, TYPE data);                           \
+    TYPE deserialize(xalt::type_id<TYPE>, const void* input, std::uint64_t size)
 
         NIL_SERVICE_CODEC_DECLARE(std::uint8_t);
         NIL_SERVICE_CODEC_DECLARE(std::uint16_t);
@@ -34,18 +49,26 @@ namespace nil::service
 #undef NIL_SERVICE_CODEC_DECLARE
 
         template <typename T>
+        concept with_tagged_size = requires(T arg) {
+            { detail::size(std::declval<xalt::type_id<T>>(), arg) } -> std::same_as<std::size_t>;
+        };
+        template <typename T>
         concept with_tagged_serialize = requires(T arg) {
             {
-                nil::service::detail::serialize(std::declval<tag<T>>(), arg)
-            } -> std::same_as<std::vector<std::uint8_t>>;
+                detail::serialize(
+                    std::declval<xalt::type_id<T>>(),
+                    std::declval<void*>(),
+                    std::declval<T>()
+                )
+            } -> std::same_as<std::size_t>;
         };
         template <typename T>
         concept with_tagged_deserialize = requires(T arg) {
             {
                 nil::service::detail::deserialize(
-                    std::declval<tag<T>>(),
+                    std::declval<xalt::type_id<T>>(),
                     std::declval<const void*>(),
-                    std::declval<std::uint64_t&>()
+                    std::declval<std::uint64_t>()
                 )
             } -> std::same_as<T>;
         };
@@ -54,44 +77,53 @@ namespace nil::service
     template <typename T, typename = void>
     struct codec
     {
+        static std::size_t size(const T& message)
+        {
+            if constexpr (detail::with_tagged_size<T>)
+            {
+                return detail::size(xalt::type_id<T>(), message);
+            }
+            else
+            {
+                xalt::undefined<T>(); // codec size method is not implemented
+            }
+        }
+
         /**
          * @brief serializes the data to a buffer
          *
-         * @param message
-         * @return std::vector<std::uint8_t>
+         * @param output buffer with enough space dictated by codec<T>::size
+         * @param data
+         * @return size payload consumed. should be the same as codec<T>::size
          */
-        static std::vector<std::uint8_t> serialize(const T& message)
+        static std::size_t serialize(void* output, const T& data)
         {
             if constexpr (detail::with_tagged_serialize<T>)
             {
-                return nil::service::detail::serialize(detail::tag<T>(), message);
+                return detail::serialize(xalt::type_id<T>(), output, data);
             }
             else
             {
                 xalt::undefined<T>(); // codec serialize method is not implemented
-                return {};
             }
         }
 
         /**
          * @brief deserializes the buffer into a distinct type
          *
-         * @param data - buffer to use
+         * @param input - buffer to use
          * @param size - available buffer size
-         *             - this is expected to be adjusted by the data
-         *               consumed during deserialization
          * @return T
          */
-        static T deserialize(const void* data, std::uint64_t& size)
+        static T deserialize(const void* input, std::uint64_t size)
         {
             if constexpr (detail::with_tagged_deserialize<T>)
             {
-                return nil::service::detail::deserialize(detail::tag<T>(), data, size);
+                return detail::deserialize(xalt::type_id<T>(), input, size);
             }
             else
             {
                 xalt::undefined<T>(); // codec deserialize method is not implemented
-                return {};
             }
         }
     };

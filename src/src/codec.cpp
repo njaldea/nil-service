@@ -1,33 +1,37 @@
 #include <nil/service/codec.hpp>
+#include <nil/xalt/type_id.hpp>
 
 #include "utils.hpp"
 
 namespace nil::service::detail
 {
-    std::vector<std::uint8_t> serialize(tag<std::string> t, const std::string& message)
+    std::size_t serialize(xalt::type_id<std::string> tag, void* output, const std::string& message)
     {
-        (void)t;
-        return {message.begin(), message.end()};
+        std::copy(message.begin(), message.end(), static_cast<std::uint8_t*>(output));
+        return size(tag, message);
     }
 
-    std::string deserialize(tag<std::string> t, const void* data, std::uint64_t& size)
+    std::string deserialize(
+        xalt::type_id<std::string> /* t */,
+        const void* input,
+        std::uint64_t size
+    )
     {
-        (void)t;
-        return std::string(static_cast<const char*>(data), std::exchange(size, 0ul)); // NOLINT
+        return std::string(static_cast<const char*>(input), size); // NOLINT
     }
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define NIL_SERVICE_CODEC_DEFINE(TYPE)                                                             \
-    std::vector<std::uint8_t> serialize(tag<TYPE>, TYPE message)                                   \
+    std::size_t serialize(xalt::type_id<TYPE> tag, void* output, TYPE data)                        \
     {                                                                                              \
-        const auto typed = utils::to_array(message);                                               \
-        return std::vector<std::uint8_t>(typed.begin(), typed.end());                              \
+        const auto typed = utils::to_array(data);                                                  \
+        std::copy(typed.begin(), typed.end(), static_cast<std::uint8_t*>(output));                 \
+        return size(tag, data);                                                                    \
     }                                                                                              \
-                                                                                                   \
-    TYPE deserialize(tag<TYPE>, const void* data, std::uint64_t& size)                             \
+    TYPE deserialize(xalt::type_id<TYPE>, const void* input, std::uint64_t size)                   \
     {                                                                                              \
-        size -= sizeof(TYPE);                                                                      \
-        return utils::from_array<TYPE>(static_cast<const std::uint8_t*>(data));                    \
+        (void)size;                                                                                \
+        return utils::from_array<TYPE>(static_cast<const std::uint8_t*>(input));                   \
     }
 
     NIL_SERVICE_CODEC_DEFINE(std::uint8_t);

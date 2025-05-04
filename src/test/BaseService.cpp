@@ -14,14 +14,20 @@ namespace nil::service
     template <>
     struct codec<char>
     {
-        static std::vector<std::uint8_t> serialize(char data)
+        static std::size_t size(char c)
         {
-            return {std::uint8_t(data)};
+            return sizeof(c);
         }
 
-        static char deserialize(const void* data, std::uint64_t& size)
+        static std::size_t serialize(void* output, char data)
         {
-            size -= 1;
+            *static_cast<char*>(output) = data;
+            return size(data);
+        }
+
+        static char deserialize(const void* data, std::uint64_t size)
+        {
+            (void)size;
             return *static_cast<const char*>(data);
         }
     };
@@ -254,12 +260,12 @@ TEST(BaseService, on_message_without_id_with_codec)
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
     start(service);
-    EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, "abc", 3);
-    EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, {'a', 'b', 'c'});
-    EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, nil::service::concat('a', 'b', 'c'));
+    EXPECT_CALL(mock, Call("axy")).Times(1);
+    publish(service, "axy", 3);
+    EXPECT_CALL(mock, Call("axy")).Times(1);
+    publish(service, {'a', 'x', 'y'});
+    EXPECT_CALL(mock, Call("axy")).Times(1);
+    publish(service, nil::service::concat('a', 'x', 'y'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
     stop(service);
 }
@@ -276,12 +282,12 @@ TEST(BaseService, map_without_id_with_raw)
             { mock.Call(nil::service::consume<std::string>(d, s)); }
         ));
     {
-        EXPECT_CALL(mock, Call("bc")).Times(1);
-        const std::uint8_t data[] = {'a', 'b', 'c'}; // NOLINT
+        EXPECT_CALL(mock, Call("xy")).Times(1);
+        const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
     {
-        const std::uint8_t data[] = {'b', 'b', 'c'}; // NOLINT
+        const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
 }
@@ -297,12 +303,12 @@ TEST(BaseService, map_without_id_with_codec)
             [&](const std::string& s) { mock.Call(s); }
         ));
     {
-        EXPECT_CALL(mock, Call("bc")).Times(1);
-        const std::uint8_t data[] = {'a', 'b', 'c'}; // NOLINT
+        EXPECT_CALL(mock, Call("xy")).Times(1);
+        const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
     {
-        const std::uint8_t data[] = {'b', 'b', 'c'}; // NOLINT
+        const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
 }
@@ -323,12 +329,12 @@ TEST(BaseService, on_message_map_with_id_with_raw)
         ));
     {
         EXPECT_CALL(mock, Call("peer id")).Times(1);
-        EXPECT_CALL(mock, Call("bc")).Times(1);
-        const std::uint8_t data[] = {'a', 'b', 'c'}; // NOLINT
+        EXPECT_CALL(mock, Call("xy")).Times(1);
+        const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
     {
-        const std::uint8_t data[] = {'b', 'b', 'c'}; // NOLINT
+        const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
 }
@@ -349,12 +355,12 @@ TEST(BaseService, on_message_map_with_id_with_codec)
         ));
     {
         EXPECT_CALL(mock, Call("peer id")).Times(1);
-        EXPECT_CALL(mock, Call("bc")).Times(1);
-        const std::uint8_t data[] = {'a', 'b', 'c'}; // NOLINT
+        EXPECT_CALL(mock, Call("xy")).Times(1);
+        const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
     {
-        const std::uint8_t data[] = {'b', 'b', 'c'}; // NOLINT
+        const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
         handler({"peer id"}, &data[0], 3);
     }
 }

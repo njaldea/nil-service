@@ -2,7 +2,6 @@
 
 #include <nil/xalt/errors.hpp>
 
-#include <functional>
 #include <type_traits>
 #include <utility>
 

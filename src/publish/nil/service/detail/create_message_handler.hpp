@@ -5,9 +5,8 @@
 
 #include <nil/xalt/errors.hpp>
 #include <nil/xalt/fn_sign.hpp>
-
-#include <functional>
 #include <nil/xalt/tlist.hpp>
+
 #include <type_traits>
 #include <utility>
 
