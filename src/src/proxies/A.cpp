@@ -29,7 +29,7 @@ namespace nil::service
         return *this->ptr;
     }
 
-    A::operator S() const
+    A::operator P() const
     {
         return {this->ptr.get()};
     }

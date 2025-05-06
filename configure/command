@@ -12,19 +12,21 @@ CMAKE_BUILD_TYPE="Release"
 VCPKG_MANIFEST_FEATURES="core"
 ENABLE_SANDBOX="OFF"
 ENABLE_TEST="OFF"
+ENABLE_SECURED="OFF"
 GENERATOR="Ninja"
 
 HELP()
 {
-    echo "[-h|d|t|s]"
+    echo "[-h|d|t|s|f]"
     echo "options:"
     echo "h         Print this help"
     echo "d         Configure Debug Build (default: Release)"
     echo "t         Enable Tests"
     echo "s         Enable Sandboxes"
+    echo "f         Enable Secured"
 }
 
-while getopts ":hdts" option; do
+while getopts ":hdtsf" option; do
     case $option in
         h)
             HELP
@@ -39,6 +41,10 @@ while getopts ":hdts" option; do
             SANDBOX="sandbox"
             VCPKG_MANIFEST_FEATURES="${SANDBOX};${VCPKG_MANIFEST_FEATURES}"
             ENABLE_SANDBOX="ON";;
+        f)
+            SECURED="secured"
+            VCPKG_MANIFEST_FEATURES="${SECURED};${VCPKG_MANIFEST_FEATURES}"
+            ENABLE_SECURED="ON";;
         \?)
             echo "unknown option is provided: ${option}"
             HELP

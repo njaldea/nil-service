@@ -20,6 +20,8 @@ set(
         publish/nil/service/udp/client/create.hpp
         publish/nil/service/tcp/server/create.hpp
         publish/nil/service/tcp/client/create.hpp
+        publish/nil/service/ws/server/create.hpp
+        publish/nil/service/ws/client/create.hpp
 )
 
 set(
@@ -33,7 +35,7 @@ set(
         src/structs/RunnableService.hpp
         src/structs/Service.hpp
         src/structs/StandaloneService.hpp
-        src/proxies/S.cpp
+        src/proxies/P.cpp
         src/proxies/A.cpp
         src/proxies/H.cpp
         src/self/create.cpp
@@ -73,6 +75,40 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/publish>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+set(ENABLE_SECURED  OFF CACHE BOOL "[0 | OFF - 1 | ON]: build with ssl?")
+if(ENABLE_SECURED)
+    find_package(OpenSSL REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL)
+    message(STATUS "NJLA WHOOHO")
+    target_compile_definitions(
+        ${PROJECT_NAME}
+        PUBLIC
+        NIL_SERVICE_SECURE
+    )
+    target_sources(
+        ${PROJECT_NAME}
+        PUBLIC
+        publish/nil/service/wss/server/create.hpp
+        publish/nil/service/wss/client/create.hpp
+    )
+    target_sources(
+        ${PROJECT_NAME}
+        PRIVATE
+        src/structs/HTTPSService.hpp
+        src/proxies/S.cpp
+        # src/wss/client/create.cpp
+        # src/wss/server/create.cpp
+        src/wss/Connection.cpp
+        src/wss/Connection.hpp
+        src/https/server/create.cpp
+        src/https/server/Route.hpp
+        src/https/server/WebSocket.cpp
+        src/https/server/WebSocket.hpp
+    )
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_DISABLE_SSL)
+endif()
 
 add_test_subdirectory()
 

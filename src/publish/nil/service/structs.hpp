@@ -1,6 +1,6 @@
 #pragma once
 
-#include "codec.hpp"
+#include "concat.hpp"
 #include "detail/create_handler.hpp"
 #include "detail/create_message_handler.hpp"
 
@@ -21,7 +21,7 @@ namespace nil::service
     // - returned by use_ws when a route is added to handle web socket connection.
     // - does not own the object and provides conversion mechanism to supported api
     // - the object is owned by the parent service (HTTPService/H)
-    struct S
+    struct P
     {
         Service* ptr;
         operator Service&() const;           // NOLINT
@@ -41,7 +41,7 @@ namespace nil::service
         operator RunnableService&() const;   // NOLINT
         operator MessagingService&() const;  // NOLINT
         operator ObservableService&() const; // NOLINT
-        operator S() const;                  // NOLINT
+        operator P() const;                  // NOLINT
     };
 
     // HTTPService Proxy
@@ -99,21 +99,21 @@ namespace nil::service
         requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
     void publish(MessagingService& service, const T& data)
     {
-        publish(service, codec<T>::serialize(data));
+        publish(service, concat(data));
     }
 
     template <typename T>
         requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
     void send(MessagingService& service, const ID& id, const T& data)
     {
-        send(service, id, codec<T>::serialize(data));
+        send(service, id, concat(data));
     }
 
     template <typename T>
         requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
     void send(MessagingService& service, const std::vector<ID>& ids, const T& data)
     {
-        send(service, ids, codec<T>::serialize(data));
+        send(service, ids, concat(data));
     }
 
     /**
@@ -186,21 +186,46 @@ namespace nil::service
         impl::on_ready(service, detail::create_handler(std::move(handler)));
     }
 
-    /**
-     * @brief Add a websocket server for a specific route
-     *
-     * @param service
-     * @param route
-     * @return S
-     */
-    S use_ws(HTTPService& service, std::string route);
-
+    P use_ws(HTTPService& service, std::string route);
     struct HTTPTransaction;
-
     void on_get(HTTPService& service, std::function<void(const HTTPTransaction&)> callback);
-
     std::string get_route(const HTTPTransaction& transaction);
     void set_content_type(const HTTPTransaction& transaction, std::string_view type);
     void send(const HTTPTransaction& transaction, std::string_view body);
     void send(const HTTPTransaction& transaction, const std::istream& body);
+
+#ifdef NIL_SERVICE_SECURE
+    struct HTTPSService;
+
+    // HTTPSService Proxy
+    // - returned by http::server::create
+    // - owns the object and provides conversion mechanism to supported api
+    struct S
+    {
+        std::unique_ptr<HTTPSService, void (*)(HTTPSService*)> ptr;
+
+        operator HTTPSService&() const;    // NOLINT
+        operator RunnableService&() const; // NOLINT
+    };
+
+    namespace impl
+    {
+        void on_ready(HTTPSService& service, std::function<void(const ID&)> handler);
+    }
+
+    template <typename Handler>
+        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<Handler>()))>)
+    void on_ready(HTTPSService& service, Handler handler)
+    {
+        impl::on_ready(service, detail::create_handler(std::move(handler)));
+    }
+
+    P use_ws(HTTPSService& service, std::string route);
+    struct HTTPSTransaction;
+    void on_get(HTTPSService& service, std::function<void(const HTTPSTransaction&)> callback);
+    std::string get_route(const HTTPSTransaction& transaction);
+    void set_content_type(const HTTPSTransaction& transaction, std::string_view type);
+    void send(const HTTPSTransaction& transaction, std::string_view body);
+    void send(const HTTPSTransaction& transaction, const std::istream& body);
+#endif
 }

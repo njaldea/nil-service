@@ -9,6 +9,10 @@
         "test": {
             "description": "Enable tests",
             "dependencies": [ "gtest" ]
+        },
+        "secured": {
+            "description": "https and wss",
+            "dependencies": [ "openssl" ]
         }
     }
 }

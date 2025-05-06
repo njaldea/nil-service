@@ -1,3 +1,4 @@
+#include "nil/service/codec.hpp"
 #include <nil/service.hpp>
 
 #include <nil/clix.hpp>
@@ -267,6 +268,108 @@ void add_http_node(nil::clix::Node& node)
     use(node, http_runner);
 }
 
+#ifdef NIL_SERVICE_SECURE
+
+void add_https_node(nil::clix::Node& node)
+{
+    add_help(node);
+    add_port(node);
+
+    constexpr auto http_runner = [](const nil::clix::Options& options)
+    {
+        if (flag(options, "help"))
+        {
+            help(options, std::cout);
+            return 0;
+        }
+        auto server = nil::service::https::server::create(
+            {.cert = "",
+             .host = "0.0.0.0",
+             .port = std::uint16_t(number(options, "port")),
+             .buffer = 1024ul * 1024ul * 100ul}
+        );
+        on_get(
+            server,
+            [](const nil::service::HTTPSTransaction& transaction) -> void
+            {
+                if ("/" != get_route(transaction))
+                {
+                    return;
+                }
+                set_content_type(transaction, "text/html");
+                send(
+                    transaction,
+                    "<!DOCTYPE html>"
+                    "<html lang=\"en\">"
+                    "<head>"
+                    "<script type=\"module\">"
+                    "const foo = (host, port) => {"
+                    "    let nil = new WebSocket(`wss://${host}:${port}/ws`);"
+                    "    nil.binaryType = \"arraybuffer\";"
+                    "    nil.onopen = () => console.log(\"open\");"
+                    "    nil.onclose = () => console.log(\"close\");"
+                    "    nil.onmessage = async (e) => {"
+                    "        const data = new Uint8Array(event.data);"
+                    "        const tag = new DataView(data.buffer)"
+                    "            .getUint32(0, false);"
+                    "        const rest = new TextDecoder().decode(data.slice(4));"
+                    "        console.log(tag, rest);"
+                    "        nil.send(data);"
+                    "    };"
+                    "    return nil;"
+                    "};"
+                    "globalThis.foo = foo;"
+                    "</script>"
+                    "</head>"
+                    "<body>hello world</body>"
+                );
+            }
+        );
+        on_ready(
+            server,                                                   //
+            [](const auto& id)                                        //
+            { std::cout << "ready      : " << id.text << std::endl; } //
+        );
+        auto ws = use_ws(server, "/ws");
+        on_ready(
+            ws,                                                       //
+            [](const auto& id)                                        //
+            { std::cout << "ready      : " << id.text << std::endl; } //
+        );
+        on_connect(
+            ws,                 //
+            [&](const auto& id) //
+            {
+                std::cout << "connect    : " << id.text << std::endl;
+                send(ws, id, std::string("hello world"));
+            } //
+        );
+        on_disconnect(
+            ws,                                                       //
+            [](const auto& id)                                        //
+            { std::cout << "disconnect : " << id.text << std::endl; } //
+        );
+        on_message(
+            ws,                                                                             //
+            [](const auto& id, const std::string& content)                                  //
+            { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
+        );
+
+        {
+            while (true)
+            {
+                std::thread t1([&]() { start(server); });
+                stop(server);
+                t1.join();
+                restart(server);
+            }
+        }
+        return 0;
+    };
+    use(node, http_runner);
+}
+#endif
+
 int main(int argc, const char** argv)
 {
     auto node = nil::clix::create_node();
@@ -294,5 +397,10 @@ int main(int argc, const char** argv)
         CS_Sub(&nil::service::ws::server::create, &nil::service::ws::client::create));
 
     sub(node, "http", "serve http server", add_http_node);
+
+#ifdef NIL_SERVICE_SECURE
+    sub(node, "https", "serve https server", add_https_node);
+#endif
+
     nil::clix::run(node, argc, argv);
 }
