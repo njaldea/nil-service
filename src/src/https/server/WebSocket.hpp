@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef NIL_SERVICE_SECURE
-
 #include "../../structs/Service.hpp"
 
 #include "../../ConnectedImpl.hpp"
@@ -35,5 +33,3 @@ namespace nil::service::https::server
         std::unordered_map<ID, std::unique_ptr<wss::Connection>> connections;
     };
 }
-
-#endif

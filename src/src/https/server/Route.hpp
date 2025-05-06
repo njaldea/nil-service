@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef NIL_SERVICE_SECURE
-
 #include <functional>
 #include <string>
 
@@ -13,5 +11,3 @@ namespace nil::service::https::server
         std::function<void(std::ostream&)> body;
     };
 }
-
-#endif

@@ -1,8 +1,6 @@
 #pragma once
 
-#ifdef NIL_SERVICE_SECURE
-
-#include "../../structs.hpp"
+#include "../../structs_ssl.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -19,5 +17,3 @@ namespace nil::service::https::server
 
     S create(Options options);
 }
-
-#endif

@@ -1,5 +1,3 @@
-#ifdef NIL_SERVICE_SECURE
-
 #include "Connection.hpp"
 
 namespace nil::service::wss
@@ -53,5 +51,3 @@ namespace nil::service::wss
         return identifier;
     }
 }
-
-#endif

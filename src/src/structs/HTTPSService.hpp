@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef NIL_SERVICE_SECURE
-
 #include <nil/service/ID.hpp>
 
 #include "RunnableService.hpp"
@@ -29,5 +27,3 @@ namespace nil::service
         std::unordered_map<std::string, https::server::WebSocket> wss;
     };
 }
-
-#endif

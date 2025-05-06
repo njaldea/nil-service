@@ -1,6 +1,4 @@
-#ifdef NIL_SERVICE_SECURE
-
-#include <nil/service/structs.hpp>
+#include <nil/service/structs_ssl.hpp>
 
 #include "../structs/HTTPSService.hpp"
 
@@ -16,5 +14,3 @@ namespace nil::service
         return *this->ptr;
     }
 }
-
-#endif

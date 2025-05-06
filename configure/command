@@ -12,7 +12,7 @@ CMAKE_BUILD_TYPE="Release"
 VCPKG_MANIFEST_FEATURES="core"
 ENABLE_SANDBOX="OFF"
 ENABLE_TEST="OFF"
-ENABLE_SECURED="OFF"
+ENABLE_SSL="OFF"
 GENERATOR="Ninja"
 
 HELP()
@@ -23,7 +23,7 @@ HELP()
     echo "d         Configure Debug Build (default: Release)"
     echo "t         Enable Tests"
     echo "s         Enable Sandboxes"
-    echo "f         Enable Secured"
+    echo "f         Enable SSL"
 }
 
 while getopts ":hdtsf" option; do
@@ -42,9 +42,9 @@ while getopts ":hdtsf" option; do
             VCPKG_MANIFEST_FEATURES="${SANDBOX};${VCPKG_MANIFEST_FEATURES}"
             ENABLE_SANDBOX="ON";;
         f)
-            SECURED="secured"
-            VCPKG_MANIFEST_FEATURES="${SECURED};${VCPKG_MANIFEST_FEATURES}"
-            ENABLE_SECURED="ON";;
+            SSL="ssl"
+            VCPKG_MANIFEST_FEATURES="${SSL};${VCPKG_MANIFEST_FEATURES}"
+            ENABLE_SSL="ON";;
         \?)
             echo "unknown option is provided: ${option}"
             HELP
@@ -65,4 +65,5 @@ cmake                                                                       \
     -DVCPKG_OVERLAY_TRIPLETS="${REPO_PATH}/triplets"                        \
     -DENABLE_SANDBOX=${ENABLE_SANDBOX}                                      \
     -DENABLE_TEST=${ENABLE_TEST}                                            \
+    -DENABLE_SSL=${ENABLE_SSL}                                            \
     ${TRIPLET}

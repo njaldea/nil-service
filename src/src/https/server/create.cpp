@@ -1,5 +1,3 @@
-#ifdef NIL_SERVICE_SECURE
-
 #include <nil/service/detail/Handlers.hpp>
 #include <nil/service/https/server/create.hpp>
 
@@ -19,8 +17,6 @@
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
-
-#include <iostream>
 
 namespace nil::service
 {
@@ -329,5 +325,3 @@ namespace nil::service::https::server
         return {{new Impl(std::move(options)), deleter}};
     }
 }
-
-#endif

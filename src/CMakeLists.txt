@@ -76,26 +76,22 @@ target_include_directories(
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-set(ENABLE_SECURED  OFF CACHE BOOL "[0 | OFF - 1 | ON]: build with ssl?")
-if(ENABLE_SECURED)
+add_test_subdirectory()
+
+nil_install_headers()
+nil_install_targets(${PROJECT_NAME})
+
+set(ENABLE_SSL  OFF CACHE BOOL "[0 | OFF - 1 | ON]: build with ssl?")
+if(ENABLE_SSL)
     find_package(OpenSSL REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL)
-    message(STATUS "NJLA WHOOHO")
-    target_compile_definitions(
-        ${PROJECT_NAME}
-        PUBLIC
-        NIL_SERVICE_SECURE
-    )
-    target_sources(
-        ${PROJECT_NAME}
-        PUBLIC
+
+    add_library(
+        ${PROJECT_NAME}_ssl
+        publish/nil/service_ssl.hpp
         publish/nil/service/wss/server/create.hpp
         publish/nil/service/wss/client/create.hpp
-    )
-    target_sources(
-        ${PROJECT_NAME}
-        PRIVATE
         src/structs/HTTPSService.hpp
+        src/structs_ssl.cpp
         src/proxies/S.cpp
         # src/wss/client/create.cpp
         # src/wss/server/create.cpp
@@ -106,11 +102,26 @@ if(ENABLE_SECURED)
         src/https/server/WebSocket.cpp
         src/https/server/WebSocket.hpp
     )
-else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_DISABLE_SSL)
+
+    target_link_libraries(
+        ${PROJECT_NAME}_ssl PRIVATE
+        OpenSSL::SSL
+    )
+    target_link_libraries(
+        ${PROJECT_NAME}_ssl PUBLIC
+        ${PROJECT_NAME}
+    )
+    target_compile_definitions(
+        ${PROJECT_NAME}_ssl
+        PUBLIC
+        NIL_SERVICE_SSL
+    )
+    target_include_directories(
+        ${PROJECT_NAME}_ssl
+        SYSTEM PRIVATE
+        $<TARGET_PROPERTY:Boost::boost,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+    target_compile_definitions(${PROJECT_NAME}_ssl PRIVATE BOOST_ASIO_NO_DEPRECATED)
+    
+    nil_install_targets(${PROJECT_NAME}_ssl)
 endif()
-
-add_test_subdirectory()
-
-nil_install_headers()
-nil_install_targets(${PROJECT_NAME})

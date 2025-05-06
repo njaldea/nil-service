@@ -1,5 +1,3 @@
-#ifdef NIL_SERVICE_SECURE
-
 #include "WebSocket.hpp"
 
 namespace nil::service::https::server
@@ -110,5 +108,3 @@ namespace nil::service::https::server
         }
     }
 }
-
-#endif

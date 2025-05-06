@@ -9,4 +9,8 @@ include(cmake/test.cmake)
 include(cmake/coverage.cmake)
 
 add_subdirectory(src)
-add_subdirectory(sandbox)
+
+set(ENABLE_SANDBOX  OFF CACHE BOOL "[0 | OFF - 1 | ON]: build sandbox?")
+if(ENABLE_SANDBOX)
+    add_subdirectory(sandbox)
+endif()

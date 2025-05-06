@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef NIL_SERVICE_SECURE
-
 #include "../ConnectedImpl.hpp"
 
 #include <nil/service/ID.hpp>
@@ -46,5 +44,3 @@ namespace nil::service::wss
         ConnectedImpl<Connection>& impl;
     };
 }
-
-#endif

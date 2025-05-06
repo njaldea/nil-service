@@ -1,4 +1,3 @@
-#include "nil/service/codec.hpp"
 #include <nil/service.hpp>
 
 #include <nil/clix.hpp>
@@ -268,7 +267,7 @@ void add_http_node(nil::clix::Node& node)
     use(node, http_runner);
 }
 
-#ifdef NIL_SERVICE_SECURE
+#ifdef NIL_SERVICE_SSL
 
 void add_https_node(nil::clix::Node& node)
 {
@@ -398,7 +397,7 @@ int main(int argc, const char** argv)
 
     sub(node, "http", "serve http server", add_http_node);
 
-#ifdef NIL_SERVICE_SECURE
+#ifdef NIL_SERVICE_SSL
     sub(node, "https", "serve https server", add_https_node);
 #endif
 
