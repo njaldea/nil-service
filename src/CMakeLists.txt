@@ -104,24 +104,24 @@ if(ENABLE_SSL)
     )
 
     target_link_libraries(
-        ${PROJECT_NAME}_ssl PRIVATE
+        ${PROJECT_NAME}-ssl PRIVATE
         OpenSSL::SSL
     )
     target_link_libraries(
-        ${PROJECT_NAME}_ssl PUBLIC
+        ${PROJECT_NAME}-ssl PUBLIC
         ${PROJECT_NAME}
     )
     target_compile_definitions(
-        ${PROJECT_NAME}_ssl
+        ${PROJECT_NAME}-ssl
         PUBLIC
         NIL_SERVICE_SSL
     )
     target_include_directories(
-        ${PROJECT_NAME}_ssl
+        ${PROJECT_NAME}-ssl
         SYSTEM PRIVATE
         $<TARGET_PROPERTY:Boost::boost,INTERFACE_INCLUDE_DIRECTORIES>
     )
-    target_compile_definitions(${PROJECT_NAME}_ssl PRIVATE BOOST_ASIO_NO_DEPRECATED)
+    target_compile_definitions(${PROJECT_NAME}-ssl PRIVATE BOOST_ASIO_NO_DEPRECATED)
     
-    nil_install_targets(${PROJECT_NAME}_ssl)
+    nil_install_targets(${PROJECT_NAME}-ssl)
 endif()

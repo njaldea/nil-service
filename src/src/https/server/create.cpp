@@ -53,22 +53,23 @@ namespace nil::service::https::server
 {
     struct Context
     {
-        explicit Context(const std::string& host, std::uint16_t port)
+        explicit Context(
+            const std::string& host,
+            std::uint16_t port,
+            const std::filesystem::path& path
+        )
             : strand(make_strand(ctx))
             , ssl_context(boost::asio::ssl::context::tlsv12_server)
             , acceptor(strand, {boost::asio::ip::make_address(host), port})
         {
-            // Load your certificate and key here
             ssl_context.set_options(
                 boost::asio::ssl::context::default_workarounds //
                 | boost::asio::ssl::context::no_sslv2          //
-                // | boost::asio::ssl::context::single_dh_use
+                | boost::asio::ssl::context::single_dh_use
             );
-            // NOLINTNEXTLINE
-#define PATH_KEY "/home/njaldea/repo/cpp/nil-service/sandbox/"
-            ssl_context.use_certificate_chain_file(PATH_KEY "cert.pem");
-            ssl_context.use_private_key_file(PATH_KEY "key.pem", boost::asio::ssl::context::pem);
-            // ssl_context.use_tmp_dh_file(PATH_KEY "dh.pem"); // optional
+            ssl_context.use_certificate_chain_file(path / "cert.pem");
+            ssl_context.use_private_key_file(path / "key.pem", boost::asio::ssl::context::pem);
+            ssl_context.use_tmp_dh_file(path / "dh.pem"); // optional
         }
 
         boost::asio::io_context ctx;
@@ -270,7 +271,7 @@ namespace nil::service::https::server
     {
         if (!context)
         {
-            context = std::make_unique<Context>(options.host, options.port);
+            context = std::make_unique<Context>(options.host, options.port, options.cert);
             auto id = utils::to_id(context->acceptor.local_endpoint());
             detail::invoke(on_ready, id);
             for (auto& [route, ws] : wss)

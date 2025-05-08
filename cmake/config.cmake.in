@@ -6,4 +6,12 @@ find_dependency(Boost REQUIRED)
 find_dependency(nil-xalt REQUIRED)
 include(${CMAKE_CURRENT_LIST_DIR}/@CMAKE_PROJECT_NAME@-targets.cmake)
 
+if("@ENABLE_SSL@")
+    if("ssl" IN_LIST @CMAKE_PROJECT_NAME@_FIND_COMPONENTS)
+        find_package(OpenSSL REQUIRED)
+        include(${CMAKE_CURRENT_LIST_DIR}/nil-service-ssl-targets.cmake)
+        set(nil-service-ssl_FOUND TRUE)
+    endif()
+endif()
+
 check_required_components(@CMAKE_PROJECT_NAME@)
