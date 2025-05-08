@@ -10,7 +10,7 @@
 namespace nil::service
 {
     struct StandaloneService;
-    struct HTTPService;
+    struct WebService;
     struct Service;
 
     struct RunnableService;
@@ -44,14 +44,14 @@ namespace nil::service
         operator P() const;                  // NOLINT
     };
 
-    // HTTPService Proxy
+    // WebService Proxy
     // - returned by http::server::create
     // - owns the object and provides conversion mechanism to supported api
-    struct H
+    struct W
     {
-        std::unique_ptr<HTTPService, void (*)(HTTPService*)> ptr;
+        std::unique_ptr<WebService, void (*)(WebService*)> ptr;
 
-        operator HTTPService&() const;     // NOLINT
+        operator WebService&() const;      // NOLINT
         operator RunnableService&() const; // NOLINT
     };
 
@@ -170,7 +170,7 @@ namespace nil::service
 
     namespace impl
     {
-        void on_ready(HTTPService& service, std::function<void(const ID&)> handler);
+        void on_ready(WebService& service, std::function<void(const ID&)> handler);
     }
 
     /**
@@ -181,16 +181,16 @@ namespace nil::service
      */
     template <typename Handler>
         requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<Handler>()))>)
-    void on_ready(HTTPService& service, Handler handler)
+    void on_ready(WebService& service, Handler handler)
     {
         impl::on_ready(service, detail::create_handler(std::move(handler)));
     }
 
-    P use_ws(HTTPService& service, std::string route);
-    struct HTTPTransaction;
-    void on_get(HTTPService& service, std::function<void(const HTTPTransaction&)> callback);
-    std::string get_route(const HTTPTransaction& transaction);
-    void set_content_type(const HTTPTransaction& transaction, std::string_view type);
-    void send(const HTTPTransaction& transaction, std::string_view body);
-    void send(const HTTPTransaction& transaction, const std::istream& body);
+    P use_ws(WebService& service, const std::string& route);
+    struct WebTransaction;
+    void on_get(WebService& service, std::function<void(const WebTransaction&)> callback);
+    std::string get_route(const WebTransaction& transaction);
+    void set_content_type(const WebTransaction& transaction, std::string_view type);
+    void send(const WebTransaction& transaction, std::string_view body);
+    void send(const WebTransaction& transaction, const std::istream& body);
 }

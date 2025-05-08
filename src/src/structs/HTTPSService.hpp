@@ -2,18 +2,15 @@
 
 #include <nil/service/ID.hpp>
 
-#include "RunnableService.hpp"
+#include "WebService.hpp"
 
 #include "../https/server/WebSocket.hpp"
-
-#include <functional>
-#include <vector>
 
 namespace nil::service
 {
     struct HTTPSTransaction;
 
-    struct HTTPSService: RunnableService
+    struct HTTPSService: WebService
     {
         HTTPSService() = default;
         ~HTTPSService() noexcept override = default;
@@ -22,8 +19,11 @@ namespace nil::service
         HTTPSService& operator=(const HTTPSService&) = delete;
         HTTPSService& operator=(HTTPSService&&) = delete;
 
-        std::vector<std::function<void(const ID&)>> on_ready;
-        std::function<void(const HTTPSTransaction&)> on_get;
+        Service* get_wss(const std::string& key) override
+        {
+            return &wss[key];
+        }
+
         std::unordered_map<std::string, https::server::WebSocket> wss;
     };
 }

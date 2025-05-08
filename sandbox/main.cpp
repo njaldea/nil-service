@@ -191,7 +191,7 @@ void add_http_node(nil::clix::Node& node)
         );
         on_get(
             server,
-            [](const nil::service::HTTPTransaction& transaction) -> void
+            [](const nil::service::WebTransaction& transaction) -> void
             {
                 if ("/" != get_route(transaction))
                 {
@@ -289,7 +289,7 @@ void add_https_node(nil::clix::Node& node)
         );
         on_get(
             server,
-            [](const nil::service::HTTPSTransaction& transaction) -> void
+            [](const nil::service::WebTransaction& transaction) -> void
             {
                 if ("/" != get_route(transaction))
                 {

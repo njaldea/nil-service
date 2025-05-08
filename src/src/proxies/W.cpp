@@ -1,15 +1,15 @@
 #include <nil/service/structs.hpp>
 
-#include "../structs/HTTPService.hpp"
+#include "../structs/WebService.hpp"
 
 namespace nil::service
 {
-    H::operator HTTPService&() const
+    W::operator WebService&() const
     {
         return *this->ptr;
     }
 
-    H::operator RunnableService&() const
+    W::operator RunnableService&() const
     {
         return *this->ptr;
     }

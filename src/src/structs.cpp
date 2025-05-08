@@ -2,6 +2,7 @@
 
 #include "structs/HTTPService.hpp"
 #include "structs/ObservableService.hpp"
+#include "structs/WebService.hpp"
 
 namespace nil::service
 {
@@ -101,19 +102,19 @@ namespace nil::service
 
     namespace impl
     {
-        void on_ready(HTTPService& service, std::function<void(const ID&)> handler)
+        void on_ready(WebService& service, std::function<void(const ID&)> handler)
         {
             service.on_ready.push_back(std::move(handler));
         }
     }
 
-    void on_get(HTTPService& service, std::function<void(const HTTPTransaction&)> callback)
+    void on_get(WebService& service, std::function<void(const WebTransaction&)> callback)
     {
         service.on_get = std::move(callback);
     }
 
-    P use_ws(HTTPService& service, std::string route)
+    P use_ws(WebService& service, const std::string& route)
     {
-        return {&service.wss[std::move(route)]};
+        return {service.get_wss(route)};
     }
 }

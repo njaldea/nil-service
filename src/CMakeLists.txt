@@ -35,9 +35,11 @@ set(
         src/structs/RunnableService.hpp
         src/structs/Service.hpp
         src/structs/StandaloneService.hpp
+        src/structs/WebService.cpp
+        src/structs/WebService.hpp
         src/proxies/P.cpp
         src/proxies/A.cpp
-        src/proxies/H.cpp
+        src/proxies/W.cpp
         src/self/create.cpp
         src/udp/client/create.cpp
         src/udp/server/create.cpp
@@ -86,13 +88,10 @@ if(ENABLE_SSL)
     find_package(OpenSSL REQUIRED)
 
     add_library(
-        ${PROJECT_NAME}_ssl
-        publish/nil/service_ssl.hpp
+        ${PROJECT_NAME}-ssl
         publish/nil/service/wss/server/create.hpp
         publish/nil/service/wss/client/create.hpp
         src/structs/HTTPSService.hpp
-        src/structs_ssl.cpp
-        src/proxies/S.cpp
         # src/wss/client/create.cpp
         # src/wss/server/create.cpp
         src/wss/Connection.cpp

@@ -18,37 +18,6 @@
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
 
-namespace nil::service
-{
-    struct HTTPSTransaction
-    {
-        boost::beast::http::request<boost::beast::http::dynamic_body>& request;   // NOLINT
-        boost::beast::http::response<boost::beast::http::dynamic_body>& response; // NOLINT
-    };
-
-    std::string get_route(const HTTPSTransaction& transaction)
-    {
-        return transaction.request.target();
-    }
-
-    void set_content_type(const HTTPSTransaction& transaction, std::string_view type)
-    {
-        transaction.response.set(boost::beast::http::field::content_type, type);
-    }
-
-    void send(const HTTPSTransaction& transaction, std::string_view body)
-    {
-        transaction.response.result(boost::beast::http::status::ok);
-        boost::beast::ostream(transaction.response.body()) << body;
-    }
-
-    void send(const HTTPSTransaction& transaction, const std::istream& body)
-    {
-        transaction.response.result(boost::beast::http::status::ok);
-        boost::beast::ostream(transaction.response.body()) << body.rdbuf();
-    }
-}
-
 namespace nil::service::https::server
 {
     struct Context
@@ -209,7 +178,7 @@ namespace nil::service::https::server
                     else if (parent.on_get)
                     {
                         response.result(boost::beast::http::status::bad_request);
-                        HTTPSTransaction transaction = {request, response};
+                        WebTransaction transaction = {request, response};
                         parent.on_get(transaction);
                         write_response();
                     }
@@ -317,10 +286,10 @@ namespace nil::service::https::server
         );
     }
 
-    S create(Options options)
+    W create(Options options)
     {
-        constexpr auto deleter = [](HTTPSService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);          // NOLINT
+        constexpr auto deleter = [](WebService* obj) { //
+            auto ptr = static_cast<Impl*>(obj);        // NOLINT
             std::default_delete<Impl>()(ptr);
         };
         return {{new Impl(std::move(options)), deleter}};

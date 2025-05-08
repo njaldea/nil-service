@@ -13,5 +13,5 @@ namespace nil::service::http::server
         std::uint64_t buffer = 8192;
     };
 
-    H create(Options options);
+    W create(Options options);
 }

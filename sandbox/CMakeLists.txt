@@ -7,7 +7,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE nil::clix)
 
 
 if(ENABLE_SSL)
-    target_link_libraries(${PROJECT_NAME} PRIVATE service_ssl)
+    target_link_libraries(${PROJECT_NAME} PRIVATE service-ssl)
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE service)
 endif()

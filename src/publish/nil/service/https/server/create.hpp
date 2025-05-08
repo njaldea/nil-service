@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../structs_ssl.hpp"
+#include "../../structs.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -15,5 +15,5 @@ namespace nil::service::https::server
         std::uint64_t buffer = 8192;
     };
 
-    S create(Options options);
+    W create(Options options);
 }

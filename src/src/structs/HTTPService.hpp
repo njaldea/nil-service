@@ -1,17 +1,16 @@
 #pragma once
 
-#include "RunnableService.hpp"
+#include "WebService.hpp"
 
 #include "../http/server/WebSocket.hpp"
 
 #include <string>
-#include <vector>
 
 namespace nil::service
 {
-    struct HTTPTransaction;
+    struct WebTransaction;
 
-    struct HTTPService: RunnableService
+    struct HTTPService: WebService
     {
         HTTPService() = default;
         ~HTTPService() noexcept override = default;
@@ -20,8 +19,11 @@ namespace nil::service
         HTTPService& operator=(const HTTPService&) = delete;
         HTTPService& operator=(HTTPService&&) = delete;
 
-        std::vector<std::function<void(const ID&)>> on_ready;
-        std::function<void(const HTTPTransaction&)> on_get;
+        Service* get_wss(const std::string& key) override
+        {
+            return &wss[key];
+        }
+
         std::unordered_map<std::string, http::server::WebSocket> wss;
     };
 }
