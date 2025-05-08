@@ -10,7 +10,7 @@ if("@ENABLE_SSL@")
     if("ssl" IN_LIST @CMAKE_PROJECT_NAME@_FIND_COMPONENTS)
         find_package(OpenSSL REQUIRED)
         include(${CMAKE_CURRENT_LIST_DIR}/nil-service-ssl-targets.cmake)
-        set(nil-service-ssl_FOUND TRUE)
+        set(nil-service_ssl_FOUND TRUE)
     endif()
 endif()
 
