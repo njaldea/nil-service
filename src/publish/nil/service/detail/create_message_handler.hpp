@@ -95,5 +95,9 @@ namespace nil::service::detail
                 (const ID& id, const void* data, std::uint64_t size)
             { handler(id, AutoCast(data, &size)); };
         }
+        else
+        {
+            nil::xalt::undefined<Handler>(); // handler type is not supported
+        }
     }
 }

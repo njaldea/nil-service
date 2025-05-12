@@ -43,5 +43,7 @@ namespace nil::service::detail
     NIL_SERVICE_CODEC_DEFINE(std::int16_t);
     NIL_SERVICE_CODEC_DEFINE(std::int32_t);
     NIL_SERVICE_CODEC_DEFINE(std::int64_t);
+
+    NIL_SERVICE_CODEC_DEFINE(char);
 #undef NIL_SERVICE_CODEC_DEFINE
 }

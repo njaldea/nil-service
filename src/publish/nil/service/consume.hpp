@@ -21,7 +21,7 @@ namespace nil::service
      * @return T
      */
     template <typename T>
-    inline T consume(const void*& data, std::uint64_t& size)
+    T consume(const void*& data, std::uint64_t& size)
     {
         auto casted = codec<T>::deserialize(data, size);
         const auto consumed_size = codec<T>::size(casted);

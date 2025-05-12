@@ -46,6 +46,8 @@ namespace nil::service
         NIL_SERVICE_CODEC_DECLARE(std::int16_t);
         NIL_SERVICE_CODEC_DECLARE(std::int32_t);
         NIL_SERVICE_CODEC_DECLARE(std::int64_t);
+
+        NIL_SERVICE_CODEC_DECLARE(char);
 #undef NIL_SERVICE_CODEC_DECLARE
 
         template <typename T>
@@ -125,6 +127,31 @@ namespace nil::service
             {
                 xalt::undefined<T>(); // codec deserialize method is not implemented
             }
+        }
+    };
+
+    template <typename T, std::size_t N>
+    struct codec<T[N]> // NOLINT
+    {
+        static std::size_t size(const T (&arg)[N]) // NOLINT
+        {
+            auto size = 0ul;
+            for (auto i = 0u; i < N; ++i)
+            {
+                size += codec<T>::size(arg[i]);
+            }
+            return size;
+        }
+
+        static std::size_t serialize(void* output, const T (&arg)[N]) // NOLINT
+        {
+            auto* p = static_cast<std::uint8_t*>(output);
+            auto size = 0ul;
+            for (auto i = 0u; i < N; ++i)
+            {
+                size += codec<T>::serialize(p + size, arg[i]);
+            }
+            return size;
         }
     };
 }

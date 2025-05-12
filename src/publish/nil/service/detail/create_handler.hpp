@@ -33,5 +33,9 @@ namespace nil::service::detail
         {
             return handler;
         }
+        else
+        {
+            nil::xalt::undefined<Handler>(); // handler type is not supported
+        }
     }
 }
