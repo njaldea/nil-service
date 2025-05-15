@@ -92,8 +92,8 @@ if(ENABLE_SSL)
         publish/nil/service/wss/server/create.hpp
         publish/nil/service/wss/client/create.hpp
         src/structs/HTTPSService.hpp
-        # src/wss/client/create.cpp
-        # src/wss/server/create.cpp
+        src/wss/client/create.cpp
+        src/wss/server/create.cpp
         src/wss/Connection.cpp
         src/wss/Connection.hpp
         src/https/server/create.cpp

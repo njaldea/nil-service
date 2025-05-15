@@ -88,9 +88,34 @@ namespace nil::service::https::server
                 boost::asio::ssl::stream_base::server,
                 [self](boost::beast::error_code ec)
                 {
+                    if (ec)
+                    {
+                        return;
+                    }
+
+                    boost::beast::http::async_read(
+                        self->stream,
+                        self->buffer,
+                        self->request,
+                        [self] //
+                        (boost::beast::error_code ecs, std::size_t /* bytes_transferred */)
+                        {
+                            if (ecs)
+                            {
+                                return;
+                            }
+
+                            self->process_request();
+                        }
+                    );
+                }
+            );
+            deadline.async_wait(
+                [self](boost::beast::error_code ec)
+                {
                     if (!ec)
                     {
-                        self->read_request();
+                        self->stream.next_layer().close(ec);
                     }
                 }
             );
@@ -112,13 +137,12 @@ namespace nil::service::https::server
 
             if (bbws::is_upgrade(request))
             {
-                auto id = utils::to_id(stream.next_layer().remote_endpoint());
-
-                auto ws_stream = std::make_unique<boost::beast::websocket::stream<
-                    boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>>(std::move(stream));
-
-                ws_stream->set_option(bbws::stream_base::timeout::suggested(bb::role_type::server));
-                ws_stream->set_option(bbws::stream_base::decorator(
+                auto wss = std::make_unique<
+                    bbws::stream<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>>(
+                    std::move(stream)
+                );
+                wss->set_option(bbws::stream_base::timeout::suggested(bb::role_type::server));
+                wss->set_option(bbws::stream_base::decorator(
                     [](bbws::response_type& res)
                     {
                         res.set(
@@ -130,30 +154,25 @@ namespace nil::service::https::server
                             bb::http::field::access_control_allow_headers,
                             "origin, x-requested-with, content-type"
                         );
-                        res.set(
-                            bb::http::field::access_control_allow_methods,
-                            "GET, POST, OPTIONS"
-                        );
+                        res.set(bb::http::field::access_control_allow_methods, "GET");
                     }
                 ));
 
-                auto* raw_ws = ws_stream.get(); // needed for async_accept capture
-                raw_ws->async_accept(
+                auto* wss_ptr = wss.get();
+                wss_ptr->async_accept(
                     request,
-                    [this, &websocket, id = std::move(id), ws = std::move(ws_stream)](
-                        boost::beast::error_code ec
-                    )
+                    [&websocket, s = buffer.max_size(), ws = std::move(wss)] //
+                    (boost::beast::error_code ec)
                     {
-                        if (!ec)
+                        if (ec)
                         {
-                            auto connection = std::make_unique<wss::Connection>(
-                                id,
-                                buffer.max_size(),
-                                std::move(*ws),
-                                websocket
-                            );
-                            websocket.connections.emplace(id, std::move(connection));
+                            return;
                         }
+
+                        auto id = utils::to_id(ws->next_layer().next_layer().remote_endpoint());
+                        auto connection
+                            = std::make_unique<wss::Connection>(id, s, std::move(*ws), websocket);
+                        websocket.connections.emplace(id, std::move(connection));
                     }
                 );
             }
@@ -194,24 +213,6 @@ namespace nil::service::https::server
             }
         }
 
-        void read_request()
-        {
-            auto self = shared_from_this();
-            boost::beast::http::async_read(
-                stream,
-                buffer,
-                request,
-                [self](boost::beast::error_code ec, std::size_t bytes_transferred)
-                {
-                    (void)bytes_transferred;
-                    if (!ec)
-                    {
-                        self->process_request();
-                    }
-                }
-            );
-        }
-
         void write_response()
         {
             response.content_length(response.body().size());
@@ -223,14 +224,11 @@ namespace nil::service::https::server
                 {
                     if (ec)
                     {
-                        self->stream.async_shutdown(
-                            [self](boost::beast::error_code ec_shutdown)
-                            {
-                                (void)ec_shutdown;
-                                self->deadline.cancel();
-                            }
-                        );
+                        return;
                     }
+
+                    self->stream.shutdown(ec);
+                    self->deadline.cancel();
                 }
             );
         }
@@ -281,7 +279,7 @@ namespace nil::service::https::server
                     )
                         ->start();
                 }
-                accept(); // continue accepting new connections
+                accept();
             }
         );
     }

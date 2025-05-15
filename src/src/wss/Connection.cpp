@@ -3,13 +3,13 @@
 namespace nil::service::wss
 {
     Connection::Connection(
-        ID ini_id,
+        ID init_id,
         std::uint64_t init_buffer,
         boost::beast::websocket::stream<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>
             init_ws,
         ConnectedImpl<Connection>& init_impl
     )
-        : identifier(std::move(ini_id))
+        : identifier(std::move(init_id))
         , ws(std::move(init_ws))
         , flat_buffer(init_buffer)
         , impl(init_impl)

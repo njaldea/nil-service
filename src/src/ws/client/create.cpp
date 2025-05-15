@@ -165,9 +165,6 @@ namespace nil::service::ws::client
                         reconnect();
                         return;
                     }
-                    auto id = utils::to_id(socket->remote_endpoint());
-                    detail::invoke(handlers.on_ready, utils::to_id(socket->local_endpoint()));
-
                     auto ws = std::make_unique<
                         boost::beast::websocket::stream<boost::beast::tcp_stream>>(std::move(*socket
                     ));
@@ -186,16 +183,19 @@ namespace nil::service::ws::client
                     auto* ws_ptr = ws.get();
                     ws_ptr->async_handshake(
                         options.host + ':' + std::to_string(options.port),
-                        "/",
-                        [this, id = std::move(id), ws = std::move(ws)](boost::beast::error_code ec)
+                        options.route,
+                        [this, ws = std::move(ws)](boost::beast::error_code ec)
                         {
                             if (ec)
                             {
                                 reconnect();
                                 return;
                             }
+
+                            auto& s = ws->next_layer().socket();
+                            detail::invoke(handlers.on_ready, utils::to_id(s.local_endpoint()));
                             connection = std::make_unique<Connection>(
-                                id,
+                                utils::to_id(s.remote_endpoint()),
                                 options.buffer,
                                 std::move(*ws),
                                 *this

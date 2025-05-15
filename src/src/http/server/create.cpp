@@ -69,9 +69,8 @@ namespace nil::service::http::server
                 socket,
                 buffer,
                 request,
-                [self](boost::beast::error_code ec, std::size_t bytes_transferred)
+                [self](boost::beast::error_code ec, std::size_t /* bytes_transferred */)
                 {
-                    (void)bytes_transferred;
                     if (!ec)
                     {
                         self->process_request();
@@ -104,33 +103,39 @@ namespace nil::service::http::server
             namespace bbws = bb::websocket;
             if (bbws::is_upgrade(request))
             {
-                auto id = utils::to_id(socket.remote_endpoint());
                 auto ws = std::make_unique<bbws::stream<bb::tcp_stream>>(std::move(socket));
                 ws->set_option(bbws::stream_base::timeout::suggested(bb::role_type::server));
                 ws->set_option(bbws::stream_base::decorator(
-                    [](bbws::response_type& res) {
+                    [](bbws::response_type& res)
+                    {
                         res.set(
                             bb::http::field::server,
                             BOOST_BEAST_VERSION_STRING " websocket-server-async"
                         );
+                        res.set(bb::http::field::access_control_allow_origin, "*");
+                        res.set(
+                            bb::http::field::access_control_allow_headers,
+                            "origin, x-requested-with, content-type"
+                        );
+                        res.set(bb::http::field::access_control_allow_methods, "GET");
                     }
                 ));
+
                 auto* ws_ptr = ws.get();
                 ws_ptr->async_accept(
                     request,
-                    [this, &websocket, id = std::move(id), ws = std::move(ws)] //
+                    [&websocket, s = buffer.max_size(), ws = std::move(ws)] //
                     (bb::error_code ec)
                     {
-                        if (!ec)
+                        if (ec)
                         {
-                            auto connection = std::make_unique<ws::Connection>(
-                                id,
-                                buffer.max_size(),
-                                std::move(*ws),
-                                websocket
-                            );
-                            websocket.connections.emplace(id, std::move(connection));
+                            return;
                         }
+
+                        auto id = utils::to_id(ws->next_layer().socket().remote_endpoint());
+                        auto connection
+                            = std::make_unique<ws::Connection>(id, s, std::move(*ws), websocket);
+                        websocket.connections.emplace(id, std::move(connection));
                     }
                 );
             }
@@ -180,6 +185,10 @@ namespace nil::service::http::server
                 response,
                 [self = shared_from_this()](boost::beast::error_code ec, std::size_t)
                 {
+                    if (ec)
+                    {
+                        return;
+                    }
                     self->socket.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
                     self->deadline.cancel();
                 }

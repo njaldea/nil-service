@@ -8,6 +8,7 @@ namespace nil::service::wss::client
     {
         std::string host;
         std::uint16_t port;
+        std::string route = "/";
         /**
          * @brief buffer size to use:
          *  - one for receiving

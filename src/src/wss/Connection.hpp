@@ -18,7 +18,7 @@ namespace nil::service::wss
     {
     public:
         Connection(
-            ID ini_id,
+            ID init_id,
             std::uint64_t init_buffer,
             boost::beast::websocket::stream<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>
                 init_ws,

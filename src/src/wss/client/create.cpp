@@ -9,6 +9,8 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <boost/asio/ssl/context.hpp>
+
 namespace nil::service::wss::client
 {
     struct Context
@@ -16,12 +18,15 @@ namespace nil::service::wss::client
         explicit Context()
             : strand(make_strand(ctx))
             , reconnection(strand)
+            , ssl_context(boost::asio::ssl::context::tlsv12_client)
         {
+            ssl_context.set_default_verify_paths();
         }
 
         boost::asio::io_context ctx;
         boost::asio::strand<boost::asio::io_context::executor_type> strand;
         boost::asio::steady_timer reconnection;
+        boost::asio::ssl::context ssl_context;
     };
 
     struct Impl final
@@ -157,7 +162,7 @@ namespace nil::service::wss::client
             auto socket = std::make_unique<boost::asio::ip::tcp::socket>(context->strand);
             auto* socket_ptr = socket.get();
             socket_ptr->async_connect(
-                {boost::asio::ip::make_address(options.host.data()), options.port},
+                {boost::asio::ip::make_address(options.host), options.port},
                 [this, socket = std::move(socket)](const boost::system::error_code& connect_ec)
                 {
                     if (connect_ec)
@@ -165,40 +170,65 @@ namespace nil::service::wss::client
                         reconnect();
                         return;
                     }
-                    auto id = utils::to_id(socket->remote_endpoint());
-                    detail::invoke(handlers.on_ready, utils::to_id(socket->local_endpoint()));
 
-                    auto ws = std::make_unique<
-                        boost::beast::websocket::stream<boost::beast::tcp_stream>>(std::move(*socket
-                    ));
-                    ws->set_option(boost::beast::websocket::stream_base::timeout::suggested(
-                        boost::beast::role_type::client
-                    ));
-                    ws->set_option(boost::beast::websocket::stream_base::decorator(
-                        [](boost::beast::websocket::request_type& req)
+                    auto stream
+                        = std::make_unique<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>(
+                            std::move(*socket),
+                            context->ssl_context
+                        );
+
+                    stream->async_handshake(
+                        boost::asio::ssl::stream_base::client,
+                        [this, stream = std::move(stream)](const boost::system::error_code& ssl_ec)
                         {
-                            req.set(
-                                boost::beast::http::field::user_agent,
-                                std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-async"
-                            );
-                        }
-                    ));
-                    auto* ws_ptr = ws.get();
-                    ws_ptr->async_handshake(
-                        options.host + ':' + std::to_string(options.port),
-                        "/",
-                        [this, id = std::move(id), ws = std::move(ws)](boost::beast::error_code ec)
-                        {
-                            if (ec)
+                            if (ssl_ec)
                             {
                                 reconnect();
                                 return;
                             }
-                            connection = std::make_unique<Connection>(
-                                id,
-                                options.buffer,
-                                std::move(*ws),
-                                *this
+
+                            auto ws = std::make_unique<boost::beast::websocket::stream<
+                                boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>>(
+                                std::move(*stream)
+                            );
+
+                            ws->set_option(boost::beast::websocket::stream_base::timeout::suggested(
+                                boost::beast::role_type::client
+                            ));
+                            ws->set_option(boost::beast::websocket::stream_base::decorator(
+                                [](boost::beast::websocket::request_type& req)
+                                {
+                                    req.set(
+                                        boost::beast::http::field::user_agent,
+                                        std::string(BOOST_BEAST_VERSION_STRING)
+                                            + " websocket-client-async"
+                                    );
+                                }
+                            ));
+
+                            ws->async_handshake(
+                                options.host + ':' + std::to_string(options.port),
+                                options.route,
+                                [this, ws = std::move(ws)](boost::beast::error_code ec)
+                                {
+                                    if (ec)
+                                    {
+                                        reconnect();
+                                        return;
+                                    }
+
+                                    auto& s = ws->next_layer().next_layer();
+                                    detail::invoke(
+                                        handlers.on_ready,
+                                        utils::to_id(s.local_endpoint())
+                                    );
+                                    connection = std::make_unique<Connection>(
+                                        utils::to_id(s.remote_endpoint()),
+                                        options.buffer,
+                                        std::move(*ws),
+                                        *this
+                                    );
+                                }
                             );
                         }
                     );

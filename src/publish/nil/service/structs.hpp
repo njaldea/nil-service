@@ -189,7 +189,7 @@ namespace nil::service
     P use_ws(WebService& service, const std::string& route);
     struct WebTransaction;
     void on_get(WebService& service, std::function<void(const WebTransaction&)> callback);
-    std::string get_route(const WebTransaction& transaction);
+    std::string_view get_route(const WebTransaction& transaction);
     void set_content_type(const WebTransaction& transaction, std::string_view type);
     void send(const WebTransaction& transaction, std::string_view body);
     void send(const WebTransaction& transaction, const std::istream& body);

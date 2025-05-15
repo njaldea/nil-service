@@ -1,16 +1,18 @@
 # nil/service
 
-This library is only intended to simplify creation of different services for network communincation.
+This very opinionated library is intended to simplify creation of different services for network communincation.
 
 Here are the services provided by this library:
 
-| name   | description                                                                       |
-| ------ | --------------------------------------------------------------------------------- |
-| _self_ | works like an echo server. messages sent/published is handled by its own handlers |
-| _udp_  | client/server                                                                     |
-| _tcp_  | client/server                                                                     |
-| _ws_   | client/server                                                                     |
-| _http_ | server. supports routes and promotion to websocket. Current API is not final.     |
+| name    | description                                                                       |
+| ------- | --------------------------------------------------------------------------------- |
+| _self_  | works like an echo server. messages sent/published is handled by its own handlers |
+| _udp_   | client/server                                                                     |
+| _tcp_   | client/server                                                                     |
+| _ws_    | client/server                                                                     |
+| _wss_   | client/server                                                                     |
+| _http_  | server. supports routes and promotion to websocket                                |
+| _https_ | server. supports routes and promotion to websocket                                |
 
 ## Options
 
@@ -18,12 +20,12 @@ The following are properties of the Option struct required for creating the serv
 
 ### `<protocol>::server::Options`
 
-| name    | protocol         | description                              | default   |
-| ------- | ---------------- | ---------------------------------------- | --------- |
-| host    | tcp/udp/ws/http  | network host to use                      |           |
-| port    | tcp/udp/ws/http  | network port to use                      |           |
-| buffer  | tcp/udp/ws/http  | buffer size to use                       | 1024      |
-| timeout | udp              | timeout to consider a connection is lost | 2 seconds |
+| name    | protocol                   | description                              | default   |
+| ------- | -------------------------- | ---------------------------------------- | --------- |
+| cert    | https                      | path for key/dh/cert pem files           |           |
+| port    | tcp/udp/ws/http/https      | network port to use                      |           |
+| buffer  | tcp/udp/ws/http/https      | buffer size to use                       | 1024      |
+| timeout | udp                        | timeout to consider a connection is lost | 2 seconds |
 
 ### `<protocol>::client::Options`
 
@@ -31,6 +33,7 @@ The following are properties of the Option struct required for creating the serv
 | ------- | ----------- | ---------------------------------------- | --------- |
 | host    | tcp/udp/ws  | network host to connect to               |           |
 | port    | tcp/udp/ws  | network port to connect to               |           |
+| route   | ws/wss      | route to connect to                      | "/"       |
 | buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
 | timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
 
@@ -47,7 +50,8 @@ auto a = ns::tcp::server::create({...});
 auto a = ns::tcp::client::create({...});
 auto a = ns::ws::server::create({...});
 auto a = ns::ws::client::create({...});
-auto s = ns::http::server::create({...});
+auto w = ns::http::server::create({...});
+auto w = ns::https::server::create({...});
 ```
 
 ### Proxy Types
@@ -60,9 +64,9 @@ There are 3 types of Proxies:
 
 | type | description                                   | observable    | runnable | messaging |
 | ---- | --------------------------------------------- | ------------- | -------- | --------- |
-| _A_  | standalone service proxy. convertible to _S_  | yes           | yes      | yes       |
-| _H_  | http service proxy                            | on_ready      | yes      | no        |
-| _S_  | service proxy                                 | yes           | no       | yes       |
+| _P_  | service proxy                                 | yes           | no       | yes       |
+| _A_  | standalone service proxy. convertible to _P_  | yes           | yes      | yes       |
+| _W_  | standalone web service proxy                  | on_ready      | yes      | no        |
 
 ## APIs
 
@@ -97,20 +101,27 @@ restart(service);  // restarts the service
 
 ```
 
-### HTTP Service
+### Web Service
 
 ```cpp
 auto service = nil::service::http::server::create({...});
+// auto service = nil::service::https::server::create({...});
 
 // only supports on_ready
 on_ready(service, handler);
 
 // special api for creating routes
-use(
+on_get(
     service,
-    "/route/here",
-    "text/html",
-    [](std::ostream& oss) { oss << "your html here"; }
+    [](nil::service::WebTransaction& transaction)
+    {
+        if ("/" != get_route(transaction))
+        {
+            return;
+        }
+        set_content_type(transaction, "text/html");
+        send(transaction, "<body>CONTENT</body>");
+    }
 );
 
 // special api for creating route with websocket.
@@ -231,6 +242,8 @@ codec<std::int8_t>
 codec<std::int16_t>
 codec<std::int32_t>
 codec<std::int64_t>
+codec<char>
+codec<T[N]>
 ```
 
 a `codec` is expected to have `size`, `serialize` and `deserialize` method. see example below for more information.

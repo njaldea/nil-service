@@ -2,7 +2,7 @@
 
 namespace nil::service
 {
-    std::string get_route(const WebTransaction& transaction)
+    std::string_view get_route(const WebTransaction& transaction)
     {
         return transaction.request.target();
     }

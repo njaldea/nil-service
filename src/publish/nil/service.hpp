@@ -23,4 +23,6 @@
 
 #ifdef NIL_SERVICE_SSL
 #include "service/https/server/create.hpp" // IWYU pragma: export
+#include "service/wss/client/create.hpp"   // IWYU pragma: export
+#include "service/wss/server/create.hpp"   // IWYU pragma: export
 #endif

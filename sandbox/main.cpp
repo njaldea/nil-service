@@ -1,4 +1,3 @@
-#include "nil/service/http/server/create.hpp"
 #include <nil/service.hpp>
 
 #include <nil/clix.hpp>
@@ -20,55 +19,63 @@ void add_port(nil::clix::Node& node)
     number(node, "port", {.skey = 'p', .msg = "port", .fallback = 0});
 }
 
-template <typename T>
-struct arg_one;
-
-template <typename T>
-struct arg_one<nil::xalt::tlist_types<T>>
+void add_route(nil::clix::Node& node)
 {
-    using type = T;
-};
-
-template <auto maker>
-auto create_server(const nil::clix::Options& options)
-{
-    using T = typename arg_one<typename nil::xalt::fn_sign<decltype(maker)>::arg_types>::type;
-    return maker(T{.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
+    param(node, "route", {.skey = 'r', .msg = "route", .fallback = "/"});
 }
 
 template <auto maker>
-auto create_client(const nil::clix::Options& options)
+auto create_options(const nil::clix::Options& options)
 {
-    using T = typename arg_one<typename nil::xalt::fn_sign<decltype(maker)>::arg_types>::type;
-    return maker(T{.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
+    return maker({.host = "127.0.0.1", .port = std::uint16_t(number(options, "port"))});
 }
 
 template <auto maker>
-auto create_self(const nil::clix::Options& options)
+auto create_ws_sc(const nil::clix::Options& options)
 {
-    (void)options;
-    return maker();
+    return maker(
+        {.host = "127.0.0.1",
+         .port = std::uint16_t(number(options, "port")),
+         .route = param(options, "route")}
+    );
 }
 
-nil::service::http::server::Options make_http_option(const nil::clix::Options& options)
+auto create_wss_server(const nil::clix::Options& options)
 {
-    return {
-        .host = "0.0.0.0",
-        .port = std::uint16_t(number(options, "port")),
-        .buffer = 1024ul * 1024ul * 100ul
-    };
+    return nil::service::wss::server::create(
+        {.cert = "../sandbox",
+         .host = "127.0.0.1",
+         .port = std::uint16_t(number(options, "port")),
+         .route = param(options, "route")}
+    );
+}
+
+auto create_self(const nil::clix::Options& /* options */)
+{
+    return nil::service::self::create();
+}
+
+template <auto maker>
+auto create_http_server(const nil::clix::Options& options)
+{
+    return maker(
+        {.host = "0.0.0.0",
+         .port = std::uint16_t(number(options, "port")),
+         .buffer = 1024ul * 1024ul * 100ul}
+    );
 }
 
 #ifdef NIL_SERVICE_SSL
 
-nil::service::https::server::Options make_https_option(const nil::clix::Options& options)
+template <auto maker>
+auto create_https_server(const nil::clix::Options& options)
 {
-    return {
-        .cert = "",
-        .host = "0.0.0.0",
-        .port = std::uint16_t(number(options, "port")),
-        .buffer = 1024ul * 1024ul * 100ul
-    };
+    return maker(
+        {.cert = "../sandbox",
+         .host = "0.0.0.0",
+         .port = std::uint16_t(number(options, "port")),
+         .buffer = 1024ul * 1024ul * 100ul}
+    );
 }
 
 #endif
@@ -164,8 +171,8 @@ int runner(const nil::clix::Options& options)
     return 0;
 }
 
-template <auto server_maker, auto client_maker>
-void sv_node(nil::clix::Node& node)
+template <auto server_maker, auto client_maker, auto... option_adder>
+void sc_node(nil::clix::Node& node)
 {
     add_help(node);
     use(node, nil::clix::prebuilt::Help(&std::cout));
@@ -174,18 +181,16 @@ void sv_node(nil::clix::Node& node)
         "server",
         [](auto& nn)
         {
-            add_help(nn);
-            add_port(nn);
-            use(nn, runner<&create_server<server_maker>>);
+            (option_adder(nn), ...);
+            use(nn, runner<server_maker>);
         });
     sub(node,
         "client",
         "client",
         [](auto& nn)
         {
-            add_help(nn);
-            add_port(nn);
-            use(nn, runner<&create_client<client_maker>>);
+            (option_adder(nn), ...);
+            use(nn, runner<client_maker>);
         });
 }
 
@@ -242,11 +247,10 @@ nil::service::P add_web_service(nil::service::WebService& server)
     return ws;
 }
 
-template <auto create, auto opt>
+template <auto create, auto... option_adder>
 void add_web_node(nil::clix::Node& node)
 {
-    add_help(node);
-    add_port(node);
+    (option_adder(node), ...);
 
     use(node,
         [](const nil::clix::Options& options)
@@ -256,7 +260,7 @@ void add_web_node(nil::clix::Node& node)
                 help(options, std::cout);
                 return 0;
             }
-            auto server = create(opt(options));
+            auto server = create(options);
             auto ws = add_web_service(server);
             loop(server, ws);
             return 0;
@@ -274,31 +278,60 @@ int main(int argc, const char** argv)
         [](auto& n)
         {
             add_help(n);
-            use(n, runner<&create_self<&nil::service::self::create>>);
+            use(n, runner<&create_self>);
         });
     sub(node,
         "udp",
         "use udp protocol",
-        sv_node<&nil::service::udp::server::create, &nil::service::udp::client::create>);
+        sc_node<
+            create_options<&nil::service::udp::server::create>,
+            create_options<&nil::service::udp::client::create>,
+            add_help,
+            add_port>);
     sub(node,
         "tcp",
         "use tcp protocol",
-        sv_node<&nil::service::tcp::server::create, &nil::service::tcp::client::create>);
+        sc_node<
+            create_options<&nil::service::tcp::server::create>,
+            create_options<&nil::service::tcp::client::create>,
+            add_help,
+            add_port>);
     sub(node,
         "ws",
         "use ws protocol",
-        sv_node<&nil::service::ws::server::create, &nil::service::ws::client::create>);
-
+        sc_node<
+            create_ws_sc<&nil::service::ws::server::create>,
+            create_ws_sc<&nil::service::ws::client::create>,
+            add_help,
+            add_port,
+            add_route>);
+#ifdef NIL_SERVICE_SSL
+    sub(node,
+        "wss",
+        "use wss protocol",
+        sc_node< //
+            create_wss_server,
+            create_ws_sc<&nil::service::wss::client::create>,
+            add_help,
+            add_port,
+            add_route>);
+#endif
     sub(node,
         "http",
         "serve http server",
-        &add_web_node<&nil::service::http::server::create, &make_http_option>);
+        &add_web_node< //
+            create_http_server<&nil::service::http::server::create>,
+            add_help,
+            add_port>);
 
 #ifdef NIL_SERVICE_SSL
     sub(node,
         "https",
         "serve https server",
-        &add_web_node<&nil::service::https::server::create, &make_https_option>);
+        &add_web_node< //
+            create_https_server<&nil::service::https::server::create>,
+            add_help,
+            add_port>);
 #endif
 
     nil::clix::run(node, argc, argv);
