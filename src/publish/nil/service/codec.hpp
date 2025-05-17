@@ -1,7 +1,7 @@
 #pragma once
 
 #include <nil/xalt/errors.hpp>
-#include <nil/xalt/type_id.hpp>
+#include <nil/xalt/tlist.hpp>
 
 #include <cstdint>
 #include <string>
@@ -11,31 +11,31 @@ namespace nil::service
 {
     namespace detail
     {
-        inline std::size_t size(xalt::type_id<std::string> /* tag */, const std::string& message)
+        inline std::size_t size(xalt::tlist<std::string> /* tag */, const std::string& message)
         {
             return message.size();
         }
 
         std::size_t serialize(
-            xalt::type_id<std::string> /* tag */,
+            xalt::tlist<std::string> /* tag */,
             void* output,
             const std::string& message
         );
 
         std::string deserialize(
-            xalt::type_id<std::string> /* tag */,
+            xalt::tlist<std::string> /* tag */,
             const void* input,
             std::uint64_t size
         );
 
         // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define NIL_SERVICE_CODEC_DECLARE(TYPE)                                                            \
-    inline std::size_t size(xalt::type_id<TYPE>, TYPE data)                                        \
+    inline std::size_t size(xalt::tlist<TYPE>, TYPE data)                                          \
     {                                                                                              \
         return sizeof(data);                                                                       \
     }                                                                                              \
-    std::size_t serialize(xalt::type_id<TYPE>, void* output, TYPE data);                           \
-    TYPE deserialize(xalt::type_id<TYPE>, const void* input, std::uint64_t size)
+    std::size_t serialize(xalt::tlist<TYPE>, void* output, TYPE data);                             \
+    TYPE deserialize(xalt::tlist<TYPE>, const void* input, std::uint64_t size)
 
         NIL_SERVICE_CODEC_DECLARE(std::uint8_t);
         NIL_SERVICE_CODEC_DECLARE(std::uint16_t);
@@ -52,13 +52,13 @@ namespace nil::service
 
         template <typename T>
         concept with_tagged_size = requires(T arg) {
-            { detail::size(std::declval<xalt::type_id<T>>(), arg) } -> std::same_as<std::size_t>;
+            { detail::size(std::declval<xalt::tlist<T>>(), arg) } -> std::same_as<std::size_t>;
         };
         template <typename T>
         concept with_tagged_serialize = requires(T arg) {
             {
                 detail::serialize(
-                    std::declval<xalt::type_id<T>>(),
+                    std::declval<xalt::tlist<T>>(),
                     std::declval<void*>(),
                     std::declval<T>()
                 )
@@ -68,7 +68,7 @@ namespace nil::service
         concept with_tagged_deserialize = requires(T arg) {
             {
                 nil::service::detail::deserialize(
-                    std::declval<xalt::type_id<T>>(),
+                    std::declval<xalt::tlist<T>>(),
                     std::declval<const void*>(),
                     std::declval<std::uint64_t>()
                 )
@@ -83,7 +83,7 @@ namespace nil::service
         {
             if constexpr (detail::with_tagged_size<T>)
             {
-                return detail::size(xalt::type_id<T>(), message);
+                return detail::size(xalt::tlist<T>(), message);
             }
             else
             {
@@ -102,7 +102,7 @@ namespace nil::service
         {
             if constexpr (detail::with_tagged_serialize<T>)
             {
-                return detail::serialize(xalt::type_id<T>(), output, data);
+                return detail::serialize(xalt::tlist<T>(), output, data);
             }
             else
             {
@@ -121,7 +121,7 @@ namespace nil::service
         {
             if constexpr (detail::with_tagged_deserialize<T>)
             {
-                return detail::deserialize(xalt::type_id<T>(), input, size);
+                return detail::deserialize(xalt::tlist<T>(), input, size);
             }
             else
             {

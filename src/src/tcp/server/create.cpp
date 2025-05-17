@@ -78,11 +78,11 @@ namespace nil::service::tcp::server
             );
         }
 
-        void publish_ex(const ID& id, std::vector<std::uint8_t> data) override
+        void publish_ex(ID id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, id, msg = std::move(data)]()
+                [this, id = std::move(id), msg = std::move(data)]()
                 {
                     for (const auto& item : connections)
                     {
@@ -95,11 +95,11 @@ namespace nil::service::tcp::server
             );
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data) override
+        void send(ID id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, id, msg = std::move(data)]()
+                [this, id = std::move(id), msg = std::move(data)]()
                 {
                     const auto it = connections.find(id);
                     if (it != connections.end())
@@ -110,11 +110,11 @@ namespace nil::service::tcp::server
             );
         }
 
-        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
+        void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, ids, msg = std::move(data)]()
+                [this, ids = std::move(ids), msg = std::move(data)]()
                 {
                     for (const auto& id : ids)
                     {

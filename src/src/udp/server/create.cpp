@@ -82,12 +82,14 @@ namespace nil::service::udp::server
             );
         }
 
-        void publish_ex(const ID& id, std::vector<std::uint8_t> data) override
+        void publish_ex(ID id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
-                )
+                [this,
+                 id = std::move(id),
+                 i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
+                 msg = std::move(data)]()
                 {
                     const auto b = std::array<boost::asio::const_buffer, 3>{
                         boost::asio::buffer(i),
@@ -104,12 +106,14 @@ namespace nil::service::udp::server
             );
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data) override
+        void send(ID id, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, id, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)](
-                )
+                [this,
+                 id = std::move(id),
+                 i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
+                 msg = std::move(data)]()
                 {
                     const auto b = std::array<boost::asio::const_buffer, 2>{
                         boost::asio::buffer(i),
@@ -124,12 +128,12 @@ namespace nil::service::udp::server
             );
         }
 
-        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
+        void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
                 [this,
-                 ids,
+                 ids = std::move(ids),
                  i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
                  msg = std::move(data)]()
                 {

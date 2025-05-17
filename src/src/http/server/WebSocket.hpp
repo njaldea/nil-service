@@ -20,9 +20,9 @@ namespace nil::service::http::server
         WebSocket& operator=(const WebSocket&) = delete;
 
         void publish(std::vector<std::uint8_t> data) override;
-        void publish_ex(const ID& id, std::vector<std::uint8_t> data) override;
-        void send(const ID& id, std::vector<std::uint8_t> data) override;
-        void send(const std::vector<ID>& id, std::vector<std::uint8_t> data) override;
+        void publish_ex(ID id, std::vector<std::uint8_t> data) override;
+        void send(ID id, std::vector<std::uint8_t> data) override;
+        void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override;
 
         void ready(const ID& id) const;
         void connect(ws::Connection* connection) override;

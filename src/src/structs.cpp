@@ -38,16 +38,16 @@ namespace nil::service
         service.publish(std::vector<std::uint8_t>(ptr, ptr + size));
     }
 
-    void publish_ex(MessagingService& service, const ID& id, const void* data, std::uint64_t size)
+    void publish_ex(MessagingService& service, ID id, const void* data, std::uint64_t size)
     {
         const auto* ptr = static_cast<const std::uint8_t*>(data);
-        service.publish_ex(id, std::vector<std::uint8_t>(ptr, ptr + size));
+        service.publish_ex(std::move(id), std::vector<std::uint8_t>(ptr, ptr + size));
     }
 
-    void send(MessagingService& service, const ID& id, const void* data, std::uint64_t size)
+    void send(MessagingService& service, ID id, const void* data, std::uint64_t size)
     {
         const auto* ptr = static_cast<const std::uint8_t*>(data);
-        service.send(id, std::vector<std::uint8_t>(ptr, ptr + size));
+        service.send(std::move(id), std::vector<std::uint8_t>(ptr, ptr + size));
     }
 
     void send(
@@ -66,23 +66,19 @@ namespace nil::service
         service.publish(std::move(payload));
     }
 
-    void publish_ex(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload)
+    void publish_ex(MessagingService& service, ID id, std::vector<std::uint8_t> payload)
     {
-        service.publish_ex(id, std::move(payload));
+        service.publish_ex(std::move(id), std::move(payload));
     }
 
-    void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload)
+    void send(MessagingService& service, ID id, std::vector<std::uint8_t> payload)
     {
-        service.send(id, std::move(payload));
+        service.send(std::move(id), std::move(payload));
     }
 
-    void send(
-        MessagingService& service,
-        const std::vector<ID>& ids,
-        std::vector<std::uint8_t> payload
-    )
+    void send(MessagingService& service, std::vector<ID> ids, std::vector<std::uint8_t> payload)
     {
-        service.send(ids, std::move(payload));
+        service.send(std::move(ids), std::move(payload));
     }
 
     void start(RunnableService& service)

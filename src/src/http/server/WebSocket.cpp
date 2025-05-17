@@ -49,13 +49,13 @@ namespace nil::service::http::server
         }
     }
 
-    void WebSocket::publish_ex(const ID& id, std::vector<std::uint8_t> data)
+    void WebSocket::publish_ex(ID id, std::vector<std::uint8_t> data)
     {
         if (context != nullptr)
         {
             boost::asio::post(
                 *context,
-                [this, id, msg = std::move(data)]()
+                [this, id = std::move(id), msg = std::move(data)]()
                 {
                     for (const auto& item : connections)
                     {
@@ -69,13 +69,13 @@ namespace nil::service::http::server
         }
     }
 
-    void WebSocket::send(const ID& id, std::vector<std::uint8_t> data)
+    void WebSocket::send(ID id, std::vector<std::uint8_t> data)
     {
         if (context != nullptr)
         {
             boost::asio::post(
                 *context,
-                [this, id, msg = std::move(data)]()
+                [this, id = std::move(id), msg = std::move(data)]()
                 {
                     auto it = connections.find(id);
                     if (it != connections.end())
@@ -87,13 +87,13 @@ namespace nil::service::http::server
         }
     }
 
-    void WebSocket::send(const std::vector<ID>& ids, std::vector<std::uint8_t> data)
+    void WebSocket::send(std::vector<ID> ids, std::vector<std::uint8_t> data)
     {
         if (context != nullptr)
         {
             boost::asio::post(
                 *context,
-                [this, ids, msg = std::move(data)]()
+                [this, ids = std::move(ids), msg = std::move(data)]()
                 {
                     for (const auto& id : ids)
                     {

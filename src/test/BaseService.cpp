@@ -72,24 +72,18 @@ public:
         );
     }
 
-    void publish_ex(const nil::service::ID& did, std::vector<std::uint8_t> message) override
+    void publish_ex(nil::service::ID did, std::vector<std::uint8_t> message) override
     {
-        nil::service::detail::invoke(
-            handlers.on_message,
-            nil::service::ID{did},
-            message.data(),
-            message.size()
-        );
+        nil::service::detail::invoke(handlers.on_message, did, message.data(), message.size());
     }
 
-    void send(const nil::service::ID& target_id, std::vector<std::uint8_t> message) override
+    void send(nil::service::ID target_id, std::vector<std::uint8_t> message) override
     {
         (void)target_id;
         (void)message;
     }
 
-    void send(const std::vector<nil::service::ID>& target_id, std::vector<std::uint8_t> message)
-        override
+    void send(std::vector<nil::service::ID> target_id, std::vector<std::uint8_t> message) override
     {
         (void)target_id;
         (void)message;

@@ -92,13 +92,13 @@ namespace nil::service::udp::client
             }
         }
 
-        void publish_ex(const ID& id, std::vector<std::uint8_t> data) override
+        void publish_ex(ID id, std::vector<std::uint8_t> data) override
         {
             if (context)
             {
                 boost::asio::post(
                     context->strand,
-                    [this, id, msg = std::move(data)]()
+                    [this, id = std::move(id), msg = std::move(data)]()
                     {
                         if (targetID != id)
                         {
@@ -117,7 +117,7 @@ namespace nil::service::udp::client
             }
         }
 
-        void send(const ID& id, std::vector<std::uint8_t> data) override
+        void send(ID id, std::vector<std::uint8_t> data) override
         {
             if (targetID == id)
             {
@@ -125,7 +125,7 @@ namespace nil::service::udp::client
             }
         }
 
-        void send(const std::vector<ID>& ids, std::vector<std::uint8_t> data) override
+        void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
             auto it = std::find(ids.begin(), ids.end(), targetID);
             if (it != ids.end())

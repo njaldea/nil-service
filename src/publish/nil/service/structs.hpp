@@ -85,14 +85,14 @@ namespace nil::service
 
     // clang-format off
     void publish(MessagingService& service, std::vector<std::uint8_t> payload);
-    void publish_ex(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload);
-    void send(MessagingService& service, const ID& id, std::vector<std::uint8_t> payload);
-    void send(MessagingService& service, const std::vector<ID>& ids, std::vector<std::uint8_t> payload);
+    void publish_ex(MessagingService& service, ID id, std::vector<std::uint8_t> payload);
+    void send(MessagingService& service, ID id, std::vector<std::uint8_t> payload);
+    void send(MessagingService& service, std::vector<ID> ids, std::vector<std::uint8_t> payload);
 
     void publish(MessagingService& service, const void* data, std::uint64_t size);
     void publish_ex(MessagingService& service, const ID& id, const void* data, std::uint64_t size);
-    void send(MessagingService& service, const ID& id, const void* data, std::uint64_t size);
-    void send(MessagingService& service, const std::vector<ID>& ids, const void* data, std::uint64_t size);
+    void send(MessagingService& service, ID id, const void* data, std::uint64_t size);
+    void send(MessagingService& service, std::vector<ID> ids, const void* data, std::uint64_t size);
     // clang-format on
 
     template <typename T>
@@ -104,16 +104,16 @@ namespace nil::service
 
     template <typename T>
         requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
-    void send(MessagingService& service, const ID& id, const T& data)
+    void send(MessagingService& service, ID id, const T& data)
     {
-        send(service, id, concat(data));
+        send(service, std::move(id), concat(data));
     }
 
     template <typename T>
         requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
-    void send(MessagingService& service, const std::vector<ID>& ids, const T& data)
+    void send(MessagingService& service, std::vector<ID> ids, const T& data)
     {
-        send(service, ids, concat(data));
+        send(service, std::move(ids), concat(data));
     }
 
     /**
