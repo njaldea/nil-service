@@ -22,20 +22,21 @@ The following are properties of the Option struct required for creating the serv
 
 | name    | protocol                   | description                              | default   |
 | ------- | -------------------------- | ---------------------------------------- | --------- |
-| cert    | https                      | path for key/dh/cert pem files           |           |
-| port    | tcp/udp/ws/http/https      | network port to use                      |           |
-| buffer  | tcp/udp/ws/http/https      | buffer size to use                       | 1024      |
+| cert    | wss https                  | path for key/dh/cert pem files           |           |
+| port    | tcp udp ws http wss https  | network port to use                      |           |
+| buffer  | tcp udp ws http wss https  | buffer size to use                       | 1024      |
+| route   | ws wss                     | route to host                            | "/"       |
 | timeout | udp                        | timeout to consider a connection is lost | 2 seconds |
 
 ### `<protocol>::client::Options`
 
-| name    | protocol    | description                              | default   |
-| ------- | ----------- | ---------------------------------------- | --------- |
-| host    | tcp/udp/ws  | network host to connect to               |           |
-| port    | tcp/udp/ws  | network port to connect to               |           |
-| route   | ws/wss      | route to connect to                      | "/"       |
-| buffer  | tcp/udp/ws  | buffer size to use                       | 1024      |
-| timeout | udp         | timeuout to consier a connection is lost | 2 seconds |
+| name    | protocol        | description                              | default   |
+| ------- | --------------- | ---------------------------------------- | --------- |
+| host    | tcp udp ws wss  | network host to connect to               |           |
+| port    | tcp udp ws wss  | network port to connect to               |           |
+| route   | ws wss          | route to connect to                      | "/"       |
+| buffer  | tcp udp ws wss  | buffer size to use                       | 1024      |
+| timeout | udp             | timeuout to consier a connection is lost | 2 seconds |
 
 ## Creating The Services
 
@@ -56,17 +57,15 @@ auto w = ns::https::server::create({...});
 
 ### Proxy Types
 
-The create methods returns a proxy object that is responsible for the following:
-- owning the object and managing its lifetime
-- conversion to different types to allow necessary conversion to matching supported API
+The create methods returns a proxy object that is responsible for converting type to allow compatibility with matching supported API. This is to hide boost asio/beast dependencies.
 
 There are 3 types of Proxies:
 
-| type | description                                   | observable    | runnable | messaging |
-| ---- | --------------------------------------------- | ------------- | -------- | --------- |
-| _P_  | service proxy                                 | yes           | no       | yes       |
-| _A_  | standalone service proxy. convertible to _P_  | yes           | yes      | yes       |
-| _W_  | standalone web service proxy                  | on_ready      | yes      | no        |
+| type | description                                   | owned | observable    | runnable | messaging |
+| ---- | --------------------------------------------- | ----- | ------------- | -------- | --------- |
+| _P_  | service proxy                                 | no    | yes           | no       | yes       |
+| _A_  | standalone service proxy. convertible to _P_  | yes   | yes           | yes      | yes       |
+| _W_  | standalone web service proxy                  | yes   | on_ready      | yes      | no        |
 
 ## APIs
 
@@ -176,7 +175,7 @@ This is expected to move the data pointer and size depending on how much of the 
 const auto payload = nil::service::consume<std::uint64_t>(data, size);
 // sizeof(std::uint64_t) == 8
 // data should have moved by 8 bytes
-// size should have been incremented by 8
+// size should have been decremented by 8
 ```
 
 This utilizes `codec`s which will be discussesd at the end.
@@ -243,7 +242,7 @@ codec<std::int16_t>
 codec<std::int32_t>
 codec<std::int64_t>
 codec<char>
-codec<T[N]>
+codec<T[N]> // only deserialize
 ```
 
 a `codec` is expected to have `size`, `serialize` and `deserialize` method. see example below for more information.
@@ -276,7 +275,6 @@ namespace nil::service
 
         static std::size_t serialize(void* data, const CustomType& message)
         {
-            // nil::service::concat_into
             return concat_into(
                 data,
                 message.content_1,
@@ -287,17 +285,17 @@ namespace nil::service
 
         static CustomType deserialize(const void* data, std::uint64_t size)
         {
-            // nil::service::consume
             CustomType m;
             m.content_1 = consume<std::int64_t>(data, size);
-            m.content_2 = consume<std::int64_t>(data, size);
-            m.content_3 = consume<std::int64_t>(data, size);
+            m.content_2 = consume<std::int32_t>(data, size);
+            m.content_3 = consume<std::int32_t>(data, size);
             return m;
         }
     };
 }
 
 // Include your codec
+#include "my_codec.hpp"
 
 on_message(service, [](const auto& id, const CustomType& message){});
 
@@ -307,4 +305,4 @@ publish(service, message);
 
 ## NOTES:
 - due to the nature of UDP, if one side gets "destroyed" and is able to reconnect "immediately", disconnection will not be "detected".
-- (will be fixed in the future) - host is not resolved. currently expects only IP.
+- host is not resolved. currently expects only IP and port.

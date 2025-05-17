@@ -176,7 +176,7 @@ namespace nil::service::ws::client
                         {
                             req.set(
                                 boost::beast::http::field::user_agent,
-                                std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-async"
+                                BOOST_BEAST_VERSION_STRING " websocket-client-async"
                             );
                         }
                     ));
