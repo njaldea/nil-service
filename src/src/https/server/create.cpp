@@ -31,6 +31,7 @@ namespace nil::service::https::server
             , ssl_context(boost::asio::ssl::context::tlsv12_server)
             , acceptor(strand, {boost::asio::ip::make_address(host), port})
         {
+            acceptor.set_option(boost::asio::socket_base::reuse_address(true));
             ssl_context.set_options(
                 boost::asio::ssl::context::default_workarounds //
                 | boost::asio::ssl::context::no_sslv2          //

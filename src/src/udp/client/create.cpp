@@ -18,6 +18,7 @@ namespace nil::service::udp::client
             , pingtimer(strand)
             , timeout(strand)
         {
+            socket.set_option(boost::asio::socket_base::reuse_address(true));
         }
 
         boost::asio::io_context ctx;

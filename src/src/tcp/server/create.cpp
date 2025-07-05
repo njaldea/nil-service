@@ -16,6 +16,7 @@ namespace nil::service::tcp::server
             : strand(make_strand(ctx))
             , acceptor(strand, {boost::asio::ip::make_address(host), port}, true)
         {
+            acceptor.set_option(boost::asio::socket_base::reuse_address(true));
         }
 
         boost::asio::io_context ctx;
