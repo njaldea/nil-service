@@ -42,9 +42,8 @@ auto create_ws_sc(const nil::clix::Options& options)
 
 auto create_wss_server(const nil::clix::Options& options)
 {
-    return nil::service::wss::server::create(
-        {.cert = "../sandbox",
-         .host = "127.0.0.1",
+    return nil::service::ws::server::create(
+        {.host = "127.0.0.1",
          .port = std::uint16_t(number(options, "port")),
          .route = param(options, "route")}
     );

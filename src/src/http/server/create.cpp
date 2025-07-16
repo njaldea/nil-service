@@ -20,9 +20,13 @@ namespace nil::service::http::server
     {
         explicit Context(const std::string& host, std::uint16_t port)
             : strand(make_strand(ctx))
-            , acceptor(strand, {boost::asio::ip::make_address(host), port})
+            , acceptor(strand)
         {
+            const auto endpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(host), port);
+            acceptor.open(endpoint.protocol());
             acceptor.set_option(boost::asio::socket_base::reuse_address(true));
+            acceptor.bind(endpoint);
+            acceptor.listen();
         }
 
         boost::asio::io_context ctx;

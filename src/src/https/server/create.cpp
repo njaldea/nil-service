@@ -31,15 +31,21 @@ namespace nil::service::https::server
             , ssl_context(boost::asio::ssl::context::tlsv12_server)
             , acceptor(strand, {boost::asio::ip::make_address(host), port})
         {
+            const auto endpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(host), port);
+
+            acceptor.open(endpoint.protocol());
             acceptor.set_option(boost::asio::socket_base::reuse_address(true));
+            acceptor.bind(endpoint);
+            acceptor.listen();
+
             ssl_context.set_options(
-                boost::asio::ssl::context::default_workarounds //
-                | boost::asio::ssl::context::no_sslv2          //
+                boost::asio::ssl::context::default_workarounds
+                | boost::asio::ssl::context::no_sslv2
                 | boost::asio::ssl::context::single_dh_use
             );
             ssl_context.use_certificate_chain_file(path / "cert.pem");
             ssl_context.use_private_key_file(path / "key.pem", boost::asio::ssl::context::pem);
-            ssl_context.use_tmp_dh_file(path / "dh.pem"); // optional
+            ssl_context.use_tmp_dh_file(path / "dh.pem");
         }
 
         boost::asio::io_context ctx;
