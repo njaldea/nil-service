@@ -1,6 +1,6 @@
 project(service)
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS asio beast)
 find_package(nil-xalt REQUIRED)
 
 set(
@@ -67,7 +67,8 @@ target_link_libraries(
 target_include_directories(
     ${PROJECT_NAME}
     SYSTEM PRIVATE
-    $<TARGET_PROPERTY:Boost::boost,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:Boost::asio,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:Boost::beast,INTERFACE_INCLUDE_DIRECTORIES>
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_NO_DEPRECATED)
 
@@ -118,7 +119,8 @@ if(ENABLE_SSL)
     target_include_directories(
         ${PROJECT_NAME}-ssl
         SYSTEM PRIVATE
-        $<TARGET_PROPERTY:Boost::boost,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:Boost::asio,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:Boost::beast,INTERFACE_INCLUDE_DIRECTORIES>
     )
     target_compile_definitions(${PROJECT_NAME}-ssl PRIVATE BOOST_ASIO_NO_DEPRECATED)
     

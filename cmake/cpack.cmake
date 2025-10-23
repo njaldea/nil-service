@@ -1,0 +1,6 @@
+set(CPACK_PACKAGE_NAME "nil-service-dev")
+set(CPACK_PACKAGE_CONTACT "njaldea@gmail.com")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Neil Aldea <njaldea@gmail.com>")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "nil-xalt-dev (>= 1.3.1)")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "boost net library wrapper")
+include(CPack)

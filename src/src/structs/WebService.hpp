@@ -5,6 +5,8 @@
 
 #include <nil/service/ID.hpp>
 
+#define BOOST_ASIO_STANDALONE
+#define BOOST_ASIO_NO_TYPEID
 #include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http.hpp>
 

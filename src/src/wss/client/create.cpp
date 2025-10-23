@@ -4,12 +4,13 @@
 #include "../../utils.hpp"
 #include "../Connection.hpp"
 
+#define BOOST_ASIO_STANDALONE
+#define BOOST_ASIO_NO_TYPEID
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/context.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
-
-#include <boost/asio/ssl/context.hpp>
 
 namespace nil::service::wss::client
 {

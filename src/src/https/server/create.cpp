@@ -4,13 +4,13 @@
 #include "../../structs/HTTPSService.hpp"
 #include "../../utils.hpp"
 
+#define BOOST_ASIO_STANDALONE
+#define BOOST_ASIO_NO_TYPEID
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/strand.hpp>
-
 #include <boost/asio/ssl/context.hpp>
 #include <boost/asio/ssl/stream.hpp>
-
+#include <boost/asio/strand.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
 #include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http/dynamic_body.hpp>

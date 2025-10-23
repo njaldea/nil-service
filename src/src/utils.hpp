@@ -2,6 +2,8 @@
 
 #include <nil/service/ID.hpp>
 
+#define BOOST_ASIO_STANDALONE
+#define BOOST_ASIO_NO_TYPEID
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 

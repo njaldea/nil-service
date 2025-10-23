@@ -65,5 +65,5 @@ cmake                                                                       \
     -DVCPKG_OVERLAY_TRIPLETS="${REPO_PATH}/triplets"                        \
     -DENABLE_SANDBOX=${ENABLE_SANDBOX}                                      \
     -DENABLE_TEST=${ENABLE_TEST}                                            \
-    -DENABLE_SSL=${ENABLE_SSL}                                            \
+    -DENABLE_SSL=${ENABLE_SSL}                                              \
     ${TRIPLET}
