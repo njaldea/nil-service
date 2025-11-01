@@ -3,13 +3,14 @@
     "default-registry": {
         "kind": "git",
         "repository": "https://github.com/Microsoft/vcpkg",
-        "baseline": "ca846b21276c9a3171074ac8d2b4f6516894a7d0"
+        "baseline": "74e6536215718009aae747d86d84b78376bf9e09"
     },
     "registries": [
         {
             "kind": "git",
             "repository": "https://github.com/njaldea/nil-vcpkg-ports",
-            "baseline": "063856f00c3e7e9d58769ecf4242e28de3427ed8",
+            "baseline": "54396785838c53f176a70705b4c95b4820755d51",
+            "reference": "v0.0.1",
             "packages": ["nil-clix", "nil-xalt"]
         }
     ]
