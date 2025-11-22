@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.27.1)
 
-project(nil-service VERSION 1.0.3 LANGUAGES CXX)
+project(nil-service VERSION 1.0.4 LANGUAGES CXX)
 
 include(cmake/package.cmake)
 include(cmake/toolchain.cmake)

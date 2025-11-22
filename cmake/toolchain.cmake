@@ -5,10 +5,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# only needed if there are shared libraries to be installed
-set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
-set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "[0 | OFF - 1 | ON]: Build using shared libraries?")

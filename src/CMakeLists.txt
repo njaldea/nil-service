@@ -72,16 +72,9 @@ target_include_directories(
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_NO_DEPRECATED)
 
-target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/publish>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-
 add_test_subdirectory()
 
-nil_install_headers()
+nil_install_headers(${PROJECT_NAME} PUBLIC)
 nil_install_targets(${PROJECT_NAME})
 
 set(ENABLE_SSL  OFF CACHE BOOL "[0 | OFF - 1 | ON]: build with ssl?")
