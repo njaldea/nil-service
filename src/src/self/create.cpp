@@ -1,6 +1,6 @@
 #include <nil/service/self/create.hpp>
 
-#include "../structs/StandaloneService.hpp"
+#include "../utils.hpp"
 
 #define BOOST_ASIO_STANDALONE
 #define BOOST_ASIO_NO_TYPEID
@@ -9,12 +9,9 @@
 
 namespace nil::service::self
 {
-    struct Impl final: StandaloneService
+    struct Impl final: IStandaloneService
     {
-        std::unique_ptr<boost::asio::io_context> context;
-
-        ID self = {"self"};
-
+    public:
         void publish(std::vector<std::uint8_t> payload) override
         {
             if (context)
@@ -22,7 +19,7 @@ namespace nil::service::self
                 boost::asio::post(
                     *context,
                     [this, msg = std::move(payload)]()
-                    { detail::invoke(handlers.on_message, self, msg.data(), msg.size()); }
+                    { utils::invoke(on_message_cb, self, msg.data(), msg.size()); }
                 );
             }
         }
@@ -37,7 +34,7 @@ namespace nil::service::self
                     {
                         if (this->self != id)
                         {
-                            detail::invoke(handlers.on_message, id, msg.data(), msg.size());
+                            utils::invoke(on_message_cb, self, msg.data(), msg.size());
                         }
                     }
                 );
@@ -61,6 +58,27 @@ namespace nil::service::self
             }
         }
 
+        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
+        ) override
+        {
+            on_message_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_connect(std::function<void(const ID&)> handler) override
+        {
+            on_connect_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        {
+            on_disconnect_cb.push_back(std::move(handler));
+        }
+
         void start() override
         {
             if (!context)
@@ -70,8 +88,8 @@ namespace nil::service::self
                     *context,
                     [this]()
                     {
-                        detail::invoke(handlers.on_ready, self);
-                        detail::invoke(handlers.on_connect, self);
+                        utils::invoke(on_ready_cb, self);
+                        utils::invoke(on_connect_cb, self);
                     }
                 );
             }
@@ -91,14 +109,19 @@ namespace nil::service::self
         {
             context.reset();
         }
+
+    private:
+        ID self = {"self"};
+
+        std::unique_ptr<boost::asio::io_context> context;
+        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+        std::vector<std::function<void(const ID&)>> on_connect_cb;
+        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
     };
 
-    A create()
+    std::unique_ptr<IStandaloneService> create()
     {
-        constexpr auto deleter = [](StandaloneService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);               // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(), deleter}};
+        return std::make_unique<Impl>();
     }
 }

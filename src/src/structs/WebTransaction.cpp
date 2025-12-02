@@ -1,4 +1,4 @@
-#include "WebService.hpp"
+#include "WebTransaction.hpp"
 
 namespace nil::service
 {
@@ -7,7 +7,7 @@ namespace nil::service
         return transaction.request.target();
     }
 
-    void set_content_type(const WebTransaction& transaction, std::string_view type)
+    void set_content_type(WebTransaction& transaction, std::string_view type)
     {
         transaction.response.set(boost::beast::http::field::content_type, type);
     }

@@ -1,6 +1,5 @@
 #include <nil/service/ws/client/create.hpp>
 
-#include "../../structs/StandaloneService.hpp"
 #include "../../utils.hpp"
 #include "../Connection.hpp"
 
@@ -27,7 +26,7 @@ namespace nil::service::ws::client
     };
 
     struct Impl final
-        : StandaloneService
+        : IStandaloneService
         , ConnectedImpl<Connection>
     {
     public:
@@ -128,9 +127,18 @@ namespace nil::service::ws::client
         }
 
     private:
+        Options options;
+        std::unique_ptr<Context> context;
+        std::unique_ptr<Connection> connection;
+
+        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+        std::vector<std::function<void(const ID&)>> on_connect_cb;
+        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
+
         void connect(ws::Connection* target_connection) override
         {
-            detail::invoke(handlers.on_connect, target_connection->id());
+            utils::invoke(on_connect_cb, target_connection->id());
         }
 
         void disconnect(Connection* target_connection) override
@@ -141,7 +149,7 @@ namespace nil::service::ws::client
                 {
                     if (connection.get() == target_connection)
                     {
-                        detail::invoke(handlers.on_disconnect, connection->id());
+                        utils::invoke(on_disconnect_cb, connection->id());
                         connection.reset();
                     }
                     reconnect();
@@ -151,7 +159,7 @@ namespace nil::service::ws::client
 
         void message(const ID& id, const void* data, std::uint64_t size) override
         {
-            detail::invoke(handlers.on_message, id, data, size);
+            utils::invoke(on_message_cb, id, data, size);
         }
 
         void connect()
@@ -195,7 +203,7 @@ namespace nil::service::ws::client
                             }
 
                             auto& s = ws->next_layer().socket();
-                            detail::invoke(handlers.on_ready, utils::to_id(s.local_endpoint()));
+                            utils::invoke(on_ready_cb, utils::to_id(s.local_endpoint()));
                             connection = std::make_unique<Connection>(
                                 utils::to_id(s.remote_endpoint()),
                                 options.buffer,
@@ -222,17 +230,30 @@ namespace nil::service::ws::client
             );
         }
 
-        Options options;
-        std::unique_ptr<Context> context;
-        std::unique_ptr<Connection> connection;
+        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
+        ) override
+        {
+            on_message_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_connect(std::function<void(const ID&)> handler) override
+        {
+            on_connect_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        {
+            on_disconnect_cb.push_back(std::move(handler));
+        }
     };
 
-    A create(Options options)
+    std::unique_ptr<IStandaloneService> create(Options options)
     {
-        constexpr auto deleter = [](StandaloneService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);               // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(std::move(options)), deleter}};
+        return std::make_unique<Impl>(std::move(options));
     }
 }

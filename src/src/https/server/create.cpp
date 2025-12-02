@@ -1,8 +1,8 @@
-#include <nil/service/detail/Handlers.hpp>
 #include <nil/service/https/server/create.hpp>
 
-#include "../../structs/HTTPSService.hpp"
+#include "../../structs/WebTransaction.hpp"
 #include "../../utils.hpp"
+#include "WebSocket.hpp"
 
 #define BOOST_ASIO_STANDALONE
 #define BOOST_ASIO_NO_TYPEID
@@ -31,7 +31,8 @@ namespace nil::service::https::server
             , ssl_context(boost::asio::ssl::context::tlsv12_server)
             , acceptor(strand, {boost::asio::ip::make_address(host), port})
         {
-            const auto endpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(host), port);
+            const auto endpoint
+                = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(host), port);
 
             acceptor.open(endpoint.protocol());
             acceptor.set_option(boost::asio::socket_base::reuse_address(true));
@@ -39,8 +40,7 @@ namespace nil::service::https::server
             acceptor.listen();
 
             ssl_context.set_options(
-                boost::asio::ssl::context::default_workarounds
-                | boost::asio::ssl::context::no_sslv2
+                boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::no_sslv2
                 | boost::asio::ssl::context::single_dh_use
             );
             ssl_context.use_certificate_chain_file(path / "cert.pem");
@@ -53,13 +53,21 @@ namespace nil::service::https::server
         boost::asio::ssl::context ssl_context;
         boost::asio::ip::tcp::acceptor acceptor;
     };
+    struct Transaction;
 
-    struct Impl: HTTPSService
+    struct Impl final: IWebService
     {
+        friend struct Transaction;
+
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
         {
+        }
+
+        IService* use_ws(const std::string& key) override
+        {
+            return &wss[key];
         }
 
         void start() override;
@@ -67,10 +75,23 @@ namespace nil::service::https::server
         void restart() override;
 
     private:
-        void accept();
-
         Options options;
         std::unique_ptr<Context> context;
+        std::unordered_map<std::string, WebSocket> wss;
+        std::vector<std::function<bool(WebTransaction&)>> on_get_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+
+        void accept();
+
+        void impl_on_get(std::function<bool(WebTransaction&)> handler) override
+        {
+            on_get_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
     };
 
     struct Transaction final: public std::enable_shared_from_this<Transaction>
@@ -128,7 +149,7 @@ namespace nil::service::https::server
             );
         }
 
-        HTTPSService& parent; // NOLINT
+        Impl& parent; // NOLINT
         boost::asio::ssl::stream<boost::asio::ip::tcp::socket> stream;
 
         boost::beast::flat_buffer buffer;
@@ -201,12 +222,18 @@ namespace nil::service::https::server
                         response.result(boost::beast::http::status::ok);
                         handle_ws(it->second);
                     }
-                    else if (parent.on_get)
+                    else
                     {
                         response.result(boost::beast::http::status::bad_request);
                         WebTransaction transaction = {request, response};
-                        parent.on_get(transaction);
-                        write_response();
+                        for (const auto& cb : parent.on_get_cb)
+                        {
+                            if (cb && cb(transaction))
+                            {
+                                write_response();
+                                return;
+                            }
+                        }
                     }
                 }
                 break;
@@ -247,7 +274,7 @@ namespace nil::service::https::server
         {
             context = std::make_unique<Context>(options.host, options.port, options.cert);
             auto id = utils::to_id(context->acceptor.local_endpoint());
-            detail::invoke(on_ready, id);
+            utils::invoke(on_ready_cb, id);
             for (auto& [route, ws] : wss)
             {
                 ws.context = &context->ctx;
@@ -291,12 +318,8 @@ namespace nil::service::https::server
         );
     }
 
-    W create(Options options)
+    std::unique_ptr<IWebService> create(Options options)
     {
-        constexpr auto deleter = [](WebService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);        // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(std::move(options)), deleter}};
+        return std::make_unique<Impl>(std::move(options));
     }
 }

@@ -2,12 +2,9 @@
 
 #include <nil/service/https/server/create.hpp>
 
-#include "../../structs/StandaloneService.hpp"
-#include "../../structs/WebService.hpp"
-
 namespace nil::service::wss::server
 {
-    struct Impl final: StandaloneService
+    struct Impl final: IStandaloneService
     {
     public:
         explicit Impl(Options options)
@@ -17,57 +14,94 @@ namespace nil::service::wss::server
                    .port = options.port,
                    .buffer = options.buffer}
               ))
-            , ws(use_ws(server, options.route))
+            , ws(server->use_ws(options.route))
         {
         }
 
         void publish(std::vector<std::uint8_t> payload) override
         {
-            ws.ptr->publish(std::move(payload));
+            ws->publish(std::move(payload));
         }
 
         void publish_ex(ID id, std::vector<std::uint8_t> payload) override
         {
-            ws.ptr->publish_ex(std::move(id), std::move(payload));
+            ws->publish_ex(std::move(id), std::move(payload));
         }
 
         void send(ID id, std::vector<std::uint8_t> payload) override
         {
-            ws.ptr->send(std::move(id), std::move(payload));
+            ws->send(std::move(id), std::move(payload));
         }
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> payload) override
         {
-            ws.ptr->send(std::move(ids), std::move(payload));
+            ws->send(std::move(ids), std::move(payload));
         }
 
         void start() override
         {
-            ws.ptr->handlers = handlers;
-            server.ptr->start();
+            for (const auto& cb : on_message_cb)
+            {
+                ws->on_message(cb);
+            }
+            for (const auto& cb : on_connect_cb)
+            {
+                ws->on_connect(cb);
+            }
+            for (const auto& cb : on_disconnect_cb)
+            {
+                ws->on_disconnect(cb);
+            }
+            for (const auto& cb : on_ready_cb)
+            {
+                ws->on_ready(cb);
+            }
+            server->start();
         }
 
         void stop() override
         {
-            server.ptr->stop();
+            server->stop();
         }
 
         void restart() override
         {
-            server.ptr->restart();
+            server->restart();
         }
 
     private:
-        W server;
-        P ws;
+        std::unique_ptr<IWebService> server;
+        IService* ws;
+
+        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+        std::vector<std::function<void(const ID&)>> on_connect_cb;
+        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
+
+        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
+        ) override
+        {
+            on_message_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_connect(std::function<void(const ID&)> handler) override
+        {
+            on_connect_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        {
+            on_disconnect_cb.push_back(std::move(handler));
+        }
     };
 
-    A create(Options options)
+    std::unique_ptr<IStandaloneService> create(Options options)
     {
-        constexpr auto deleter = [](StandaloneService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);               // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(std::move(options)), deleter}};
+        return std::make_unique<Impl>(std::move(options));
     }
 }

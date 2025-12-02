@@ -12,6 +12,18 @@
 
 namespace nil::service::utils
 {
+    template <typename Callables, typename... Args>
+    void invoke(const Callables& cbs, const Args&... args)
+    {
+        for (const auto& cb : cbs)
+        {
+            if (cb)
+            {
+                cb(args...);
+            }
+        }
+    }
+
     inline ID to_id(const boost::asio::ip::tcp::endpoint& endpoint)
     {
         return {endpoint.address().to_string() + ":" + std::to_string(endpoint.port())};

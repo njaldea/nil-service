@@ -2,7 +2,9 @@
 
 #include "../structs.hpp"
 
+#include <memory>
+
 namespace nil::service::self
 {
-    A create();
+    std::unique_ptr<IStandaloneService> create();
 }

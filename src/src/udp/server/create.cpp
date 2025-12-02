@@ -1,6 +1,5 @@
 #include <nil/service/udp/server/create.hpp>
 
-#include "../../structs/StandaloneService.hpp"
 #include "../../utils.hpp"
 
 #define BOOST_ASIO_STANDALONE
@@ -26,7 +25,7 @@ namespace nil::service::udp::server
         boost::asio::ip::udp::socket socket;
     };
 
-    struct Impl final: StandaloneService
+    struct Impl final: IStandaloneService
     {
     public:
         explicit Impl(Options init_options)
@@ -48,7 +47,7 @@ namespace nil::service::udp::server
             if (!context)
             {
                 context = std::make_unique<Context>(options.host, options.port);
-                detail::invoke(handlers.on_ready, utils::to_id(context->socket.local_endpoint()));
+                utils::invoke(on_ready_cb, utils::to_id(context->socket.local_endpoint()));
                 receive();
             }
             context->ctx.run();
@@ -157,13 +156,40 @@ namespace nil::service::udp::server
         }
 
     private:
+        struct Connection final
+        {
+            boost::asio::ip::udp::endpoint endpoint;
+            boost::asio::steady_timer timer;
+
+            Connection(
+                boost::asio::ip::udp::endpoint init_endpoint,
+                boost::asio::strand<boost::asio::io_context::executor_type>& strand
+            )
+                : endpoint(std::move(init_endpoint))
+                , timer(strand)
+            {
+            }
+        };
+
+        using Connections = std::unordered_map<ID, std::unique_ptr<Connection>>;
+
+        Options options;
+        std::unique_ptr<Context> context;
+        Connections connections;
+        std::vector<std::uint8_t> buffer;
+
+        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+        std::vector<std::function<void(const ID&)>> on_connect_cb;
+        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
+
         void ping(const boost::asio::ip::udp::endpoint& endpoint, const ID& id)
         {
             auto& connection = connections[id];
             if (!connection)
             {
                 connection = std::make_unique<Connection>(endpoint, context->strand);
-                detail::invoke(handlers.on_connect, id);
+                utils::invoke(on_connect_cb, id);
             }
             connection->timer.expires_after(options.timeout);
             connection->timer.async_wait(
@@ -173,7 +199,7 @@ namespace nil::service::udp::server
                     {
                         return;
                     }
-                    detail::invoke(handlers.on_disconnect, id);
+                    utils::invoke(on_disconnect_cb, id);
                     connections.erase(id);
                 }
             );
@@ -186,7 +212,7 @@ namespace nil::service::udp::server
 
         void usermsg(const ID& id, const std::uint8_t* data, std::uint64_t size)
         {
-            detail::invoke(handlers.on_message, id, data, size);
+            utils::invoke(on_message_cb, id, data, size);
         }
 
         void message(
@@ -233,35 +259,30 @@ namespace nil::service::udp::server
             );
         }
 
-        struct Connection final
+        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
+        ) override
         {
-            boost::asio::ip::udp::endpoint endpoint;
-            boost::asio::steady_timer timer;
+            on_message_cb.push_back(std::move(handler));
+        }
 
-            Connection(
-                boost::asio::ip::udp::endpoint init_endpoint,
-                boost::asio::strand<boost::asio::io_context::executor_type>& strand
-            )
-                : endpoint(std::move(init_endpoint))
-                , timer(strand)
-            {
-            }
-        };
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
 
-        using Connections = std::unordered_map<ID, std::unique_ptr<Connection>>;
+        void impl_on_connect(std::function<void(const ID&)> handler) override
+        {
+            on_connect_cb.push_back(std::move(handler));
+        }
 
-        Options options;
-        std::unique_ptr<Context> context;
-        Connections connections;
-        std::vector<std::uint8_t> buffer;
+        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        {
+            on_disconnect_cb.push_back(std::move(handler));
+        }
     };
 
-    A create(Options options)
+    std::unique_ptr<IStandaloneService> create(Options options)
     {
-        constexpr auto deleter = [](StandaloneService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);               // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(std::move(options)), deleter}};
+        return std::make_unique<Impl>(std::move(options));
     }
 }

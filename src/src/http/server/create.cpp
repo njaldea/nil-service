@@ -1,7 +1,9 @@
 #include <nil/service/http/server/create.hpp>
 
-#include "../../structs/HTTPService.hpp"
+#include "../../structs/WebTransaction.hpp"
 #include "../../utils.hpp"
+#include "WebSocket.hpp"
+#include "nil/service/structs.hpp"
 
 #define BOOST_ASIO_STANDALONE
 #define BOOST_ASIO_NO_TYPEID
@@ -17,13 +19,14 @@
 
 namespace nil::service::http::server
 {
-    struct Context
+    struct Context final
     {
         explicit Context(const std::string& host, std::uint16_t port)
             : strand(make_strand(ctx))
             , acceptor(strand)
         {
-            const auto endpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(host), port);
+            const auto endpoint
+                = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(host), port);
             acceptor.open(endpoint.protocol());
             acceptor.set_option(boost::asio::socket_base::reuse_address(true));
             acceptor.bind(endpoint);
@@ -35,12 +38,19 @@ namespace nil::service::http::server
         boost::asio::ip::tcp::acceptor acceptor;
     };
 
-    struct Impl: HTTPService
+    struct Impl final: IWebService
     {
     public:
+        friend struct Transaction;
+
         explicit Impl(Options init_options)
             : options(std::move(init_options))
         {
+        }
+
+        IService* use_ws(const std::string& key) override
+        {
+            return &wss[key];
         }
 
         void start() override;
@@ -48,10 +58,23 @@ namespace nil::service::http::server
         void restart() override;
 
     private:
-        void accept();
-
         Options options;
         std::unique_ptr<Context> context;
+        std::unordered_map<std::string, WebSocket> wss;
+        std::vector<std::function<bool(WebTransaction&)>> on_get_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+
+        void accept();
+
+        void impl_on_get(std::function<bool(WebTransaction&)> handler) override
+        {
+            on_get_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
     };
 
     struct Transaction final: public std::enable_shared_from_this<Transaction>
@@ -94,7 +117,7 @@ namespace nil::service::http::server
             );
         }
 
-        HTTPService& parent; // NOLINT
+        Impl& parent; // NOLINT
         boost::asio::ip::tcp::socket socket;
 
         boost::beast::flat_buffer buffer;
@@ -163,12 +186,18 @@ namespace nil::service::http::server
                         response.result(boost::beast::http::status::ok);
                         handle_ws(it->second);
                     }
-                    else if (parent.on_get)
+                    else
                     {
                         response.result(boost::beast::http::status::bad_request);
                         WebTransaction transaction = {request, response};
-                        parent.on_get(transaction);
-                        write_response();
+                        for (const auto& cb : parent.on_get_cb)
+                        {
+                            if (cb && cb(transaction))
+                            {
+                                write_response();
+                                return;
+                            }
+                        }
                     }
                 }
                 break;
@@ -208,7 +237,7 @@ namespace nil::service::http::server
         {
             context = std::make_unique<Context>(options.host, options.port);
             auto id = utils::to_id(context->acceptor.local_endpoint());
-            detail::invoke(on_ready, id);
+            utils::invoke(on_ready_cb, id);
             for (auto& [route, ws] : wss)
             {
                 ws.context = &context->ctx;
@@ -247,12 +276,8 @@ namespace nil::service::http::server
         );
     }
 
-    W create(Options options)
+    std::unique_ptr<IWebService> create(Options options)
     {
-        constexpr auto deleter = [](WebService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);        // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(std::move(options)), deleter}};
+        return std::make_unique<Impl>(std::move(options));
     }
 }

@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <string>
 
 namespace nil::service::udp::client
@@ -23,5 +24,5 @@ namespace nil::service::udp::client
         std::chrono::nanoseconds timeout = std::chrono::seconds(2);
     };
 
-    A create(Options options);
+    std::unique_ptr<IStandaloneService> create(Options options);
 }

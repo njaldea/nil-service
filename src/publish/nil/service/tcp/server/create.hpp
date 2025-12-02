@@ -3,6 +3,8 @@
 #include "../../structs.hpp"
 
 #include <cstdint>
+#include <memory>
+#include <string>
 
 namespace nil::service::tcp::server
 {
@@ -17,5 +19,5 @@ namespace nil::service::tcp::server
         std::uint64_t buffer = 1024;
     };
 
-    A create(Options options);
+    std::unique_ptr<IStandaloneService> create(Options options);
 }

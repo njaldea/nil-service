@@ -3,6 +3,7 @@
 #include "../../structs.hpp"
 
 #include <cstdint>
+#include <memory>
 
 namespace nil::service::http::server
 {
@@ -13,5 +14,5 @@ namespace nil::service::http::server
         std::uint64_t buffer = 8192;
     };
 
-    W create(Options options);
+    std::unique_ptr<IWebService> create(Options options);
 }

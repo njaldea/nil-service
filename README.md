@@ -55,35 +55,23 @@ auto w = ns::http::server::create({...});
 auto w = ns::https::server::create({...});
 ```
 
-### Proxy Types
-
-The create methods returns a proxy object that is responsible for converting type to allow compatibility with matching supported API. This is to hide boost asio/beast dependencies.
-
-There are 3 types of Proxies:
-
-| type | description                                   | owned | observable    | runnable | messaging |
-| ---- | --------------------------------------------- | ----- | ------------- | -------- | --------- |
-| _P_  | service proxy                                 | no    | yes           | no       | yes       |
-| _A_  | standalone service proxy. convertible to _P_  | yes   | yes           | yes      | yes       |
-| _W_  | standalone web service proxy                  | yes   | on_ready      | yes      | no        |
-
 ## APIs
 
 ### Service
 
 ```cpp
-on_ready(service, handler);
-on_connect(service, handler);
-on_disconnect(service, handler);
-on_message(service, handler);
+service->on_ready(handler);
+service->on_connect(handler);
+service->on_disconnect(handler);
+service->on_message(handler);
 
-send(service, id, buffer, buffer_size);
-send(service, id, message_with_codec);
-send(service, id, vector_of_uint8);
+service->send(id, buffer, buffer_size);
+service->send(id, message_with_codec);
+service->send(id, vector_of_uint8);
 
-publish(service, buffer, buffer_size);
-publish(service, message_with_codec);
-publish(service, vector_of_uint8);
+service->publish(buffer, buffer_size);
+service->publish(message_with_codec);
+service->publish(vector_of_uint8);
 ```
 
 ### Standalone Service
@@ -91,12 +79,13 @@ publish(service, vector_of_uint8);
 Standalone service also support the basic Service methods.
 
 ```cpp
-auto service = nil::service::...::create({...});
+std::unique_ptr<nil::service::IStandAloneService> service
+    = nil::service::...::create({...});
 
-start(service);    // runs the service - blocking
-stop(service);     // stops the service - releases run
-restart(service);  // restarts the service 
-                   // required after stopping and before re-running
+service->start();    // runs the service - blocking
+service->stop();     // stops the service - releases run
+service->restart();  // restarts the service 
+                     // required after stopping and before re-running
 
 ```
 
@@ -107,25 +96,25 @@ auto service = nil::service::http::server::create({...});
 // auto service = nil::service::https::server::create({...});
 
 // only supports on_ready
-on_ready(service, handler);
+service->on_ready(handler);
 
 // special api for creating routes
-on_get(
-    service,
+service->on_get(
     [](nil::service::WebTransaction& transaction)
     {
         if ("/" != get_route(transaction))
         {
-            return;
+            return false;
         }
         set_content_type(transaction, "text/html");
         send(transaction, "<body>CONTENT</body>");
+        return true; // to indicate that the next registered on_get will not be invoked
     }
 );
 
 // special api for creating route with websocket.
 // returns a Service (S proxy)
-auto s = use_ws(service, "/ws");
+nil::service::IService* s = service->use_ws("/ws");
 ```
 
 ### `on_message` overloads
@@ -133,7 +122,7 @@ auto s = use_ws(service, "/ws");
 - the following callable signatures will be handled:
 
 ```cpp
-on_message(service, handler);
+service.on_message(handler);
 
 // the following are possible signatures for the call operator of handler
 [](){};
@@ -297,10 +286,10 @@ namespace nil::service
 // Include your codec
 #include "my_codec.hpp"
 
-on_message(service, [](const auto& id, const CustomType& message){});
+service->on_message([](const auto& id, const CustomType& message){});
 
 CustomType message;
-publish(service, message);
+service->publish(message);
 ```
 
 ## NOTES:

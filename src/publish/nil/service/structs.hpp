@@ -4,193 +4,212 @@
 #include "detail/create_handler.hpp"
 #include "detail/create_message_handler.hpp"
 
-#include <memory>
 #include <type_traits>
 
 namespace nil::service
 {
-    struct StandaloneService;
-    struct WebService;
-    struct Service;
-
-    struct RunnableService;
-    struct MessagingService;
-    struct ObservableService;
-
-    // Service Proxy
-    // - returned by use_ws when a route is added to handle web socket connection.
-    // - does not own the object and provides conversion mechanism to supported api
-    // - the object is owned by the parent service (HTTPService/H)
-    struct P
+    struct IRunnableService
     {
-        Service* ptr;
-        operator Service&() const;           // NOLINT
-        operator MessagingService&() const;  // NOLINT
-        operator ObservableService&() const; // NOLINT
+        IRunnableService() = default;
+        virtual ~IRunnableService() noexcept = default;
+        IRunnableService(const IRunnableService&) = delete;
+        IRunnableService(IRunnableService&&) = delete;
+        IRunnableService& operator=(const IRunnableService&) = delete;
+        IRunnableService& operator=(IRunnableService&&) = delete;
+
+        /**
+         * @brief start the service. blocking.
+         */
+        virtual void start() = 0;
+
+        /**
+         * @brief stop the service. non-blocking.
+         */
+        virtual void stop() = 0;
+
+        /**
+         * @brief Prepare the service.
+         *  Should be called once after stopping and before running.
+         *  Call before calling other methods.
+         */
+        virtual void restart() = 0;
     };
 
-    // StandaloneService Proxy
-    // - mainly returned by create methods
-    // - owns the object and provides conversion mechanism to supported api
-    struct A
+    struct IMessagingService
     {
-        std::unique_ptr<StandaloneService, void (*)(StandaloneService*)> ptr;
+        IMessagingService() = default;
+        virtual ~IMessagingService() noexcept = default;
+        IMessagingService(const IMessagingService&) = delete;
+        IMessagingService(IMessagingService&&) = delete;
+        IMessagingService& operator=(const IMessagingService&) = delete;
+        IMessagingService& operator=(IMessagingService&&) = delete;
 
-        operator StandaloneService&() const; // NOLINT
-        operator Service&() const;           // NOLINT
-        operator RunnableService&() const;   // NOLINT
-        operator MessagingService&() const;  // NOLINT
-        operator ObservableService&() const; // NOLINT
-        operator P() const;                  // NOLINT
+        virtual void publish(std::vector<std::uint8_t> payload) = 0;
+        virtual void publish_ex(ID id, std::vector<std::uint8_t> payload) = 0;
+        virtual void send(ID id, std::vector<std::uint8_t> payload) = 0;
+        virtual void send(std::vector<ID> ids, std::vector<std::uint8_t> payload) = 0;
+
+        void publish(const void* data, std::uint64_t size)
+        {
+            const auto* ptr = static_cast<const std::uint8_t*>(data);
+            publish(std::vector<std::uint8_t>(ptr, ptr + size));
+        }
+
+        void publish_ex(ID id, const void* data, std::uint64_t size)
+        {
+            const auto* ptr = static_cast<const std::uint8_t*>(data);
+            publish_ex(std::move(id), std::vector<std::uint8_t>(ptr, ptr + size));
+        }
+
+        void send(ID id, const void* data, std::uint64_t size)
+        {
+            const auto* ptr = static_cast<const std::uint8_t*>(data);
+            send(std::move(id), std::vector<std::uint8_t>(ptr, ptr + size));
+        }
+
+        template <typename T>
+            requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
+        void publish(const T& data)
+        {
+            publish(concat(data));
+        }
+
+        template <typename T>
+            requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
+        void send(ID id, const T& data)
+        {
+            send(std::move(id), concat(data));
+        }
+
+        template <typename T>
+            requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
+        void send(std::vector<ID> ids, const T& data)
+        {
+            send(std::move(ids), concat(data));
+        }
     };
 
-    // WebService Proxy
-    // - returned by http::server::create
-    // - owns the object and provides conversion mechanism to supported api
-    struct W
+    struct IObservableService
     {
-        std::unique_ptr<WebService, void (*)(WebService*)> ptr;
+        IObservableService() = default;
+        virtual ~IObservableService() noexcept = default;
+        IObservableService(const IObservableService&) = delete;
+        IObservableService(IObservableService&&) = delete;
+        IObservableService& operator=(const IObservableService&) = delete;
+        IObservableService& operator=(IObservableService&&) = delete;
 
-        operator WebService&() const;      // NOLINT
-        operator RunnableService&() const; // NOLINT
-    };
+        /**
+         * @brief Add ready handler for service events.
+         *  Not threadsafe in case the service is already running.
+         *
+         * @param handler
+         */
+        template <typename T>
+            requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
+        void on_ready(T handler)
+        {
+            impl_on_ready(detail::create_handler(std::move(handler)));
+        }
 
-    namespace impl
-    {
-        void on_ready(ObservableService& service, std::function<void(const ID&)> handler);
-        void on_connect(ObservableService& service, std::function<void(const ID&)> handler);
-        void on_disconnect(ObservableService& service, std::function<void(const ID&)> handler);
-        void on_message(
-            ObservableService& service,
+        /**
+         * @brief Add a connect handler for service events.
+         *  Not threadsafe in case the service is already running.
+         *
+         * @param handler
+         */
+        template <typename T>
+            requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
+        void on_connect(T handler)
+        {
+            impl_on_connect(detail::create_handler(std::move(handler)));
+        }
+
+        /**
+         * @brief Add a disconnect handler for service events.
+         *  Not threadsafe in case the service is already running.
+         *
+         * @param handler
+         */
+        template <typename T>
+            requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
+        void on_disconnect(T handler)
+        {
+            impl_on_disconnect(detail::create_handler(std::move(handler)));
+        }
+
+        /**
+         * @brief Add a message handler.
+         *  Not threadsafe in case the service is already running.
+         *
+         * @param handler
+         */
+        template <typename T>
+            requires(!std::is_same_v<
+                     void,
+                     decltype(detail::create_message_handler(std::declval<T>()))>)
+        void on_message(T handler)
+        {
+            impl_on_message(detail::create_message_handler(std::move(handler)));
+        }
+
+    private:
+        virtual void impl_on_message(
             std::function<void(const ID&, const void*, std::uint64_t)> handler
-        );
-    }
+        ) = 0;
+        virtual void impl_on_ready(std::function<void(const ID&)> handler) = 0;
+        virtual void impl_on_connect(std::function<void(const ID&)> handler) = 0;
+        virtual void impl_on_disconnect(std::function<void(const ID&)> handler);
+    };
 
-    /**
-     * @brief start the service. blocking.
-     */
-    void start(RunnableService& service);
-
-    /**
-     * @brief stop the service. non-blocking.
-     */
-    void stop(RunnableService& service);
-
-    /**
-     * @brief Prepare the service.
-     *  Should be called once after stopping and before running.
-     *  Call before calling other methods.
-     */
-    void restart(RunnableService& service);
-
-    // clang-format off
-    void publish(MessagingService& service, std::vector<std::uint8_t> payload);
-    void publish_ex(MessagingService& service, ID id, std::vector<std::uint8_t> payload);
-    void send(MessagingService& service, ID id, std::vector<std::uint8_t> payload);
-    void send(MessagingService& service, std::vector<ID> ids, std::vector<std::uint8_t> payload);
-
-    void publish(MessagingService& service, const void* data, std::uint64_t size);
-    void publish_ex(MessagingService& service, const ID& id, const void* data, std::uint64_t size);
-    void send(MessagingService& service, ID id, const void* data, std::uint64_t size);
-    void send(MessagingService& service, std::vector<ID> ids, const void* data, std::uint64_t size);
-    // clang-format on
-
-    template <typename T>
-        requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
-    void publish(MessagingService& service, const T& data)
+    struct IService
+        : IMessagingService
+        , IObservableService
     {
-        publish(service, concat(data));
-    }
+    };
 
-    template <typename T>
-        requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
-    void send(MessagingService& service, ID id, const T& data)
-    {
-        send(service, std::move(id), concat(data));
-    }
-
-    template <typename T>
-        requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
-    void send(MessagingService& service, std::vector<ID> ids, const T& data)
-    {
-        send(service, std::move(ids), concat(data));
-    }
-
-    /**
-     * @brief Add ready handler for service events.
-     *  Not threadsafe in case the service is already running.
-     *
-     * @param handler
-     */
-    template <typename T>
-        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
-    void on_ready(ObservableService& service, T handler)
-    {
-        impl::on_ready(service, detail::create_handler(std::move(handler)));
-    }
-
-    /**
-     * @brief Add a connect handler for service events.
-     *  Not threadsafe in case the service is already running.
-     *
-     * @param handler
-     */
-    template <typename T>
-        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
-    void on_connect(ObservableService& service, T handler)
-    {
-        impl::on_connect(service, detail::create_handler(std::move(handler)));
-    }
-
-    /**
-     * @brief Add a disconnect handler for service events.
-     *  Not threadsafe in case the service is already running.
-     *
-     * @param handler
-     */
-    template <typename T>
-        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<T>()))>)
-    void on_disconnect(ObservableService& service, T handler)
-    {
-        impl::on_disconnect(service, detail::create_handler(std::move(handler)));
-    }
-
-    /**
-     * @brief Add a message handler.
-     *  Not threadsafe in case the service is already running.
-     *
-     * @param handler
-     */
-    template <typename T>
-        requires(!std::is_same_v<void, decltype(detail::create_message_handler(std::declval<T>()))>)
-    void on_message(ObservableService& service, T handler)
-    {
-        impl::on_message(service, detail::create_message_handler(std::move(handler)));
-    }
-
-    namespace impl
-    {
-        void on_ready(WebService& service, std::function<void(const ID&)> handler);
-    }
-
-    /**
-     * @brief Add ready handler for service events.
-     *  Not threadsafe in case the service is already running.
-     *
-     * @param handler
-     */
-    template <typename Handler>
-        requires(!std::is_same_v<void, decltype(detail::create_handler(std::declval<Handler>()))>)
-    void on_ready(WebService& service, Handler handler)
-    {
-        impl::on_ready(service, detail::create_handler(std::move(handler)));
-    }
-
-    P use_ws(WebService& service, const std::string& route);
     struct WebTransaction;
-    void on_get(WebService& service, std::function<void(const WebTransaction&)> callback);
+
+    struct IWebService: IRunnableService
+    {
+        void on_get(std::function<bool(WebTransaction&)> handler)
+        {
+            impl_on_get(std::move(handler));
+        }
+
+        void on_ready(std::function<void(const ID&)> handler)
+        {
+            impl_on_ready(std::move(handler));
+        }
+
+        virtual IService* use_ws(const std::string& key) = 0;
+
+        /**
+         * @brief Add ready handler for service events.
+         *  Not threadsafe in case the service is already running.
+         *
+         * @param handler
+         */
+        template <typename Handler>
+            requires(!std::
+                         is_same_v<void, decltype(detail::create_handler(std::declval<Handler>()))>)
+        void on_ready(Handler handler)
+        {
+            impl_on_ready(detail::create_handler(std::move(handler)));
+        }
+
+    private:
+        virtual void impl_on_get(std::function<bool(WebTransaction&)> callback) = 0;
+        virtual void impl_on_ready(std::function<void(const ID&)> handler) = 0;
+    };
+
+    void set_content_type(WebTransaction& transaction, std::string_view type);
     std::string_view get_route(const WebTransaction& transaction);
-    void set_content_type(const WebTransaction& transaction, std::string_view type);
     void send(const WebTransaction& transaction, std::string_view body);
     void send(const WebTransaction& transaction, const std::istream& body);
+
+    struct IStandaloneService
+        : IService
+        , IRunnableService
+    {
+    };
 }

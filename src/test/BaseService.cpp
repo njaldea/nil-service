@@ -4,7 +4,7 @@
 #include <nil/service/map.hpp>
 #include <nil/service/structs.hpp>
 
-#include "../src/structs/StandaloneService.hpp"
+#include "../../src/src/utils.hpp"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -33,7 +33,7 @@ namespace nil::service
     };
 }
 
-class TestService: public nil::service::StandaloneService
+class TestService: public nil::service::IStandaloneService
 {
 public:
     explicit TestService(std::string peer_id)
@@ -50,12 +50,12 @@ public:
 
     void start() override
     {
-        nil::service::detail::invoke(handlers.on_connect, nil::service::ID{id});
+        nil::service::utils::invoke(on_connect_cb, nil::service::ID{id});
     }
 
     void stop() override
     {
-        nil::service::detail::invoke(handlers.on_disconnect, nil::service::ID{id});
+        nil::service::utils::invoke(on_disconnect_cb, nil::service::ID{id});
     }
 
     void restart() override
@@ -64,8 +64,8 @@ public:
 
     void publish(std::vector<std::uint8_t> message) override
     {
-        nil::service::detail::invoke(
-            handlers.on_message,
+        nil::service::utils::invoke(
+            on_message_cb,
             nil::service::ID{id},
             message.data(),
             message.size()
@@ -74,7 +74,7 @@ public:
 
     void publish_ex(nil::service::ID did, std::vector<std::uint8_t> message) override
     {
-        nil::service::detail::invoke(handlers.on_message, did, message.data(), message.size());
+        nil::service::utils::invoke(on_message_cb, did, message.data(), message.size());
     }
 
     void send(nil::service::ID target_id, std::vector<std::uint8_t> message) override
@@ -89,11 +89,40 @@ public:
         (void)message;
     }
 
-    using MessagingService::publish;
-    using MessagingService::send;
+    using IMessagingService::publish;
+    using IMessagingService::publish_ex;
+    using IMessagingService::send;
 
 private:
     std::string id;
+
+    std::vector<std::function<void(const nil::service::ID&, const void*, std::uint64_t)>>
+        on_message_cb;
+    std::vector<std::function<void(const nil::service::ID&)>> on_ready_cb;
+    std::vector<std::function<void(const nil::service::ID&)>> on_connect_cb;
+    std::vector<std::function<void(const nil::service::ID&)>> on_disconnect_cb;
+
+    void impl_on_message(
+        std::function<void(const nil::service::ID&, const void*, std::uint64_t)> handler
+    ) override
+    {
+        on_message_cb.push_back(std::move(handler));
+    }
+
+    void impl_on_ready(std::function<void(const nil::service::ID&)> handler) override
+    {
+        on_ready_cb.push_back(std::move(handler));
+    }
+
+    void impl_on_connect(std::function<void(const nil::service::ID&)> handler) override
+    {
+        on_connect_cb.push_back(std::move(handler));
+    }
+
+    void impl_on_disconnect(std::function<void(const nil::service::ID&)> handler) override
+    {
+        on_disconnect_cb.push_back(std::move(handler));
+    }
 };
 
 TEST(BaseService, on_message)
@@ -104,20 +133,20 @@ TEST(BaseService, on_message)
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
-    on_connect(service, [&]() { mock.Call("connect"); });
-    on_disconnect(service, [&]() { mock.Call("disconnect"); });
-    on_message(service, [&]() { mock.Call("message"); });
+    service.on_connect([&]() { mock.Call("connect"); });
+    service.on_disconnect([&]() { mock.Call("disconnect"); });
+    service.on_message([&]() { mock.Call("message"); });
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    start(service);
+    service.start();
     EXPECT_CALL(mock, Call("message")).Times(1);
-    publish(service, "abc", 4);
+    service.publish("abc", 4);
     EXPECT_CALL(mock, Call("message")).Times(1);
-    publish(service, {'a', 'b', 'c'});
+    service.publish({'a', 'b', 'c'});
     EXPECT_CALL(mock, Call("message")).Times(1);
-    publish(service, nil::service::concat('a', 'b', 'c'));
+    service.publish(nil::service::concat('a', 'b', 'c'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
-    stop(service);
+    service.stop();
 }
 
 TEST(BaseService, on_message_with_id)
@@ -126,10 +155,9 @@ TEST(BaseService, on_message_with_id)
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
-    on_connect(service, [&]() { mock.Call("connect"); });
-    on_disconnect(service, [&]() { mock.Call("disconnect"); });
-    on_message(
-        service,
+    service.on_connect([&]() { mock.Call("connect"); });
+    service.on_disconnect([&]() { mock.Call("disconnect"); });
+    service.on_message(
         [&](const nil::service::ID& id)
         {
             mock.Call(id.text);
@@ -138,18 +166,18 @@ TEST(BaseService, on_message_with_id)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    start(service);
+    service.start();
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("message")).Times(1);
-    publish(service, "abc", 4);
+    service.publish("abc", 4);
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("message")).Times(1);
-    publish(service, {'a', 'b', 'c'});
+    service.publish({'a', 'b', 'c'});
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("message")).Times(1);
-    publish(service, nil::service::concat('a', 'b', 'c'));
+    service.publish(nil::service::concat('a', 'b', 'c'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
-    stop(service);
+    service.stop();
 }
 
 TEST(BaseService, on_message_with_id_with_raw)
@@ -158,10 +186,9 @@ TEST(BaseService, on_message_with_id_with_raw)
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
-    on_connect(service, [&]() { mock.Call("connect"); });
-    on_disconnect(service, [&]() { mock.Call("disconnect"); });
-    on_message(
-        service,                                                              //
+    service.on_connect([&]() { mock.Call("connect"); });
+    service.on_disconnect([&]() { mock.Call("disconnect"); });
+    service.on_message(                                                       //
         [&](const nil::service::ID& id, const void* data, std::uint64_t size) //
         {
             mock.Call(id.text);
@@ -170,18 +197,18 @@ TEST(BaseService, on_message_with_id_with_raw)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    start(service);
+    service.start();
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, "abc", 3);
+    service.publish("abc", 3);
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, {'a', 'b', 'c'});
+    service.publish({'a', 'b', 'c'});
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, nil::service::concat('a', 'b', 'c'));
+    service.publish(nil::service::concat('a', 'b', 'c'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
-    stop(service);
+    service.stop();
 }
 
 TEST(BaseService, on_message_with_id_with_codec)
@@ -190,10 +217,9 @@ TEST(BaseService, on_message_with_id_with_codec)
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
-    on_connect(service, [&]() { mock.Call("connect"); });
-    on_disconnect(service, [&]() { mock.Call("disconnect"); });
-    on_message(
-        service,                                                 //
+    service.on_connect([&]() { mock.Call("connect"); });
+    service.on_disconnect([&]() { mock.Call("disconnect"); });
+    service.on_message(
         [&](const nil::service::ID& id, const std::string& data) //
         {
             mock.Call(id.text);
@@ -202,18 +228,18 @@ TEST(BaseService, on_message_with_id_with_codec)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    start(service);
+    service.start();
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, "abc", 3);
+    service.publish("abc", 3);
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, {'a', 'b', 'c'});
+    service.publish({'a', 'b', 'c'});
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, nil::service::concat('a', 'b', 'c'));
+    service.publish(nil::service::concat('a', 'b', 'c'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
-    stop(service);
+    service.stop();
 }
 
 TEST(BaseService, on_message_without_id_with_raw)
@@ -222,24 +248,24 @@ TEST(BaseService, on_message_without_id_with_raw)
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
-    on_connect(service, [&]() { mock.Call("connect"); });
-    on_disconnect(service, [&]() { mock.Call("disconnect"); });
-    on_message(
-        service,                                  //
+    service.on_connect([&]() { mock.Call("connect"); });
+    service.on_disconnect([&]() { mock.Call("disconnect"); });
+    service.on_message(
+        //
         [&](const void* data, std::uint64_t size) //
         { mock.Call(nil::service::consume<std::string>(data, size)); }
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    start(service);
+    service.start();
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, "abc", 3);
+    service.publish("abc", 3);
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, {'a', 'b', 'c'});
+    service.publish({'a', 'b', 'c'});
     EXPECT_CALL(mock, Call("abc")).Times(1);
-    publish(service, nil::service::concat('a', 'b', 'c'));
+    service.publish(nil::service::concat('a', 'b', 'c'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
-    stop(service);
+    service.stop();
 }
 
 TEST(BaseService, on_message_without_id_with_codec)
@@ -248,20 +274,20 @@ TEST(BaseService, on_message_without_id_with_codec)
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
     TestService service("peer id");
-    on_connect(service, [&]() { mock.Call("connect"); });
-    on_disconnect(service, [&]() { mock.Call("disconnect"); });
-    on_message(service, [&](const std::string& message) { mock.Call(message); });
+    service.on_connect([&]() { mock.Call("connect"); });
+    service.on_disconnect([&]() { mock.Call("disconnect"); });
+    service.on_message([&](const std::string& message) { mock.Call(message); });
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    start(service);
+    service.start();
     EXPECT_CALL(mock, Call("axy")).Times(1);
-    publish(service, "axy", 3);
+    service.publish("axy", 3);
     EXPECT_CALL(mock, Call("axy")).Times(1);
-    publish(service, {'a', 'x', 'y'});
+    service.publish({'a', 'x', 'y'});
     EXPECT_CALL(mock, Call("axy")).Times(1);
-    publish(service, nil::service::concat('a', 'x', 'y'));
+    service.publish(nil::service::concat('a', 'x', 'y'));
     EXPECT_CALL(mock, Call("disconnect")).Times(1);
-    stop(service);
+    service.stop();
 }
 
 TEST(BaseService, map_without_id_with_raw)

@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 
 namespace nil::service::https::server
 {
@@ -15,5 +16,5 @@ namespace nil::service::https::server
         std::uint64_t buffer = 8192;
     };
 
-    W create(Options options);
+    std::unique_ptr<IWebService> create(Options options);
 }

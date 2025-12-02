@@ -90,7 +90,7 @@ auto input_output(auto& service)
             break;
         }
 
-        publish(service, nil::service::concat(type, "typed > ", message, " : ", "secondary here"));
+        service.publish(nil::service::concat(type, "typed > ", message, " : ", "secondary here"));
 
         type = (type + 1) % 2;
     }
@@ -101,35 +101,28 @@ void loop(T& service, U& io)
 {
     while (true)
     {
-        std::thread t1([&]() { start(service); });
+        std::thread t1([&]() { service.start(); });
         input_output(io);
-        stop(service);
+        service.stop();
         t1.join();
-        restart(service);
+        service.restart();
     }
 }
 
 template <typename T>
 void handlers(T& service)
 {
-    on_ready(                                                       //
-        service,                                                    //
+    service.on_ready(                                               //
         [](const auto& id) {                                        //
             std::cout << "local        : " << id.text << std::endl; //
         }
     );
-    on_connect(
-        service,                                                    //
-        [](const nil::service::ID& id) {                            //
-            std::cout << "connected    : " << id.text << std::endl; //
-        }
-    );
-    on_disconnect(
-        service,                                                    //
-        [](const nil::service::ID& id) {                            //
-            std::cout << "disconnected : " << id.text << std::endl; //
-        }
-    );
+    service.on_connect([](const nil::service::ID& id) {         //
+        std::cout << "connected    : " << id.text << std::endl; //
+    });
+    service.on_disconnect([](const nil::service::ID& id) {      //
+        std::cout << "disconnected : " << id.text << std::endl; //
+    });
 }
 
 template <auto creator>
@@ -141,32 +134,29 @@ int runner(const nil::clix::Options& options)
         return 0;
     }
     auto service = creator(options);
-    on_message(
-        service,
-        nil::service::map(
-            nil::service::mapping(
-                0u,
-                [](const auto& id, const std::string& m)
-                {
-                    std::cout << "from         : " << id.text << std::endl;
-                    std::cout << "type         : " << 0 << std::endl;
-                    std::cout << "message      : " << m << std::endl;
-                }
-            ),
-            nil::service::mapping(
-                1u,
-                [](const auto& id, const void* data, std::uint64_t size)
-                {
-                    const auto m = nil::service::consume<std::string>(data, size);
-                    std::cout << "from         : " << id.text << std::endl;
-                    std::cout << "type         : " << 1 << std::endl;
-                    std::cout << "message      : " << m << std::endl;
-                }
-            )
+    service->on_message(nil::service::map(
+        nil::service::mapping(
+            0u,
+            [](const auto& id, const std::string& m)
+            {
+                std::cout << "from         : " << id.text << std::endl;
+                std::cout << "type         : " << 0 << std::endl;
+                std::cout << "message      : " << m << std::endl;
+            }
+        ),
+        nil::service::mapping(
+            1u,
+            [](const auto& id, const void* data, std::uint64_t size)
+            {
+                const auto m = nil::service::consume<std::string>(data, size);
+                std::cout << "from         : " << id.text << std::endl;
+                std::cout << "type         : " << 1 << std::endl;
+                std::cout << "message      : " << m << std::endl;
+            }
         )
-    );
-    handlers(service);
-    loop(service, service);
+    ));
+    handlers(*service);
+    loop(*service, *service);
     return 0;
 }
 
@@ -193,15 +183,14 @@ void sc_node(nil::clix::Node& node)
         });
 }
 
-nil::service::P add_web_service(nil::service::WebService& server)
+nil::service::IService* add_web_service(nil::service::IWebService& server)
 {
-    on_get(
-        server,
-        [](const nil::service::WebTransaction& transaction) -> void
+    server.on_get(
+        [](nil::service::WebTransaction& transaction) -> bool
         {
             if ("/" != get_route(transaction))
             {
-                return;
+                return false;
             }
             set_content_type(transaction, "text/html");
             send(
@@ -229,20 +218,18 @@ nil::service::P add_web_service(nil::service::WebService& server)
                 "</head>"
                 "<body>hello world</body>"
             );
+            return true;
         }
     );
-    on_ready(
-        server,                                                   //
-        [](const auto& id)                                        //
-        { std::cout << "ready      : " << id.text << std::endl; } //
+    server.on_ready([](const auto& id)                                        //
+                    { std::cout << "ready      : " << id.text << std::endl; } //
     );
-    auto ws = use_ws(server, "/ws");
-    on_message(
-        ws,                                                                             //
+    auto* ws = server.use_ws("/ws");
+    ws->on_message(                                                                     //
         [](const auto& id, const std::string& content)                                  //
         { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
     );
-    handlers(ws);
+    handlers(*ws);
     return ws;
 }
 
@@ -260,8 +247,8 @@ void add_web_node(nil::clix::Node& node)
                 return 0;
             }
             auto server = create(options);
-            auto ws = add_web_service(server);
-            loop(server, ws);
+            auto ws = add_web_service(*server);
+            loop(*server, *ws);
             return 0;
         });
 }

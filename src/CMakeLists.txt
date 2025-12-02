@@ -13,7 +13,6 @@ set(
         publish/nil/service/map.hpp
         publish/nil/service/detail/create_handler.hpp
         publish/nil/service/detail/create_message_handler.hpp
-        publish/nil/service/detail/Handlers.hpp
         publish/nil/service/structs.hpp
         publish/nil/service/self/create.hpp
         publish/nil/service/udp/server/create.hpp
@@ -28,18 +27,8 @@ set(
     SOURCES
         src/codec.cpp
         src/utils.hpp
-        src/structs.cpp
-        src/structs/HTTPService.hpp
-        src/structs/MessagingService.hpp
-        src/structs/ObservableService.hpp
-        src/structs/RunnableService.hpp
-        src/structs/Service.hpp
-        src/structs/StandaloneService.hpp
-        src/structs/WebService.cpp
-        src/structs/WebService.hpp
-        src/proxies/P.cpp
-        src/proxies/A.cpp
-        src/proxies/W.cpp
+        src/structs/WebTransaction.cpp
+        src/structs/WebTransaction.hpp
         src/self/create.cpp
         src/udp/client/create.cpp
         src/udp/server/create.cpp
@@ -52,7 +41,6 @@ set(
         src/ws/Connection.cpp
         src/ws/Connection.hpp
         src/http/server/create.cpp
-        src/http/server/Route.hpp
         src/http/server/WebSocket.cpp
         src/http/server/WebSocket.hpp
 )
@@ -85,13 +73,11 @@ if(ENABLE_SSL)
         ${PROJECT_NAME}-ssl
         publish/nil/service/wss/server/create.hpp
         publish/nil/service/wss/client/create.hpp
-        src/structs/HTTPSService.hpp
         src/wss/client/create.cpp
         src/wss/server/create.cpp
         src/wss/Connection.cpp
         src/wss/Connection.hpp
         src/https/server/create.cpp
-        src/https/server/Route.hpp
         src/https/server/WebSocket.cpp
         src/https/server/WebSocket.hpp
     )

@@ -1,20 +1,22 @@
 #include "WebSocket.hpp"
 
+#include "../../utils.hpp"
+
 namespace nil::service::https::server
 {
     void WebSocket::ready(const ID& id) const
     {
-        detail::invoke(handlers.on_ready, id);
+        utils::invoke(on_ready_cb, id);
     }
 
     void WebSocket::connect(wss::Connection* connection)
     {
-        detail::invoke(handlers.on_connect, connection->id());
+        utils::invoke(on_connect_cb, connection->id());
     }
 
     void WebSocket::message(const ID& id, const void* data, std::uint64_t size)
     {
-        detail::invoke(handlers.on_message, id, data, size);
+        utils::invoke(on_message_cb, id, data, size);
     }
 
     void WebSocket::disconnect(wss::Connection* connection)
@@ -27,7 +29,7 @@ namespace nil::service::https::server
                 {
                     connections.erase(id);
                 }
-                detail::invoke(handlers.on_disconnect, id);
+                utils::invoke(on_disconnect_cb, id);
             }
         );
     }
@@ -106,5 +108,27 @@ namespace nil::service::https::server
                 }
             );
         }
+    }
+
+    void WebSocket::impl_on_message(
+        std::function<void(const ID&, const void*, std::uint64_t)> handler
+    )
+    {
+        on_message_cb.push_back(std::move(handler));
+    }
+
+    void WebSocket::impl_on_ready(std::function<void(const ID&)> handler)
+    {
+        on_ready_cb.push_back(std::move(handler));
+    }
+
+    void WebSocket::impl_on_connect(std::function<void(const ID&)> handler)
+    {
+        on_connect_cb.push_back(std::move(handler));
+    }
+
+    void WebSocket::impl_on_disconnect(std::function<void(const ID&)> handler)
+    {
+        on_disconnect_cb.push_back(std::move(handler));
     }
 }

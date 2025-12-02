@@ -1,6 +1,5 @@
 #include <nil/service/tcp/server/create.hpp>
 
-#include "../../structs/StandaloneService.hpp"
 #include "../../utils.hpp"
 #include "../Connection.hpp"
 
@@ -27,7 +26,7 @@ namespace nil::service::tcp::server
     };
 
     struct Impl final
-        : StandaloneService
+        : IStandaloneService
         , ConnectedImpl<Connection>
     {
     public:
@@ -48,7 +47,7 @@ namespace nil::service::tcp::server
             if (!context)
             {
                 context = std::make_unique<Context>(options.host, options.port);
-                detail::invoke(handlers.on_ready, utils::to_id(context->acceptor.local_endpoint()));
+                utils::invoke(on_ready_cb, utils::to_id(context->acceptor.local_endpoint()));
                 accept();
             }
             context->ctx.run();
@@ -132,9 +131,18 @@ namespace nil::service::tcp::server
         }
 
     private:
+        Options options;
+        std::unique_ptr<Context> context;
+        std::unordered_map<ID, std::unique_ptr<Connection>> connections;
+
+        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(const ID&)>> on_ready_cb;
+        std::vector<std::function<void(const ID&)>> on_connect_cb;
+        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
+
         void connect(Connection* connection) override
         {
-            detail::invoke(handlers.on_connect, connection->id());
+            utils::invoke(on_connect_cb, connection->id());
         }
 
         void disconnect(Connection* connection) override
@@ -147,14 +155,14 @@ namespace nil::service::tcp::server
                     {
                         connections.erase(id);
                     }
-                    detail::invoke(handlers.on_disconnect, id);
+                    utils::invoke(on_disconnect_cb, id);
                 }
             );
         }
 
         void message(const ID& id, const void* data, std::uint64_t size) override
         {
-            detail::invoke(handlers.on_message, id, data, size);
+            utils::invoke(on_message_cb, id, data, size);
         }
 
         void accept()
@@ -178,17 +186,30 @@ namespace nil::service::tcp::server
             );
         }
 
-        Options options;
-        std::unique_ptr<Context> context;
-        std::unordered_map<ID, std::unique_ptr<Connection>> connections;
+        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
+        ) override
+        {
+            on_message_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_ready(std::function<void(const ID&)> handler) override
+        {
+            on_ready_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_connect(std::function<void(const ID&)> handler) override
+        {
+            on_connect_cb.push_back(std::move(handler));
+        }
+
+        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        {
+            on_disconnect_cb.push_back(std::move(handler));
+        }
     };
 
-    A create(Options options)
+    std::unique_ptr<IStandaloneService> create(Options options)
     {
-        constexpr auto deleter = [](StandaloneService* obj) { //
-            auto ptr = static_cast<Impl*>(obj);               // NOLINT
-            std::default_delete<Impl>()(ptr);
-        };
-        return {{new Impl(std::move(options)), deleter}};
+        return std::make_unique<Impl>(std::move(options));
     }
 }
