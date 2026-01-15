@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.27.1)
 
-project(nil-service VERSION 1.0.5 LANGUAGES CXX)
+project(
+    nil-service
+    VERSION 1.0.6
+    LANGUAGES CXX
+    DESCRIPTION "boost net library wrapper"
+)
 
-include(cmake/package.cmake)
-include(cmake/toolchain.cmake)
-include(cmake/quality.cmake)
-include(cmake/test.cmake)
-include(cmake/coverage.cmake)
-include(cmake/cpack.cmake)
+find_package(nil-xalt CONFIG REQUIRED)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "nil-xalt (>= ${nil-xalt_VERSION})")
+
+find_package(nil-cmake CONFIG REQUIRED)
+install_config("cmake/config.cmake.in")
 
 add_subdirectory(src)
 

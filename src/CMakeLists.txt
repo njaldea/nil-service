@@ -1,7 +1,6 @@
 project(service)
 
 find_package(Boost REQUIRED COMPONENTS asio beast)
-find_package(nil-xalt REQUIRED)
 
 set(
     HEADERS
