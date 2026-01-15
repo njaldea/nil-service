@@ -8,7 +8,7 @@ project(
 )
 
 find_package(nil-xalt CONFIG REQUIRED)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "nil-xalt (>= ${nil-xalt_VERSION})")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "nil-xalt-dev (>= ${nil-xalt_VERSION})")
 
 find_package(nil-cmake CONFIG REQUIRED)
 install_config("cmake/config.cmake.in")
