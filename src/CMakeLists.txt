@@ -46,6 +46,11 @@ set(
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    BOOST_ASIO_STANDALONE
+    BOOST_ASIO_NO_TYPEID
+)
+
 target_link_libraries(
     ${PROJECT_NAME} PUBLIC
     nil::xalt

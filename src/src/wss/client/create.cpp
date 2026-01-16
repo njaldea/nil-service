@@ -3,8 +3,6 @@
 #include "../../utils.hpp"
 #include "../Connection.hpp"
 
-#define BOOST_ASIO_STANDALONE
-#define BOOST_ASIO_NO_TYPEID
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/context.hpp>
