@@ -2,6 +2,7 @@
 
 #include "../utils.hpp"
 
+#include <boost/asio/dispatch.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
 
@@ -106,6 +107,14 @@ namespace nil::service::self
         void restart() override
         {
             context.reset();
+        }
+
+        void dispatch(std::function<void()> task) override
+        {
+            if (context)
+            {
+                boost::asio::post(*context, std::move(task));
+            }
         }
 
     private:

@@ -71,6 +71,7 @@ namespace nil::service::https::server
         void start() override;
         void stop() override;
         void restart() override;
+        void dispatch(std::function<void()> task) override;
 
     private:
         Options options;
@@ -294,6 +295,14 @@ namespace nil::service::https::server
     void Impl::restart()
     {
         context.reset();
+    }
+
+    void Impl::dispatch(std::function<void()> task)
+    {
+        if (context)
+        {
+            boost::asio::dispatch(context->ctx, std::move(task));
+        }
     }
 
     void Impl::accept()

@@ -64,6 +64,14 @@ namespace nil::service::udp::server
             context.reset();
         }
 
+        void dispatch(std::function<void()> task) override
+        {
+            if (context)
+            {
+                boost::asio::dispatch(context->ctx, std::move(task));
+            }
+        }
+
         void publish(std::vector<std::uint8_t> data) override
         {
             boost::asio::post(

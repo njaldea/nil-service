@@ -62,6 +62,10 @@ public:
     {
     }
 
+    void dispatch(std::function<void()> /* task */) override
+    {
+    }
+
     void publish(std::vector<std::uint8_t> message) override
     {
         nil::service::utils::invoke(

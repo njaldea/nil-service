@@ -69,6 +69,14 @@ namespace nil::service::wss::server
             server->restart();
         }
 
+        void dispatch(std::function<void()> task) override
+        {
+            if (server)
+            {
+                server->dispatch(std::move(task));
+            }
+        }
+
     private:
         std::unique_ptr<IWebService> server;
         IService* ws;

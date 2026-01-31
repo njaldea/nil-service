@@ -33,6 +33,11 @@ namespace nil::service
          *  Call before calling other methods.
          */
         virtual void restart() = 0;
+
+        /**
+         * @brief execute the task in the service thread
+         */
+        virtual void dispatch(std::function<void()> task) = 0;
     };
 
     struct IMessagingService
