@@ -163,7 +163,7 @@ namespace nil::service
         ) = 0;
         virtual void impl_on_ready(std::function<void(const ID&)> handler) = 0;
         virtual void impl_on_connect(std::function<void(const ID&)> handler) = 0;
-        virtual void impl_on_disconnect(std::function<void(const ID&)> handler);
+        virtual void impl_on_disconnect(std::function<void(const ID&)> handler) = 0;
     };
 
     struct IService
