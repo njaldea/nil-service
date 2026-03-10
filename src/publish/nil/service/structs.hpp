@@ -50,8 +50,7 @@ namespace nil::service
         IMessagingService& operator=(IMessagingService&&) = delete;
 
         virtual void publish(std::vector<std::uint8_t> payload) = 0;
-        virtual void publish_ex(ID id, std::vector<std::uint8_t> payload) = 0;
-        virtual void send(ID id, std::vector<std::uint8_t> payload) = 0;
+        virtual void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> payload) = 0;
         virtual void send(std::vector<ID> ids, std::vector<std::uint8_t> payload) = 0;
 
         void publish(const void* data, std::uint64_t size)
@@ -63,13 +62,13 @@ namespace nil::service
         void publish_ex(ID id, const void* data, std::uint64_t size)
         {
             const auto* ptr = static_cast<const std::uint8_t*>(data);
-            publish_ex(std::move(id), std::vector<std::uint8_t>(ptr, ptr + size));
+            publish_ex(std::vector<ID>{std::move(id)}, std::vector<std::uint8_t>(ptr, ptr + size));
         }
 
         void send(ID id, const void* data, std::uint64_t size)
         {
             const auto* ptr = static_cast<const std::uint8_t*>(data);
-            send(std::move(id), std::vector<std::uint8_t>(ptr, ptr + size));
+            send(std::vector<ID>{std::move(id)}, std::vector<std::uint8_t>(ptr, ptr + size));
         }
 
         template <typename T>
@@ -83,7 +82,7 @@ namespace nil::service
             requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
         void send(ID id, const T& data)
         {
-            send(std::move(id), concat(data));
+            send(std::vector<ID>{std::move(id)}, concat(data));
         }
 
         template <typename T>
@@ -91,6 +90,11 @@ namespace nil::service
         void send(std::vector<ID> ids, const T& data)
         {
             send(std::move(ids), concat(data));
+        }
+
+        void send(ID id, std::vector<std::uint8_t> payload)
+        {
+            send(std::vector<ID>{id}, std::move(payload));
         }
     };
 

@@ -100,36 +100,30 @@ namespace nil::service::udp::client
             }
         }
 
-        void publish_ex(ID id, std::vector<std::uint8_t> data) override
+        void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
             if (context)
             {
                 boost::asio::post(
                     context->strand,
-                    [this, id = std::move(id), msg = std::move(data)]()
+                    [this, ids = std::move(ids), msg = std::move(data)]()
                     {
-                        if (targetID != id)
+                        if (ids.end() != std::find(ids.begin(), ids.end(), targetID))
                         {
-                            const auto header
-                                = boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE));
-                            context->socket.send_to(
-                                std::array<boost::asio::const_buffer, 2>{
-                                    header,
-                                    boost::asio::buffer(msg)
-                                },
-                                {boost::asio::ip::make_address(options.host), options.port}
-                            );
+                            return;
                         }
+
+                        const auto header
+                            = boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE));
+                        context->socket.send_to(
+                            std::array<boost::asio::const_buffer, 2>{
+                                header,
+                                boost::asio::buffer(msg)
+                            },
+                            {boost::asio::ip::make_address(options.host), options.port}
+                        );
                     }
                 );
-            }
-        }
-
-        void send(ID id, std::vector<std::uint8_t> data) override
-        {
-            if (targetID == id)
-            {
-                publish(std::move(data));
             }
         }
 

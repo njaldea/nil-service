@@ -23,37 +23,29 @@ namespace nil::service::self
             }
         }
 
-        void publish_ex(ID id, std::vector<std::uint8_t> payload) override
+        void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> payload) override
         {
             if (context)
             {
                 boost::asio::post(
                     *context,
-                    [this, id = std::move(id), msg = std::move(payload)]()
+                    [this, ids = std::move(ids), msg = std::move(payload)]()
                     {
-                        if (this->self != id)
+                        if (ids.end() != std::find(ids.begin(), ids.end(), self))
                         {
-                            utils::invoke(on_message_cb, self, msg.data(), msg.size());
+                            return;
                         }
+                        utils::invoke(on_message_cb, self, msg.data(), msg.size());
                     }
                 );
             }
         }
 
-        void send(ID to, std::vector<std::uint8_t> payload) override
-        {
-            if (self == to)
-            {
-                publish(std::move(payload));
-            }
-        }
-
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            auto it = std::find(ids.begin(), ids.end(), self);
-            if (it != ids.end())
+            if (ids.end() != std::find(ids.begin(), ids.end(), self))
             {
-                this->send(*it, std::move(data));
+                utils::invoke(on_message_cb, self, data.data(), data.size());
             }
         }
 

@@ -51,20 +51,22 @@ namespace nil::service::https::server
         }
     }
 
-    void WebSocket::publish_ex(ID id, std::vector<std::uint8_t> data)
+    void WebSocket::publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> data)
     {
         if (context != nullptr)
         {
             boost::asio::post(
                 *context,
-                [this, id = std::move(id), msg = std::move(data)]()
+                [this, ids = std::move(ids), msg = std::move(data)]()
                 {
-                    for (const auto& item : connections)
+                    for (const auto& connection : connections)
                     {
-                        if (item.first != id)
+                        if (ids.end() != std::find(ids.begin(), ids.end(), connection.first))
                         {
-                            item.second->write(msg.data(), msg.size());
+                            continue;
                         }
+
+                        connection.second->write(msg.data(), msg.size());
                     }
                 }
             );

@@ -85,27 +85,14 @@ namespace nil::service::tcp::client
             );
         }
 
-        void publish_ex(ID id, std::vector<std::uint8_t> data) override
+        void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
             boost::asio::post(
                 context->strand,
-                [this, id = std::move(id), msg = std::move(data)]()
+                [this, ids = std::move(ids), msg = std::move(data)]()
                 {
-                    if (connection != nullptr && connection->id() != id)
-                    {
-                        connection->write(msg.data(), msg.size());
-                    }
-                }
-            );
-        }
-
-        void send(ID id, std::vector<std::uint8_t> data) override
-        {
-            boost::asio::post(
-                context->strand,
-                [this, id = std::move(id), msg = std::move(data)]()
-                {
-                    if (connection != nullptr && connection->id() == id)
+                    if (connection != nullptr
+                        && ids.end() == std::find(ids.begin(), ids.end(), connection->id()))
                     {
                         connection->write(msg.data(), msg.size());
                     }

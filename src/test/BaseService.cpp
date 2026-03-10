@@ -50,12 +50,12 @@ public:
 
     void start() override
     {
-        nil::service::utils::invoke(on_connect_cb, nil::service::ID{id});
+        nil::service::utils::invoke(on_connect_cb, id);
     }
 
     void stop() override
     {
-        nil::service::utils::invoke(on_disconnect_cb, nil::service::ID{id});
+        nil::service::utils::invoke(on_disconnect_cb, id);
     }
 
     void restart() override
@@ -68,23 +68,15 @@ public:
 
     void publish(std::vector<std::uint8_t> message) override
     {
-        nil::service::utils::invoke(
-            on_message_cb,
-            nil::service::ID{id},
-            message.data(),
-            message.size()
-        );
+        nil::service::utils::invoke(on_message_cb, id, message.data(), message.size());
     }
 
-    void publish_ex(nil::service::ID did, std::vector<std::uint8_t> message) override
+    void publish_ex(std::vector<nil::service::ID> ids, std::vector<std::uint8_t> message) override
     {
-        nil::service::utils::invoke(on_message_cb, did, message.data(), message.size());
-    }
-
-    void send(nil::service::ID target_id, std::vector<std::uint8_t> message) override
-    {
-        (void)target_id;
-        (void)message;
+        if (ids.end() == std::find(ids.begin(), ids.end(), id))
+        {
+            nil::service::utils::invoke(on_message_cb, id, message.data(), message.size());
+        }
     }
 
     void send(std::vector<nil::service::ID> target_id, std::vector<std::uint8_t> message) override
@@ -98,7 +90,7 @@ public:
     using IMessagingService::send;
 
 private:
-    std::string id;
+    nil::service::ID id;
 
     std::vector<std::function<void(const nil::service::ID&, const void*, std::uint64_t)>>
         on_message_cb;
