@@ -78,7 +78,7 @@ namespace nil::service::udp::server
                 context->strand,
                 [this, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)]()
                 {
-                    const auto b = std::array<boost::asio::const_buffer, 3>{
+                    const auto b = std::array<boost::asio::const_buffer, 2>{
                         boost::asio::buffer(i),
                         boost::asio::buffer(msg)
                     };
@@ -99,7 +99,7 @@ namespace nil::service::udp::server
                  i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
                  msg = std::move(data)]()
                 {
-                    const auto b = std::array<boost::asio::const_buffer, 3>{
+                    const auto b = std::array<boost::asio::const_buffer, 2>{
                         boost::asio::buffer(i),
                         boost::asio::buffer(msg)
                     };
@@ -198,7 +198,11 @@ namespace nil::service::udp::server
 
         void usermsg(const ID& id, const std::uint8_t* data, std::uint64_t size)
         {
-            utils::invoke(on_message_cb, id, data, size);
+            auto it = connections.find(id);
+            if (it != connections.end())
+            {
+                utils::invoke(on_message_cb, id, data, size);
+            }
         }
 
         void message(
@@ -209,7 +213,7 @@ namespace nil::service::udp::server
         {
             if (size >= sizeof(std::uint8_t))
             {
-                if (utils::from_array<std::uint8_t>(data) > 0u)
+                if (utils::from_array<std::uint8_t>(data) == utils::UDP_INTERNAL_MESSAGE)
                 {
                     ping(endpoint, {utils::to_id(endpoint)});
                 }

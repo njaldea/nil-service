@@ -3,7 +3,8 @@
 #include "service/ID.hpp"      // IWYU pragma: export
 #include "service/structs.hpp" // IWYU pragma: export
 
-#include "service/self/create.hpp" // IWYU pragma: export
+#include "service/gateway/create.hpp" // IWYU pragma: export
+#include "service/self/create.hpp"    // IWYU pragma: export
 
 #include "service/tcp/client/create.hpp" // IWYU pragma: export
 #include "service/tcp/server/create.hpp" // IWYU pragma: export

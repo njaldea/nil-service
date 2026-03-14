@@ -14,6 +14,7 @@ set(
         publish/nil/service/detail/create_message_handler.hpp
         publish/nil/service/structs.hpp
         publish/nil/service/self/create.hpp
+        publish/nil/service/gateway/create.hpp
         publish/nil/service/udp/server/create.hpp
         publish/nil/service/udp/client/create.hpp
         publish/nil/service/tcp/server/create.hpp
@@ -29,6 +30,7 @@ set(
         src/structs/WebTransaction.cpp
         src/structs/WebTransaction.hpp
         src/self/create.cpp
+        src/gateway/create.cpp
         src/udp/client/create.cpp
         src/udp/server/create.cpp
         src/tcp/client/create.cpp

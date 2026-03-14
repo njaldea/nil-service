@@ -94,7 +94,7 @@ namespace nil::service
 
         void send(ID id, std::vector<std::uint8_t> payload)
         {
-            send(std::vector<ID>{id}, std::move(payload));
+            send(std::vector<ID>{std::move(id)}, std::move(payload));
         }
     };
 
@@ -220,5 +220,10 @@ namespace nil::service
         : IService
         , IRunnableService
     {
+    };
+
+    struct IGatewayService: IStandaloneService
+    {
+        virtual void add_service(IService& service);
     };
 }

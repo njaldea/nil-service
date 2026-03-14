@@ -90,7 +90,13 @@ auto input_output(auto& service)
             break;
         }
 
-        service.publish(nil::service::concat(type, "typed > ", message, " : ", "secondary here"));
+        service.publish(nil::service::concat(
+            type == 0 ? 'A' : 'B',
+            "typed > ",
+            message,
+            " : ",
+            "secondary here"
+        ));
 
         type = (type + 1) % 2;
     }
@@ -123,6 +129,30 @@ void handlers(T& service)
     service.on_disconnect([](const nil::service::ID& id) {      //
         std::cout << "disconnected : " << id.text << std::endl; //
     });
+    service.on_message([](const auto& id, const auto* /* data */, auto size)
+                       { std::cout << "message recieved: " << id.text << ":" << size << std::endl; }
+    );
+    service.on_message(nil::service::map(
+        nil::service::mapping(
+            'A',
+            [](const auto& id, const std::string& m)
+            {
+                std::cout << "from         : " << id.text << std::endl;
+                std::cout << "type         : " << 0 << std::endl;
+                std::cout << "message      : " << m << std::endl;
+            }
+        ),
+        nil::service::mapping(
+            'B',
+            [](const auto& id, const void* data, std::uint64_t size)
+            {
+                const auto m = nil::service::consume<std::string>(data, size);
+                std::cout << "from         : " << id.text << std::endl;
+                std::cout << "type         : " << 1 << std::endl;
+                std::cout << "message      : " << m << std::endl;
+            }
+        )
+    ));
 }
 
 template <auto creator>
@@ -134,27 +164,6 @@ int runner(const nil::clix::Options& options)
         return 0;
     }
     auto service = creator(options);
-    service->on_message(nil::service::map(
-        nil::service::mapping(
-            0u,
-            [](const auto& id, const std::string& m)
-            {
-                std::cout << "from         : " << id.text << std::endl;
-                std::cout << "type         : " << 0 << std::endl;
-                std::cout << "message      : " << m << std::endl;
-            }
-        ),
-        nil::service::mapping(
-            1u,
-            [](const auto& id, const void* data, std::uint64_t size)
-            {
-                const auto m = nil::service::consume<std::string>(data, size);
-                std::cout << "from         : " << id.text << std::endl;
-                std::cout << "type         : " << 1 << std::endl;
-                std::cout << "message      : " << m << std::endl;
-            }
-        )
-    ));
     handlers(*service);
     loop(*service, *service);
     return 0;
@@ -225,10 +234,6 @@ nil::service::IService* add_web_service(nil::service::IWebService& server)
                     { std::cout << "ready      : " << id.text << std::endl; } //
     );
     auto* ws = server.use_ws("/ws");
-    ws->on_message(                                                                     //
-        [](const auto& id, const std::string& content)                                  //
-        { std::cout << "message    : " << id.text << "  :  " << content << std::endl; } //
-    );
     handlers(*ws);
     return ws;
 }
@@ -258,6 +263,40 @@ int main(int argc, const char** argv)
     auto node = nil::clix::create_node();
     add_help(node);
     use(node, nil::clix::prebuilt::Help(&std::cout));
+    sub(node,
+        "all",
+        "use all protocol",
+        [](auto& n)
+        {
+            add_help(n);
+            add_port(n);
+            add_route(n);
+            use(n,
+                [](const nil::clix::Options& options)
+                {
+                    namespace ns = nil::service;
+                    auto udp = create_options<&ns::udp::server::create>(options);
+                    auto tcp = create_options<&ns::tcp::server::create>(options);
+                    auto ws = create_ws_sc<&ns::ws::server::create>(options);
+
+                    auto gateway = nil::service::gateway::create();
+                    gateway->add_service(*udp);
+                    gateway->add_service(*tcp);
+                    gateway->add_service(*ws);
+
+                    handlers(*gateway);
+
+                    std::vector<std::thread> v;
+                    v.emplace_back([&]() { udp->start(); });
+                    v.emplace_back([&]() { tcp->start(); });
+                    v.emplace_back([&]() { ws->start(); });
+                    v.emplace_back([&]() { input_output(*gateway); });
+
+                    gateway->start();
+
+                    return 0;
+                });
+        });
     sub(node,
         "self",
         "use self protocol",
