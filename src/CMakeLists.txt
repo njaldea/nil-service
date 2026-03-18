@@ -5,6 +5,7 @@ find_package(Boost REQUIRED COMPONENTS asio beast)
 set(
     HEADERS
         publish/nil/service.hpp
+        publish/nil/service/capi.h
         publish/nil/service/codec.hpp
         publish/nil/service/concat.hpp
         publish/nil/service/consume.hpp
@@ -25,6 +26,7 @@ set(
 
 set(
     SOURCES
+        src/capi.cpp
         src/codec.cpp
         src/utils.hpp
         src/structs/WebTransaction.cpp
