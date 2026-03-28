@@ -10,9 +10,9 @@
             "description": "Enable tests",
             "dependencies": [ "gtest" ]
         },
-        "ssl": {
-            "description": "https and wss",
-            "dependencies": [ "openssl" ]
+        "c-api": {
+            "description": "Enable C api",
+            "dependencies": []
         }
     }
 }

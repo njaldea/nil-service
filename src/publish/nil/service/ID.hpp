@@ -5,23 +5,41 @@
 
 namespace nil::service
 {
-    /**
-     * @brief Temporary identifier for a connection
-     */
     struct ID final
     {
-        std::string text;
+        // NOLINTNEXTLINE
+        ID(const void* init_owner, const void* init_id, std::string (*init_to_string)(const void*))
+            : owner(init_owner)
+            , id(init_id)
+            , to_string(init_to_string)
+        {
+        }
+
+        ID() = default;
+        ~ID() = default;
+
+        ID(const ID& o) = default;
+        ID& operator=(const ID& o) = default;
+
+        ID(ID&& o) = delete;
+        ID& operator=(ID&& o) = delete;
+
+        bool operator==(const ID& o) const
+        {
+            return owner == o.owner && id == o.id;
+        }
+
+        bool operator!=(const ID& o) const
+        {
+            return !(*this == o);
+        }
+
+        const void* owner = nullptr;
+        const void* id = nullptr;
+        std::string (*to_string)(const void*) = nullptr;
     };
 
-    inline bool operator==(const ID& l, const ID& r)
-    {
-        return l.text == r.text;
-    }
-
-    inline bool operator!=(const ID& l, const ID& r)
-    {
-        return !(l == r);
-    }
+    std::string to_string(const ID& id);
 }
 
 namespace std
@@ -31,7 +49,7 @@ namespace std
     {
         std::size_t operator()(const nil::service::ID& id) const
         {
-            return std::hash<std::string>()(id.text);
+            return std::hash<const void*>()(id.id);
         }
     };
 }

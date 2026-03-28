@@ -2,14 +2,21 @@
 
 #include "../utils.hpp"
 
-#include <boost/asio/dispatch.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
+
+#include <algorithm>
 
 namespace nil::service::self
 {
     struct Impl final: IStandaloneService
     {
+        static std::string to_string(const void* c)
+        {
+            (void)c;
+            return "self";
+        }
+
     public:
         void publish(std::vector<std::uint8_t> payload) override
         {
@@ -17,8 +24,14 @@ namespace nil::service::self
             {
                 boost::asio::post(
                     *context,
-                    [this, msg = std::move(payload)]()
-                    { utils::invoke(on_message_cb, self, msg.data(), msg.size()); }
+                    [this, msg = std::move(payload)]() {
+                        utils::invoke(
+                            on_message_cb,
+                            ID{this, this, &to_string},
+                            msg.data(),
+                            msg.size()
+                        );
+                    }
                 );
             }
         }
@@ -31,11 +44,17 @@ namespace nil::service::self
                     *context,
                     [this, ids = std::move(ids), msg = std::move(payload)]()
                     {
-                        if (ids.end() != std::find(ids.begin(), ids.end(), self))
+                        if (ids.end()
+                            == std::find(ids.begin(), ids.end(), ID{this, this, &to_string}))
                         {
                             return;
                         }
-                        utils::invoke(on_message_cb, self, msg.data(), msg.size());
+                        utils::invoke(
+                            on_message_cb,
+                            ID{this, this, &to_string},
+                            msg.data(),
+                            msg.size()
+                        );
                     }
                 );
             }
@@ -43,9 +62,9 @@ namespace nil::service::self
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            if (ids.end() != std::find(ids.begin(), ids.end(), self))
+            if (ids.end() != std::find(ids.begin(), ids.end(), ID{this, this, &to_string}))
             {
-                utils::invoke(on_message_cb, self, data.data(), data.size());
+                utils::invoke(on_message_cb, ID{this, this, &to_string}, data.data(), data.size());
             }
         }
 
@@ -79,8 +98,9 @@ namespace nil::service::self
                     *context,
                     [this]()
                     {
-                        utils::invoke(on_ready_cb, self);
-                        utils::invoke(on_connect_cb, self);
+                        const auto id = ID{this, this, &to_string};
+                        utils::invoke(on_ready_cb, id);
+                        utils::invoke(on_connect_cb, id);
                     }
                 );
             }
@@ -110,8 +130,6 @@ namespace nil::service::self
         }
 
     private:
-        ID self = {"self"};
-
         std::unique_ptr<boost::asio::io_context> context;
         std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
         std::vector<std::function<void(const ID&)>> on_ready_cb;

@@ -21,9 +21,3 @@
 #include "service/concat.hpp"  // IWYU pragma: export
 #include "service/consume.hpp" // IWYU pragma: export
 #include "service/map.hpp"     // IWYU pragma: export
-
-#ifdef NIL_SERVICE_SSL
-#include "service/https/server/create.hpp" // IWYU pragma: export
-#include "service/wss/client/create.hpp"   // IWYU pragma: export
-#include "service/wss/server/create.hpp"   // IWYU pragma: export
-#endif

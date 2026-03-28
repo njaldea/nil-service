@@ -64,21 +64,6 @@ auto create_http_server(const nil::clix::Options& options)
     );
 }
 
-#ifdef NIL_SERVICE_SSL
-
-template <auto maker>
-auto create_https_server(const nil::clix::Options& options)
-{
-    return maker(
-        {.cert = "../sandbox",
-         .host = "0.0.0.0",
-         .port = std::uint16_t(number(options, "port")),
-         .buffer = 1024ul * 1024ul * 100ul}
-    );
-}
-
-#endif
-
 auto input_output(auto& service)
 {
     std::string message;
@@ -118,26 +103,27 @@ void loop(T& service, U& io)
 template <typename T>
 void handlers(T& service)
 {
-    service.on_ready(                                               //
-        [](const auto& id) {                                        //
-            std::cout << "local        : " << id.text << std::endl; //
+    service.on_ready(                                                     //
+        [](const auto& id) {                                              //
+            std::cout << "local        : " << to_string(id) << std::endl; //
         }
     );
-    service.on_connect([](const nil::service::ID& id) {         //
-        std::cout << "connected    : " << id.text << std::endl; //
+    service.on_connect([](const nil::service::ID& id) {               //
+        std::cout << "connected    : " << to_string(id) << std::endl; //
     });
-    service.on_disconnect([](const nil::service::ID& id) {      //
-        std::cout << "disconnected : " << id.text << std::endl; //
+    service.on_disconnect([](const nil::service::ID& id) {            //
+        std::cout << "disconnected : " << to_string(id) << std::endl; //
     });
-    service.on_message([](const auto& id, const auto* /* data */, auto size)
-                       { std::cout << "message recieved: " << id.text << ":" << size << std::endl; }
+    service.on_message(
+        [](const auto& id, const auto* /* data */, auto size)
+        { std::cout << "message recieved: " << to_string(id) << ":" << size << std::endl; }
     );
     service.on_message(nil::service::map(
         nil::service::mapping(
             'A',
             [](const auto& id, const std::string& m)
             {
-                std::cout << "from         : " << id.text << std::endl;
+                std::cout << "from         : " << to_string(id) << std::endl;
                 std::cout << "type         : " << 0 << std::endl;
                 std::cout << "message      : " << m << std::endl;
             }
@@ -147,7 +133,7 @@ void handlers(T& service)
             [](const auto& id, const void* data, std::uint64_t size)
             {
                 const auto m = nil::service::consume<std::string>(data, size);
-                std::cout << "from         : " << id.text << std::endl;
+                std::cout << "from         : " << to_string(id) << std::endl;
                 std::cout << "type         : " << 1 << std::endl;
                 std::cout << "message      : " << m << std::endl;
             }
@@ -192,7 +178,7 @@ void sc_node(nil::clix::Node& node)
         });
 }
 
-nil::service::IService* add_web_service(nil::service::IWebService& server)
+nil::service::IEventService* add_web_service(nil::service::IWebService& server)
 {
     server.on_get(
         [](nil::service::WebTransaction& transaction) -> bool
@@ -230,8 +216,8 @@ nil::service::IService* add_web_service(nil::service::IWebService& server)
             return true;
         }
     );
-    server.on_ready([](const auto& id)                                        //
-                    { std::cout << "ready      : " << id.text << std::endl; } //
+    server.on_ready([](const auto& id)                                              //
+                    { std::cout << "ready      : " << to_string(id) << std::endl; } //
     );
     auto* ws = server.use_ws("/ws");
     handlers(*ws);
@@ -330,17 +316,6 @@ int main(int argc, const char** argv)
             add_help,
             add_port,
             add_route>);
-#ifdef NIL_SERVICE_SSL
-    sub(node,
-        "wss",
-        "use wss protocol",
-        sc_node< //
-            create_wss_server,
-            create_ws_sc<&nil::service::wss::client::create>,
-            add_help,
-            add_port,
-            add_route>);
-#endif
     sub(node,
         "http",
         "serve http server",
@@ -348,16 +323,6 @@ int main(int argc, const char** argv)
             create_http_server<&nil::service::http::server::create>,
             add_help,
             add_port>);
-
-#ifdef NIL_SERVICE_SSL
-    sub(node,
-        "https",
-        "serve https server",
-        &add_web_node< //
-            create_https_server<&nil::service::https::server::create>,
-            add_help,
-            add_port>);
-#endif
 
     nil::clix::run(node, argc, argv);
 }

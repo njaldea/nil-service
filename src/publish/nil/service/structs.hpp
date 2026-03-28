@@ -1,10 +1,11 @@
 #pragma once
 
-#include "concat.hpp"
 #include "detail/create_handler.hpp"
 #include "detail/create_message_handler.hpp"
 
+#include <functional>
 #include <type_traits>
+#include <utility>
 
 namespace nil::service
 {
@@ -40,14 +41,14 @@ namespace nil::service
         virtual void dispatch(std::function<void()> task) = 0;
     };
 
-    struct IMessagingService
+    struct IMessageService
     {
-        IMessagingService() = default;
-        virtual ~IMessagingService() noexcept = default;
-        IMessagingService(const IMessagingService&) = delete;
-        IMessagingService(IMessagingService&&) = delete;
-        IMessagingService& operator=(const IMessagingService&) = delete;
-        IMessagingService& operator=(IMessagingService&&) = delete;
+        IMessageService() = default;
+        virtual ~IMessageService() noexcept = default;
+        IMessageService(const IMessageService&) = delete;
+        IMessageService(IMessageService&&) = delete;
+        IMessageService& operator=(const IMessageService&) = delete;
+        IMessageService& operator=(IMessageService&&) = delete;
 
         virtual void publish(std::vector<std::uint8_t> payload) = 0;
         virtual void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> payload) = 0;
@@ -62,13 +63,13 @@ namespace nil::service
         void publish_ex(ID id, const void* data, std::uint64_t size)
         {
             const auto* ptr = static_cast<const std::uint8_t*>(data);
-            publish_ex(std::vector<ID>{std::move(id)}, std::vector<std::uint8_t>(ptr, ptr + size));
+            publish_ex(std::vector<ID>{id}, std::vector<std::uint8_t>(ptr, ptr + size));
         }
 
         void send(ID id, const void* data, std::uint64_t size)
         {
             const auto* ptr = static_cast<const std::uint8_t*>(data);
-            send(std::vector<ID>{std::move(id)}, std::vector<std::uint8_t>(ptr, ptr + size));
+            send(std::vector<ID>{id}, std::vector<std::uint8_t>(ptr, ptr + size));
         }
 
         template <typename T>
@@ -82,7 +83,7 @@ namespace nil::service
             requires(!std::is_same_v<std::vector<std::uint8_t>, T>)
         void send(ID id, const T& data)
         {
-            send(std::vector<ID>{std::move(id)}, concat(data));
+            send(std::vector<ID>{id}, concat(data));
         }
 
         template <typename T>
@@ -94,18 +95,18 @@ namespace nil::service
 
         void send(ID id, std::vector<std::uint8_t> payload)
         {
-            send(std::vector<ID>{std::move(id)}, std::move(payload));
+            send(std::vector<ID>{id}, std::move(payload));
         }
     };
 
-    struct IObservableService
+    struct ICallbackService
     {
-        IObservableService() = default;
-        virtual ~IObservableService() noexcept = default;
-        IObservableService(const IObservableService&) = delete;
-        IObservableService(IObservableService&&) = delete;
-        IObservableService& operator=(const IObservableService&) = delete;
-        IObservableService& operator=(IObservableService&&) = delete;
+        ICallbackService() = default;
+        virtual ~ICallbackService() noexcept = default;
+        ICallbackService(const ICallbackService&) = delete;
+        ICallbackService(ICallbackService&&) = delete;
+        ICallbackService& operator=(const ICallbackService&) = delete;
+        ICallbackService& operator=(ICallbackService&&) = delete;
 
         /**
          * @brief Add ready handler for service events.
@@ -170,9 +171,9 @@ namespace nil::service
         virtual void impl_on_disconnect(std::function<void(const ID&)> handler) = 0;
     };
 
-    struct IService
-        : IMessagingService
-        , IObservableService
+    struct IEventService
+        : IMessageService
+        , ICallbackService
     {
     };
 
@@ -190,7 +191,7 @@ namespace nil::service
             impl_on_ready(std::move(handler));
         }
 
-        virtual IService* use_ws(const std::string& key) = 0;
+        virtual IEventService* use_ws(const std::string& key) = 0;
 
         /**
          * @brief Add ready handler for service events.
@@ -217,13 +218,19 @@ namespace nil::service
     void send(const WebTransaction& transaction, const std::istream& body);
 
     struct IStandaloneService
-        : IService
+        : IEventService
         , IRunnableService
     {
     };
 
     struct IGatewayService: IStandaloneService
     {
-        virtual void add_service(IService& service);
+        IGatewayService() = default;
+        ~IGatewayService() noexcept override = default;
+        IGatewayService(const IGatewayService&) = delete;
+        IGatewayService(IGatewayService&&) = delete;
+        IGatewayService& operator=(const IGatewayService&) = delete;
+        IGatewayService& operator=(IGatewayService&&) = delete;
+        virtual void add_service(IEventService& service) = 0;
     };
 }

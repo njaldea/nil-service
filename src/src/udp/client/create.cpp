@@ -7,6 +7,8 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <algorithm>
+
 namespace nil::service::udp::client
 {
     struct Context
@@ -29,10 +31,20 @@ namespace nil::service::udp::client
 
     struct Impl final: IStandaloneService
     {
+        static std::string to_string_local(const void* c)
+        {
+            return utils::to_id(static_cast<const Impl*>(c)->context->socket.local_endpoint());
+        }
+
+        static std::string to_string_remote(const void* c)
+        {
+            const auto* impl = static_cast<const Impl*>(c);
+            return impl->options.host + ":" + std::to_string(impl->options.port);
+        }
+
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
-            , targetID{options.host + ":" + std::to_string(options.port)}
         {
             buffer.resize(options.buffer);
         }
@@ -49,8 +61,7 @@ namespace nil::service::udp::client
             if (!context)
             {
                 context = std::make_unique<Context>();
-
-                utils::invoke(on_ready_cb, utils::to_id(context->socket.local_endpoint()));
+                utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string_local});
                 ping();
                 receive();
             }
@@ -108,7 +119,12 @@ namespace nil::service::udp::client
                     context->strand,
                     [this, ids = std::move(ids), msg = std::move(data)]()
                     {
-                        if (ids.end() != std::find(ids.begin(), ids.end(), targetID))
+                        if (ids.end()
+                            == std::find(
+                                ids.begin(),
+                                ids.end(),
+                                ID{this, this, &Impl::to_string_remote}
+                            ))
                         {
                             return;
                         }
@@ -129,7 +145,7 @@ namespace nil::service::udp::client
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            auto it = std::find(ids.begin(), ids.end(), targetID);
+            auto it = std::find(ids.begin(), ids.end(), ID{this, this, &Impl::to_string_remote});
             if (it != ids.end())
             {
                 publish(std::move(data));
@@ -143,7 +159,6 @@ namespace nil::service::udp::client
         std::vector<std::uint8_t> buffer;
 
         bool connected = false;
-        ID targetID;
 
         std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
         std::vector<std::function<void(const ID&)>> on_ready_cb;
@@ -152,7 +167,7 @@ namespace nil::service::udp::client
 
         void usermsg(const std::uint8_t* data, std::uint64_t size)
         {
-            utils::invoke(on_message_cb, targetID, data, size);
+            utils::invoke(on_message_cb, ID{this, this, &Impl::to_string_remote}, data, size);
         }
 
         void pong()
@@ -160,7 +175,7 @@ namespace nil::service::udp::client
             if (!connected)
             {
                 connected = true;
-                utils::invoke(on_connect_cb, targetID);
+                utils::invoke(on_connect_cb, ID{this, this, &Impl::to_string_remote});
             }
             context->timeout.expires_after(options.timeout);
             context->timeout.async_wait(
@@ -173,7 +188,7 @@ namespace nil::service::udp::client
                     if (connected)
                     {
                         connected = false;
-                        utils::invoke(on_disconnect_cb, targetID);
+                        utils::invoke(on_disconnect_cb, ID{this, this, &Impl::to_string_remote});
                     }
                 }
             );

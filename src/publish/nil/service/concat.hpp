@@ -19,10 +19,10 @@ namespace nil::service
     template <typename... T>
     std::size_t concat_into(void* buffer, const T&... data)
     {
-        auto* original_ptr = static_cast<std::uint8_t*>(buffer);
-        auto* moving_ptr = original_ptr;
-        ((original_ptr += codec<T>::serialize(original_ptr, data)), ...);
-        return std::size_t(std::distance(moving_ptr, original_ptr));
+        auto* start = static_cast<std::uint8_t*>(buffer);
+        auto* current = start;
+        ((current += codec<T>::serialize(current, data)), ...);
+        return std::size_t(std::distance(start, current));
     }
 
     /**

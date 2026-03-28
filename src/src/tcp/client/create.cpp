@@ -8,6 +8,8 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <algorithm>
+
 namespace nil::service::tcp::client
 {
     struct Context
@@ -92,7 +94,7 @@ namespace nil::service::tcp::client
                 [this, ids = std::move(ids), msg = std::move(data)]()
                 {
                     if (connection != nullptr
-                        && ids.end() == std::find(ids.begin(), ids.end(), connection->id()))
+                        && ids.end() != std::find(ids.begin(), ids.end(), connection->remote_id()))
                     {
                         connection->write(msg.data(), msg.size());
                     }
@@ -108,8 +110,7 @@ namespace nil::service::tcp::client
                 {
                     if (connection != nullptr)
                     {
-                        const auto& id = connection->id();
-                        auto it = std::find(ids.begin(), ids.end(), id);
+                        auto it = std::find(ids.begin(), ids.end(), connection->remote_id());
                         if (it != ids.end())
                         {
                             connection->write(msg.data(), msg.size());
@@ -131,7 +132,7 @@ namespace nil::service::tcp::client
 
         void connect(Connection* target_connection) override
         {
-            utils::invoke(on_connect_cb, target_connection->id());
+            utils::invoke(on_connect_cb, target_connection->remote_id());
         }
 
         void disconnect(Connection* target_connection) override
@@ -142,7 +143,7 @@ namespace nil::service::tcp::client
                 {
                     if (connection.get() == target_connection)
                     {
-                        utils::invoke(on_disconnect_cb, connection->id());
+                        utils::invoke(on_disconnect_cb, connection->remote_id());
                         connection.reset();
                     }
                     reconnect();
@@ -159,18 +160,23 @@ namespace nil::service::tcp::client
         {
             auto socket = std::make_unique<boost::asio::ip::tcp::socket>(context->strand);
             auto* socket_ptr = socket.get();
+
             socket_ptr->async_connect(
                 {boost::asio::ip::make_address(options.host.data()), options.port},
                 [this, socket = std::move(socket)](const boost::system::error_code& ec)
                 {
                     if (!ec)
                     {
-                        utils::invoke(on_ready_cb, utils::to_id(socket->local_endpoint()));
                         connection = std::make_unique<Connection>(
                             options.buffer,
                             std::move(*socket),
                             *this
                         );
+                        utils::invoke(
+                            on_ready_cb,
+                            ID{this, connection.get(), &Connection::to_string_local}
+                        );
+                        connection->start();
                         return;
                     }
                     reconnect();

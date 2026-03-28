@@ -9,16 +9,21 @@ namespace nil::service::tcp
         boost::asio::ip::tcp::socket init_socket,
         ConnectedImpl<Connection>& init_impl
     )
-        : identifier(utils::to_id(init_socket.remote_endpoint()))
-        , socket(std::move(init_socket))
+        : socket(std::move(init_socket))
+        , local_endpoint(socket.local_endpoint())
+        , remote_endpoint(socket.remote_endpoint())
         , impl(init_impl)
     {
         r_buffer.resize(buffer);
-        readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
-        impl.connect(this);
     }
 
     Connection::~Connection() noexcept = default;
+
+    void Connection::start()
+    {
+        readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
+        impl.connect(this);
+    }
 
     void Connection::readHeader(std::uint64_t pos, std::uint64_t size)
     {
@@ -65,7 +70,7 @@ namespace nil::service::tcp
                 }
                 else
                 {
-                    impl.message(id(), r_buffer.data(), size);
+                    impl.message(remote_id(), r_buffer.data(), size);
                     readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
                 }
             }
@@ -84,8 +89,18 @@ namespace nil::service::tcp
         );
     }
 
-    const ID& Connection::id() const
+    std::string Connection::to_string_local(const void* c)
     {
-        return identifier;
+        return utils::to_id(static_cast<const Connection*>(c)->local_endpoint);
+    }
+
+    std::string Connection::to_string_remote(const void* c)
+    {
+        return utils::to_id(static_cast<const Connection*>(c)->remote_endpoint);
+    }
+
+    ID Connection::remote_id() const
+    {
+        return ID{&impl, this, &to_string_remote};
     }
 }

@@ -71,7 +71,7 @@ namespace nil::service::ws::server
 
     private:
         std::unique_ptr<IWebService> server;
-        IService* ws;
+        IEventService* ws;
 
         std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
         std::vector<std::function<void(const ID&)>> on_ready_cb;

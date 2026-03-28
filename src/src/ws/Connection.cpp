@@ -1,24 +1,27 @@
 #include "Connection.hpp"
+#include "../utils.hpp"
 
 namespace nil::service::ws
 {
     Connection::Connection(
-        ID ini_id,
         std::uint64_t init_buffer,
         boost::beast::websocket::stream<boost::beast::tcp_stream> init_ws,
         ConnectedImpl<Connection>& init_impl
     )
-        : identifier(std::move(ini_id))
-        , ws(std::move(init_ws))
+        : ws(std::move(init_ws))
         , flat_buffer(init_buffer)
         , impl(init_impl)
     {
         ws.binary(true);
-        impl.connect(this);
-        read();
     }
 
     Connection::~Connection() noexcept = default;
+
+    void Connection::start()
+    {
+        impl.connect(this);
+        read();
+    }
 
     void Connection::read()
     {
@@ -32,7 +35,7 @@ namespace nil::service::ws
                     return;
                 }
 
-                impl.message(id(), flat_buffer.cdata().data(), count);
+                impl.message(remote_id(), flat_buffer.cdata().data(), count);
                 flat_buffer.consume(count);
                 read();
             }
@@ -45,8 +48,22 @@ namespace nil::service::ws
         ws.write(boost::asio::buffer(data, size), ec);
     }
 
-    const ID& Connection::id() const
+    std::string Connection::to_string_local(const void* c)
     {
-        return identifier;
+        return utils::to_id(
+            static_cast<const Connection*>(c)->ws.next_layer().socket().local_endpoint()
+        );
+    }
+
+    std::string Connection::to_string_remote(const void* c)
+    {
+        return utils::to_id(
+            static_cast<const Connection*>(c)->ws.next_layer().socket().remote_endpoint()
+        );
+    }
+
+    ID Connection::remote_id() const
+    {
+        return ID{&impl, this, &to_string_remote};
     }
 }

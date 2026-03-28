@@ -3,13 +3,11 @@
 #include "../../structs/WebTransaction.hpp"
 #include "../../utils.hpp"
 #include "WebSocket.hpp"
-#include "nil/service/structs.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http/dynamic_body.hpp>
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/read.hpp>
@@ -38,6 +36,11 @@ namespace nil::service::http::server
 
     struct Impl final: IWebService
     {
+        static std::string to_string(const void* c)
+        {
+            return utils::to_id(static_cast<const Impl*>(c)->context->acceptor.local_endpoint());
+        }
+
     public:
         friend struct Transaction;
 
@@ -46,7 +49,7 @@ namespace nil::service::http::server
         {
         }
 
-        IService* use_ws(const std::string& key) override
+        IEventService* use_ws(const std::string& key) override
         {
             return &wss[key];
         }
@@ -160,10 +163,10 @@ namespace nil::service::http::server
                             return;
                         }
 
-                        auto id = utils::to_id(ws->next_layer().socket().remote_endpoint());
                         auto connection
-                            = std::make_unique<ws::Connection>(id, s, std::move(*ws), websocket);
-                        websocket.connections.emplace(id, std::move(connection));
+                            = std::make_unique<ws::Connection>(s, std::move(*ws), websocket);
+                        connection->start();
+                        websocket.connections.push_back(std::move(connection));
                     }
                 );
             }
@@ -235,12 +238,12 @@ namespace nil::service::http::server
         if (!context)
         {
             context = std::make_unique<Context>(options.host, options.port);
-            auto id = utils::to_id(context->acceptor.local_endpoint());
-            utils::invoke(on_ready_cb, id);
+            utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string});
             for (auto& [route, ws] : wss)
             {
                 ws.context = &context->ctx;
-                ws.ready({id.text + route});
+                ws.set_route(to_string(this) + route);
+                ws.ready();
             }
             accept();
         }

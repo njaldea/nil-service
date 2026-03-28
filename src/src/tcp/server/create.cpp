@@ -7,6 +7,8 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <algorithm>
+
 namespace nil::service::tcp::server
 {
     struct Context
@@ -27,6 +29,12 @@ namespace nil::service::tcp::server
         : IStandaloneService
         , ConnectedImpl<Connection>
     {
+        static std::string to_string_local(const void* c)
+        {
+            const auto* impl = static_cast<const Impl*>(c);
+            return impl->options.host + ":" + std::to_string(impl->options.port);
+        }
+
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
@@ -45,7 +53,7 @@ namespace nil::service::tcp::server
             if (!context)
             {
                 context = std::make_unique<Context>(options.host, options.port);
-                utils::invoke(on_ready_cb, utils::to_id(context->acceptor.local_endpoint()));
+                utils::invoke(on_ready_cb, ID{this, this, Impl::to_string_local});
                 accept();
             }
             context->ctx.run();
@@ -78,9 +86,9 @@ namespace nil::service::tcp::server
                 context->strand,
                 [this, msg = std::move(data)]()
                 {
-                    for (const auto& item : connections)
+                    for (const auto& connection : connections)
                     {
-                        item.second->write(msg.data(), msg.size());
+                        connection->write(msg.data(), msg.size());
                     }
                 }
             );
@@ -92,14 +100,14 @@ namespace nil::service::tcp::server
                 context->strand,
                 [this, ids = std::move(ids), msg = std::move(data)]()
                 {
-                    for (const auto& item : connections)
+                    for (const auto& connection : connections)
                     {
-                        if (ids.end() != std::find(ids.begin(), ids.end(), item.first))
+                        if (ids.end() == std::find(ids.begin(), ids.end(), connection->remote_id()))
                         {
                             continue;
                         }
 
-                        item.second->write(msg.data(), msg.size());
+                        connection->write(msg.data(), msg.size());
                     }
                 }
             );
@@ -113,10 +121,14 @@ namespace nil::service::tcp::server
                 {
                     for (const auto& id : ids)
                     {
-                        const auto it = connections.find(id);
+                        auto it = std::find_if(
+                            connections.begin(),
+                            connections.end(),
+                            [&id](const auto& connection) { return id == connection->remote_id(); }
+                        );
                         if (it != connections.end())
                         {
-                            it->second->write(msg.data(), msg.size());
+                            (*it)->write(msg.data(), msg.size());
                         }
                     }
                 }
@@ -126,7 +138,7 @@ namespace nil::service::tcp::server
     private:
         Options options;
         std::unique_ptr<Context> context;
-        std::unordered_map<ID, std::unique_ptr<Connection>> connections;
+        std::vector<std::unique_ptr<Connection>> connections;
 
         std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
         std::vector<std::function<void(const ID&)>> on_ready_cb;
@@ -135,19 +147,23 @@ namespace nil::service::tcp::server
 
         void connect(Connection* connection) override
         {
-            utils::invoke(on_connect_cb, connection->id());
+            utils::invoke(on_connect_cb, connection->remote_id());
         }
 
         void disconnect(Connection* connection) override
         {
             boost::asio::post(
                 context->strand,
-                [this, id = connection->id()]()
+                [this, id = connection->remote_id()]()
                 {
-                    if (connections.contains(id))
-                    {
-                        connections.erase(id);
-                    }
+                    connections.erase(
+                        std::remove_if(
+                            connections.begin(),
+                            connections.end(),
+                            [&id](const auto& current) { return current->remote_id() == id; }
+                        ),
+                        connections.end()
+                    );
                     utils::invoke(on_disconnect_cb, id);
                 }
             );
@@ -171,8 +187,8 @@ namespace nil::service::tcp::server
                             std::move(socket),
                             *this
                         );
-                        auto id = connection->id();
-                        connections.emplace(std::move(id), std::move(connection));
+                        connection->start();
+                        connections.push_back(std::move(connection));
                     }
                     accept();
                 }

@@ -2,7 +2,6 @@
 
 #include <nil/service/structs.hpp>
 
-#include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http.hpp>
 
 namespace nil::service

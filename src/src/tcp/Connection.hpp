@@ -4,7 +4,6 @@
 
 #include <nil/service/ID.hpp>
 
-#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
 #include <vector>
@@ -26,15 +25,20 @@ namespace nil::service::tcp
         Connection& operator=(Connection&&) noexcept = delete;
         Connection& operator=(const Connection&) = delete;
 
+        void start();
         void write(const std::uint8_t* data, std::uint64_t size);
-        const ID& id() const;
+        ID remote_id() const;
+
+        static std::string to_string_local(const void* c);
+        static std::string to_string_remote(const void* c);
 
     private:
         void readHeader(std::uint64_t pos, std::uint64_t size);
         void readBody(std::uint64_t pos, std::uint64_t size);
 
-        ID identifier;
         boost::asio::ip::tcp::socket socket;
+        boost::asio::ip::tcp::endpoint local_endpoint;
+        boost::asio::ip::tcp::endpoint remote_endpoint;
         ConnectedImpl<Connection>& impl;
         std::vector<std::uint8_t> r_buffer;
     };

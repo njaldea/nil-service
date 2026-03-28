@@ -27,6 +27,7 @@ set(
     SOURCES
         src/codec.cpp
         src/utils.hpp
+        src/ID.cpp
         src/structs/WebTransaction.cpp
         src/structs/WebTransaction.hpp
         src/self/create.cpp
@@ -71,43 +72,23 @@ add_test_subdirectory()
 nil_install_headers(${PROJECT_NAME} PUBLIC)
 nil_install_targets(${PROJECT_NAME})
 
-set(ENABLE_SSL  OFF CACHE BOOL "[0 | OFF - 1 | ON]: build with ssl?")
-if(ENABLE_SSL)
-    find_package(OpenSSL REQUIRED)
-
+set(ENABLE_C_API OFF CACHE BOOL "[0 | OFF - 1 | ON]: build c api?")
+if(ENABLE_C_API)
     add_library(
-        ${PROJECT_NAME}-ssl
-        publish/nil/service/wss/server/create.hpp
-        publish/nil/service/wss/client/create.hpp
-        src/wss/client/create.cpp
-        src/wss/server/create.cpp
-        src/wss/Connection.cpp
-        src/wss/Connection.hpp
-        src/https/server/create.cpp
-        src/https/server/WebSocket.cpp
-        src/https/server/WebSocket.hpp
+        ${PROJECT_NAME}-c-api
+        SHARED
+        publish/nil/service.h
+        src/service.cpp
     )
 
-    target_link_libraries(
-        ${PROJECT_NAME}-ssl PRIVATE
-        OpenSSL::SSL
-    )
-    target_link_libraries(
-        ${PROJECT_NAME}-ssl PUBLIC
-        ${PROJECT_NAME}
-    )
-    target_compile_definitions(
-        ${PROJECT_NAME}-ssl
-        PUBLIC
-        NIL_SERVICE_SSL
-    )
+    target_link_libraries(${PROJECT_NAME}-c-api PRIVATE ${PROJECT_NAME})
+    target_link_libraries(${PROJECT_NAME}-c-api PUBLIC nil::xalt)
     target_include_directories(
-        ${PROJECT_NAME}-ssl
-        SYSTEM PRIVATE
-        $<TARGET_PROPERTY:Boost::asio,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:Boost::beast,INTERFACE_INCLUDE_DIRECTORIES>
+        ${PROJECT_NAME}-c-api
+        INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/publish>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
-    target_compile_definitions(${PROJECT_NAME}-ssl PRIVATE BOOST_ASIO_NO_DEPRECATED)
     
-    nil_install_targets(${PROJECT_NAME}-ssl)
+    nil_install_targets(${PROJECT_NAME}-c-api)
 endif()

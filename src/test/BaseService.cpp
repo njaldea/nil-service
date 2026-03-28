@@ -11,6 +11,17 @@
 
 namespace nil::service
 {
+    inline std::string mock_peer_id_to_string(const void* ptr)
+    {
+        return static_cast<const char*>(ptr);
+    }
+
+    inline ID mock_peer_id()
+    {
+        static constexpr auto peer = "peer id";
+        return ID{&peer, peer, &mock_peer_id_to_string};
+    }
+
     template <>
     struct codec<char>
     {
@@ -36,12 +47,11 @@ namespace nil::service
 class TestService: public nil::service::IStandaloneService
 {
 public:
-    explicit TestService(std::string peer_id)
-        : id(std::move(peer_id))
+    TestService()
+        : id(nil::service::mock_peer_id())
     {
     }
 
-    TestService() = delete;
     TestService(TestService&&) = delete;
     TestService(const TestService&) = delete;
     TestService& operator=(TestService&&) = delete;
@@ -85,9 +95,9 @@ public:
         (void)message;
     }
 
-    using IMessagingService::publish;
-    using IMessagingService::publish_ex;
-    using IMessagingService::send;
+    using IMessageService::publish;
+    using IMessageService::publish_ex;
+    using IMessageService::send;
 
 private:
     nil::service::ID id;
@@ -128,7 +138,7 @@ TEST(BaseService, on_message)
     const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
-    TestService service("peer id");
+    TestService service;
     service.on_connect([&]() { mock.Call("connect"); });
     service.on_disconnect([&]() { mock.Call("disconnect"); });
     service.on_message([&]() { mock.Call("message"); });
@@ -150,13 +160,13 @@ TEST(BaseService, on_message_with_id)
     const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
-    TestService service("peer id");
+    TestService service;
     service.on_connect([&]() { mock.Call("connect"); });
     service.on_disconnect([&]() { mock.Call("disconnect"); });
     service.on_message(
         [&](const nil::service::ID& id)
         {
-            mock.Call(id.text);
+            mock.Call(nil::service::to_string(id));
             mock.Call("message");
         }
     );
@@ -181,13 +191,13 @@ TEST(BaseService, on_message_with_id_with_raw)
     const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
-    TestService service("peer id");
+    TestService service;
     service.on_connect([&]() { mock.Call("connect"); });
     service.on_disconnect([&]() { mock.Call("disconnect"); });
     service.on_message(                                                       //
         [&](const nil::service::ID& id, const void* data, std::uint64_t size) //
         {
-            mock.Call(id.text);
+            mock.Call(nil::service::to_string(id));
             mock.Call(nil::service::consume<std::string>(data, size));
         }
     );
@@ -212,13 +222,13 @@ TEST(BaseService, on_message_with_id_with_codec)
     const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
-    TestService service("peer id");
+    TestService service;
     service.on_connect([&]() { mock.Call("connect"); });
     service.on_disconnect([&]() { mock.Call("disconnect"); });
     service.on_message(
         [&](const nil::service::ID& id, const std::string& data) //
         {
-            mock.Call(id.text);
+            mock.Call(nil::service::to_string(id));
             mock.Call(data);
         }
     );
@@ -243,7 +253,7 @@ TEST(BaseService, on_message_without_id_with_raw)
     const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
-    TestService service("peer id");
+    TestService service;
     service.on_connect([&]() { mock.Call("connect"); });
     service.on_disconnect([&]() { mock.Call("disconnect"); });
     service.on_message(
@@ -269,7 +279,7 @@ TEST(BaseService, on_message_without_id_with_codec)
     const testing::InSequence _;
     testing::StrictMock<testing::MockFunction<void(std::string)>> mock;
 
-    TestService service("peer id");
+    TestService service;
     service.on_connect([&]() { mock.Call("connect"); });
     service.on_disconnect([&]() { mock.Call("disconnect"); });
     service.on_message([&](const std::string& message) { mock.Call(message); });
@@ -300,11 +310,11 @@ TEST(BaseService, map_without_id_with_raw)
     {
         EXPECT_CALL(mock, Call("xy")).Times(1);
         const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
     {
         const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
 }
 
@@ -321,11 +331,11 @@ TEST(BaseService, map_without_id_with_codec)
     {
         EXPECT_CALL(mock, Call("xy")).Times(1);
         const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
     {
         const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
 }
 
@@ -339,7 +349,7 @@ TEST(BaseService, on_message_map_with_id_with_raw)
             'a',
             [&](const nil::service::ID& id, const void* d, std::uint64_t s)
             {
-                mock.Call(id.text);
+                mock.Call(nil::service::to_string(id));
                 mock.Call(nil::service::consume<std::string>(d, s));
             }
         ));
@@ -347,11 +357,11 @@ TEST(BaseService, on_message_map_with_id_with_raw)
         EXPECT_CALL(mock, Call("peer id")).Times(1);
         EXPECT_CALL(mock, Call("xy")).Times(1);
         const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
     {
         const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
 }
 
@@ -365,7 +375,7 @@ TEST(BaseService, on_message_map_with_id_with_codec)
             'a',
             [&](const nil::service::ID& id, const std::string& s)
             {
-                mock.Call(id.text);
+                mock.Call(nil::service::to_string(id));
                 mock.Call(s);
             }
         ));
@@ -373,10 +383,10 @@ TEST(BaseService, on_message_map_with_id_with_codec)
         EXPECT_CALL(mock, Call("peer id")).Times(1);
         EXPECT_CALL(mock, Call("xy")).Times(1);
         const std::uint8_t data[] = {'a', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
     {
         const std::uint8_t data[] = {'b', 'x', 'y'}; // NOLINT
-        handler({"peer id"}, &data[0], 3);
+        handler(nil::service::mock_peer_id(), &data[0], 3);
     }
 }

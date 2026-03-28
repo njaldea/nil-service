@@ -85,7 +85,7 @@ namespace nil::service::gateway
             }
         }
 
-        void add_service(IService& service) override
+        void add_service(IEventService& service) override
         {
             services.push_back(&service);
         }
@@ -122,7 +122,7 @@ namespace nil::service::gateway
         }
 
     private:
-        std::vector<IService*> services;
+        std::vector<IEventService*> services;
         std::unique_ptr<boost::asio::io_context> context;
     };
 

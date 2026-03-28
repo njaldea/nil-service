@@ -1,5 +1,7 @@
 #include "WebTransaction.hpp"
 
+#include <boost/beast/core/ostream.hpp>
+
 namespace nil::service
 {
     std::string_view get_route(const WebTransaction& transaction)

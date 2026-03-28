@@ -7,6 +7,8 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <algorithm>
+
 namespace nil::service::udp::server
 {
     struct Context
@@ -25,6 +27,12 @@ namespace nil::service::udp::server
 
     struct Impl final: IStandaloneService
     {
+        static std::string to_string(const void* c)
+        {
+            const auto* impl = static_cast<const Impl*>(c);
+            return impl->options.host + ":" + std::to_string(impl->options.port);
+        }
+
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
@@ -45,7 +53,7 @@ namespace nil::service::udp::server
             if (!context)
             {
                 context = std::make_unique<Context>(options.host, options.port);
-                utils::invoke(on_ready_cb, utils::to_id(context->socket.local_endpoint()));
+                utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string});
                 receive();
             }
             context->ctx.run();
@@ -84,7 +92,7 @@ namespace nil::service::udp::server
                     };
                     for (const auto& connection : connections)
                     {
-                        context->socket.send_to(b, connection.second->endpoint);
+                        context->socket.send_to(b, connection->endpoint);
                     }
                 }
             );
@@ -105,12 +113,18 @@ namespace nil::service::udp::server
                     };
                     for (const auto& connection : connections)
                     {
-                        if (ids.end() != std::find(ids.begin(), ids.end(), connection.first))
+                        if (ids.end()
+                            == std::find_if(
+                                ids.begin(),
+                                ids.end(),
+                                [&](const auto& id)
+                                { return id.owner == this && id.id == connection.get(); }
+                            ))
                         {
                             continue;
                         }
 
-                        context->socket.send_to(b, connection.second->endpoint);
+                        context->socket.send_to(b, connection->endpoint);
                     }
                 }
             );
@@ -129,12 +143,18 @@ namespace nil::service::udp::server
                         boost::asio::buffer(i),
                         boost::asio::buffer(msg)
                     };
-                    for (const auto& id : ids)
+                    for (const auto& connection : connections)
                     {
-                        auto it = connections.find(id);
-                        if (it != connections.end())
+                        auto it = std::find_if(
+                            ids.begin(),
+                            ids.end(),
+                            [&](const auto& id)
+                            { return id.owner == this && connection.get() == id.id; }
+                        );
+
+                        if (it != ids.end())
                         {
-                            context->socket.send_to(b, it->second->endpoint);
+                            context->socket.send_to(b, connection->endpoint);
                         }
                     }
                 }
@@ -155,13 +175,16 @@ namespace nil::service::udp::server
                 , timer(strand)
             {
             }
-        };
 
-        using Connections = std::unordered_map<ID, std::unique_ptr<Connection>>;
+            static std::string to_string(const void* c)
+            {
+                return utils::to_id(static_cast<const Connection*>(c)->endpoint);
+            }
+        };
 
         Options options;
         std::unique_ptr<Context> context;
-        Connections connections;
+        std::vector<std::unique_ptr<Connection>> connections;
         std::vector<std::uint8_t> buffer;
 
         std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
@@ -169,24 +192,33 @@ namespace nil::service::udp::server
         std::vector<std::function<void(const ID&)>> on_connect_cb;
         std::vector<std::function<void(const ID&)>> on_disconnect_cb;
 
-        void ping(const boost::asio::ip::udp::endpoint& endpoint, const ID& id)
+        void ping(const boost::asio::ip::udp::endpoint& endpoint, Connection* connection)
         {
-            auto& connection = connections[id];
-            if (!connection)
+            if (connection == nullptr)
             {
-                connection = std::make_unique<Connection>(endpoint, context->strand);
-                utils::invoke(on_connect_cb, id);
+                connections.emplace_back(std::make_unique<Connection>(endpoint, context->strand));
+                connection = connections.back().get();
+                utils::invoke(on_connect_cb, ID{this, connection, &Connection::to_string});
             }
+
             connection->timer.expires_after(options.timeout);
             connection->timer.async_wait(
-                [this, id](const boost::system::error_code& ec)
+                [this, connection](const boost::system::error_code& ec)
                 {
                     if (ec == boost::asio::error::operation_aborted)
                     {
                         return;
                     }
-                    utils::invoke(on_disconnect_cb, id);
-                    connections.erase(id);
+                    utils::invoke(on_disconnect_cb, ID{this, connection, &Connection::to_string});
+                    connections.erase(
+                        std::remove_if(
+                            connections.begin(),
+                            connections.end(),
+                            [&](const std::unique_ptr<Connection>& cc)
+                            { return connection == cc.get(); }
+                        ),
+                        connections.end()
+                    );
                 }
             );
 
@@ -194,15 +226,6 @@ namespace nil::service::udp::server
                 boost::asio::buffer(utils::to_array(utils::UDP_INTERNAL_MESSAGE)),
                 endpoint
             );
-        }
-
-        void usermsg(const ID& id, const std::uint8_t* data, std::uint64_t size)
-        {
-            auto it = connections.find(id);
-            if (it != connections.end())
-            {
-                utils::invoke(on_message_cb, id, data, size);
-            }
         }
 
         void message(
@@ -213,14 +236,24 @@ namespace nil::service::udp::server
         {
             if (size >= sizeof(std::uint8_t))
             {
+                auto it = std::find_if(
+                    connections.begin(),
+                    connections.end(),
+                    [&](const auto& connection) { return connection->endpoint == endpoint; }
+                );
+                auto* connection = (it == connections.end()) ? nullptr : it->get();
+
                 if (utils::from_array<std::uint8_t>(data) == utils::UDP_INTERNAL_MESSAGE)
                 {
-                    ping(endpoint, {utils::to_id(endpoint)});
+                    ping(endpoint, connection);
+                    return;
                 }
-                else
+
+                if (connection != nullptr)
                 {
-                    usermsg(
-                        {utils::to_id(endpoint)},
+                    utils::invoke(
+                        on_message_cb,
+                        ID{this, connection, &Connection::to_string},
                         data + sizeof(std::uint8_t),
                         size - sizeof(std::uint8_t)
                     );

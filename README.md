@@ -114,7 +114,7 @@ service->on_get(
 
 // special api for creating route with websocket.
 // returns a Service (S proxy)
-nil::service::IService* s = service->use_ws("/ws");
+nil::service::IEventService* s = service->use_ws("/ws");
 ```
 
 ### `on_message` overloads

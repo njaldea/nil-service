@@ -8,14 +8,14 @@
 namespace nil::service::http::server
 {
     struct WebSocket final
-        : public IService
+        : public IEventService
         , public ConnectedImpl<ws::Connection>
     {
         friend struct Transaction;
         friend struct Impl;
 
     public:
-        explicit WebSocket() = default;
+        WebSocket() = default;
         ~WebSocket() noexcept override = default;
         WebSocket(WebSocket&&) = delete;
         WebSocket(const WebSocket&) = delete;
@@ -26,24 +26,29 @@ namespace nil::service::http::server
         void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> data) override;
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override;
 
-        void ready(const ID& id) const;
+        void ready();
         void connect(ws::Connection* connection) override;
         void message(const ID& id, const void* data, std::uint64_t size) override;
         void disconnect(ws::Connection* connection) override;
 
+        void set_route(std::string route);
+        static std::string to_string_local(const void* c);
+
     private:
-        std::unordered_map<ID, std::unique_ptr<ws::Connection>> connections;
+        std::string route;
+        std::vector<std::unique_ptr<ws::Connection>> connections;
 
         std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
         std::vector<std::function<void(const ID&)>> on_ready_cb;
         std::vector<std::function<void(const ID&)>> on_connect_cb;
         std::vector<std::function<void(const ID&)>> on_disconnect_cb;
 
-        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
-        ) override;
+        // clang-format off
+        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler) override;
         void impl_on_ready(std::function<void(const ID&)> handler) override;
         void impl_on_connect(std::function<void(const ID&)> handler) override;
         void impl_on_disconnect(std::function<void(const ID&)> handler) override;
+        // clang-format on
 
         boost::asio::io_context* context = nullptr;
     };

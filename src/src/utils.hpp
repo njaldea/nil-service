@@ -22,12 +22,12 @@ namespace nil::service::utils
         }
     }
 
-    inline ID to_id(const boost::asio::ip::tcp::endpoint& endpoint)
+    inline std::string to_id(const boost::asio::ip::tcp::endpoint& endpoint)
     {
         return {endpoint.address().to_string() + ":" + std::to_string(endpoint.port())};
     }
 
-    inline ID to_id(const boost::asio::ip::udp::endpoint& endpoint)
+    inline std::string to_id(const boost::asio::ip::udp::endpoint& endpoint)
     {
         return {endpoint.address().to_string() + ":" + std::to_string(endpoint.port())};
     }

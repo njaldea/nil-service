@@ -4,7 +4,6 @@
 
 #include <nil/service/ID.hpp>
 
-#include <boost/asio/io_context.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 
@@ -14,7 +13,6 @@ namespace nil::service::ws
     {
     public:
         Connection(
-            ID ini_id,
             std::uint64_t init_buffer,
             boost::beast::websocket::stream<boost::beast::tcp_stream> init_ws,
             ConnectedImpl<Connection>& init_impl
@@ -27,13 +25,16 @@ namespace nil::service::ws
         Connection(const Connection&) = delete;
         Connection& operator=(const Connection&) = delete;
 
+        void start();
         void write(const std::uint8_t* data, std::uint64_t size);
-        const ID& id() const;
+        ID remote_id() const;
+
+        static std::string to_string_local(const void* c);
+        static std::string to_string_remote(const void* c);
 
     private:
         void read();
 
-        ID identifier;
         boost::beast::websocket::stream<boost::beast::tcp_stream> ws;
         boost::beast::flat_buffer flat_buffer;
         ConnectedImpl<Connection>& impl;
