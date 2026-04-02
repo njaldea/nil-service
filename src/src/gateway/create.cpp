@@ -41,13 +41,12 @@ namespace nil::service::gateway
             }
         }
 
-        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
-        ) override
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
             for (auto* service : services)
             {
                 service->on_message(
-                    [this, handler](const ID& id, const void* data, std::uint64_t size)
+                    [this, handler](ID id, const void* data, std::uint64_t size)
                     {
                         const auto* start = static_cast<const std::uint8_t*>(data);
                         const auto* end = start + size;
@@ -58,29 +57,29 @@ namespace nil::service::gateway
             }
         }
 
-        void impl_on_ready(std::function<void(const ID&)> handler) override
+        void impl_on_ready(std::function<void(ID)> handler) override
         {
             for (auto* service : services)
             {
-                service->on_ready([this, handler](const ID& id)
+                service->on_ready([this, handler](ID id)
                                   { this->dispatch([id, handler]() { handler(id); }); });
             }
         }
 
-        void impl_on_connect(std::function<void(const ID&)> handler) override
+        void impl_on_connect(std::function<void(ID)> handler) override
         {
             for (auto* service : services)
             {
-                service->on_connect([this, handler](const ID& id)
+                service->on_connect([this, handler](ID id)
                                     { this->dispatch([id, handler]() { handler(id); }); });
             }
         }
 
-        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        void impl_on_disconnect(std::function<void(ID)> handler) override
         {
             for (auto* service : services)
             {
-                service->on_disconnect([this, handler](const ID& id)
+                service->on_disconnect([this, handler](ID id)
                                        { this->dispatch([id, handler]() { handler(id); }); });
             }
         }

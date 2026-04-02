@@ -18,7 +18,7 @@ TEST(create_message_handler, one_arg)
 #define THIS_CHECK(id)                                                                             \
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(id)>, nil::service::ID>)
 
-    std::function<void(const nil::service::ID&, const void*, std::uint64_t)> cb;
+    std::function<void(nil::service::ID, const void*, std::uint64_t)> cb;
 
     // clang-format off
     cb = create_message_handler([](const nil::service::ID& id) { THIS_CHECK(id); });
@@ -39,7 +39,7 @@ TEST(create_message_handler, two_args)
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(id)>, nil::service::ID>);            \
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(data)>, std::string>)
 
-    std::function<void(const nil::service::ID&, const void*, std::uint64_t)> cb;
+    std::function<void(nil::service::ID, const void*, std::uint64_t)> cb;
 
     // clang-format off
     cb = create_message_handler([](const nil::service::ID& id, const std::string& data) { THIS_CHECK(id, data); });
@@ -66,7 +66,7 @@ TEST(create_message_handler, three_args)
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(data)>, const void*>);               \
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(size)>, std::uint64_t>)
 
-    std::function<void(const nil::service::ID&, const void*, std::uint64_t)> cb;
+    std::function<void(nil::service::ID, const void*, std::uint64_t)> cb;
 
     // clang-format off
     cb = create_message_handler([](const nil::service::ID& id, const void* data, std::uint64_t size) { THIS_CHECK(id, data, size); });

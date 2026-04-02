@@ -1,37 +1,34 @@
 #pragma once
 
+#include "../ID.hpp"
+
 #include <nil/xalt/errors.hpp>
 
 #include <type_traits>
 #include <utility>
-
-namespace nil::service
-{
-    struct ID;
-}
 
 namespace nil::service::detail
 {
     /**
      * @brief adapter method so that the handler can be converted to appropriate type.
      *  Handler is expected to have the following signature:
-     *   -  void method(const ID&)
+     *   -  void method(ID)
      *   -  void method()
      *
      * @tparam Handler
      * @param handler
-     * @return std::function<void(const ID&)>
+     * @return std::function<void(ID)>
      */
     template <typename Handler>
     auto create_handler(Handler handler)
     {
         if constexpr (std::is_invocable_v<Handler>)
         {
-            return [handler = std::move(handler)](const ID&) { handler(); };
+            return [handler = std::move(handler)](ID) { handler(); };
         }
-        else if constexpr (std::is_invocable_v<Handler, const ID&>)
+        else if constexpr (std::is_invocable_v<Handler, ID>)
         {
-            return handler;
+            return [handler = std::move(handler)](ID id) { handler(id); };
         }
         else
         {

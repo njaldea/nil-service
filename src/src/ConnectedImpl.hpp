@@ -17,7 +17,7 @@ namespace nil::service
         ConnectedImpl(const ConnectedImpl&) = delete;
         ConnectedImpl& operator=(const ConnectedImpl&) = delete;
 
-        virtual void message(const ID& id, const void* data, std::uint64_t size) = 0;
+        virtual void message(ID id, const void* data, std::uint64_t size) = 0;
         virtual void connect(Connection* connection) = 0;
         virtual void disconnect(Connection* connection) = 0;
     };

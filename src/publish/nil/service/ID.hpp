@@ -21,12 +21,12 @@ namespace nil::service
         ID(const ID& o) = default;
         ID& operator=(const ID& o) = default;
 
-        ID(ID&& o) = delete;
-        ID& operator=(ID&& o) = delete;
+        ID(ID&& o) = default;
+        ID& operator=(ID&& o) = default;
 
         bool operator==(const ID& o) const
         {
-            return owner == o.owner && id == o.id;
+            return owner == o.owner && id == o.id && to_string == o.to_string;
         }
 
         bool operator!=(const ID& o) const
@@ -39,7 +39,7 @@ namespace nil::service
         std::string (*to_string)(const void*) = nullptr;
     };
 
-    std::string to_string(const ID& id);
+    std::string to_string(ID id);
 }
 
 namespace std
@@ -47,7 +47,7 @@ namespace std
     template <>
     struct hash<nil::service::ID>
     {
-        std::size_t operator()(const nil::service::ID& id) const
+        std::size_t operator()(nil::service::ID id) const
         {
             return std::hash<const void*>()(id.id);
         }

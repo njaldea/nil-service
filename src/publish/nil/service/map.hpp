@@ -29,7 +29,7 @@ namespace nil::service
         struct Map
         {
             T value;
-            std::function<void(const ID&, const void*, std::uint64_t)> handler;
+            std::function<void(ID, const void*, std::uint64_t)> handler;
         };
 
         using internal_t = std::array<Map, sizeof...(Handlers)>;
@@ -39,7 +39,7 @@ namespace nil::service
         };
         return                                                 //
             [internal_handlers = std::move(internal_handlers)] //
-            (const ID& id, const void* data, std::uint64_t size)
+            (ID id, const void* data, std::uint64_t size)
         {
             const auto value = consume<T>(data, size);
             for (const auto& [tag, handler] : internal_handlers)

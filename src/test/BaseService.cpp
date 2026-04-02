@@ -102,30 +102,30 @@ public:
 private:
     nil::service::ID id;
 
-    std::vector<std::function<void(const nil::service::ID&, const void*, std::uint64_t)>>
+    std::vector<std::function<void(nil::service::ID, const void*, std::uint64_t)>>
         on_message_cb;
-    std::vector<std::function<void(const nil::service::ID&)>> on_ready_cb;
-    std::vector<std::function<void(const nil::service::ID&)>> on_connect_cb;
-    std::vector<std::function<void(const nil::service::ID&)>> on_disconnect_cb;
+    std::vector<std::function<void(nil::service::ID)>> on_ready_cb;
+    std::vector<std::function<void(nil::service::ID)>> on_connect_cb;
+    std::vector<std::function<void(nil::service::ID)>> on_disconnect_cb;
 
     void impl_on_message(
-        std::function<void(const nil::service::ID&, const void*, std::uint64_t)> handler
+        std::function<void(nil::service::ID, const void*, std::uint64_t)> handler
     ) override
     {
         on_message_cb.push_back(std::move(handler));
     }
 
-    void impl_on_ready(std::function<void(const nil::service::ID&)> handler) override
+    void impl_on_ready(std::function<void(nil::service::ID)> handler) override
     {
         on_ready_cb.push_back(std::move(handler));
     }
 
-    void impl_on_connect(std::function<void(const nil::service::ID&)> handler) override
+    void impl_on_connect(std::function<void(nil::service::ID)> handler) override
     {
         on_connect_cb.push_back(std::move(handler));
     }
 
-    void impl_on_disconnect(std::function<void(const nil::service::ID&)> handler) override
+    void impl_on_disconnect(std::function<void(nil::service::ID)> handler) override
     {
         on_disconnect_cb.push_back(std::move(handler));
     }

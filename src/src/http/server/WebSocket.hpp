@@ -28,7 +28,7 @@ namespace nil::service::http::server
 
         void ready();
         void connect(ws::Connection* connection) override;
-        void message(const ID& id, const void* data, std::uint64_t size) override;
+        void message(ID id, const void* data, std::uint64_t size) override;
         void disconnect(ws::Connection* connection) override;
 
         void set_route(std::string route);
@@ -38,16 +38,16 @@ namespace nil::service::http::server
         std::string route;
         std::vector<std::unique_ptr<ws::Connection>> connections;
 
-        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
-        std::vector<std::function<void(const ID&)>> on_ready_cb;
-        std::vector<std::function<void(const ID&)>> on_connect_cb;
-        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
+        std::vector<std::function<void(ID, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(ID)>> on_ready_cb;
+        std::vector<std::function<void(ID)>> on_connect_cb;
+        std::vector<std::function<void(ID)>> on_disconnect_cb;
 
         // clang-format off
-        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler) override;
-        void impl_on_ready(std::function<void(const ID&)> handler) override;
-        void impl_on_connect(std::function<void(const ID&)> handler) override;
-        void impl_on_disconnect(std::function<void(const ID&)> handler) override;
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override;
+        void impl_on_ready(std::function<void(ID)> handler) override;
+        void impl_on_connect(std::function<void(ID)> handler) override;
+        void impl_on_disconnect(std::function<void(ID)> handler) override;
         // clang-format on
 
         boost::asio::io_context* context = nullptr;

@@ -49,11 +49,6 @@ set(
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE 
-    BOOST_ASIO_STANDALONE
-    BOOST_ASIO_NO_TYPEID
-)
-
 target_link_libraries(
     ${PROJECT_NAME} PUBLIC
     nil::xalt
@@ -65,6 +60,10 @@ target_include_directories(
     $<TARGET_PROPERTY:Boost::asio,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:Boost::beast,INTERFACE_INCLUDE_DIRECTORIES>
 )
+
+target_compile_options(${PROJECT_NAME} PRIVATE -fPIC)
+target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_STANDALONE)
+target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_NO_TYPEID)
 target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ASIO_NO_DEPRECATED)
 
 add_test_subdirectory()

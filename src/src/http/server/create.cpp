@@ -64,7 +64,7 @@ namespace nil::service::http::server
         std::unique_ptr<Context> context;
         std::unordered_map<std::string, WebSocket> wss;
         std::vector<std::function<bool(WebTransaction&)>> on_get_cb;
-        std::vector<std::function<void(const ID&)>> on_ready_cb;
+        std::vector<std::function<void(ID)>> on_ready_cb;
 
         void accept();
 
@@ -73,7 +73,7 @@ namespace nil::service::http::server
             on_get_cb.push_back(std::move(handler));
         }
 
-        void impl_on_ready(std::function<void(const ID&)> handler) override
+        void impl_on_ready(std::function<void(ID)> handler) override
         {
             on_ready_cb.push_back(std::move(handler));
         }

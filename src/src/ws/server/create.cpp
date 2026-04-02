@@ -73,28 +73,28 @@ namespace nil::service::ws::server
         std::unique_ptr<IWebService> server;
         IEventService* ws;
 
-        std::vector<std::function<void(const ID&, const void*, std::uint64_t)>> on_message_cb;
-        std::vector<std::function<void(const ID&)>> on_ready_cb;
-        std::vector<std::function<void(const ID&)>> on_connect_cb;
-        std::vector<std::function<void(const ID&)>> on_disconnect_cb;
+        std::vector<std::function<void(ID, const void*, std::uint64_t)>> on_message_cb;
+        std::vector<std::function<void(ID)>> on_ready_cb;
+        std::vector<std::function<void(ID)>> on_connect_cb;
+        std::vector<std::function<void(ID)>> on_disconnect_cb;
 
-        void impl_on_message(std::function<void(const ID&, const void*, std::uint64_t)> handler
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler
         ) override
         {
             on_message_cb.push_back(std::move(handler));
         }
 
-        void impl_on_ready(std::function<void(const ID&)> handler) override
+        void impl_on_ready(std::function<void(ID)> handler) override
         {
             on_ready_cb.push_back(std::move(handler));
         }
 
-        void impl_on_connect(std::function<void(const ID&)> handler) override
+        void impl_on_connect(std::function<void(ID)> handler) override
         {
             on_connect_cb.push_back(std::move(handler));
         }
 
-        void impl_on_disconnect(std::function<void(const ID&)> handler) override
+        void impl_on_disconnect(std::function<void(ID)> handler) override
         {
             on_disconnect_cb.push_back(std::move(handler));
         }

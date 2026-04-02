@@ -47,21 +47,21 @@ namespace nil::service::detail
      * @brief adapter method so that the handler can be converted to appropriate type.
      *  Handler is expected to have the following signature:
      *   -  void method()
-     *   -  void method(const ID&)
-     *   -  void method(const ID&, const WithCodec&)
-     *   -  void method(const ID&, const void*, std::uint64_t)
+     *   -  void method(ID)
+     *   -  void method(ID, const WithCodec&)
+     *   -  void method(ID, const void*, std::uint64_t)
      *   -  void method(const WithCodec&)
      *   -  void method(const void*, std::uint64_t)
      *
      * @tparam Handler
      * @param handler
-     * @return std::function<void(const ID&, const void*, std::uint64_t)>
+     * @return std::function<void(ID, const void*, std::uint64_t)>
      */
 
     template <typename Handler>
     auto create_message_handler(Handler handler)
     {
-        if constexpr (std::is_invocable_v<Handler, const ID&, const void*, std::uint64_t>)
+        if constexpr (std::is_invocable_v<Handler, ID, const void*, std::uint64_t>)
         {
             return handler;
         }
@@ -69,30 +69,29 @@ namespace nil::service::detail
         else if constexpr (std::is_invocable_v<Handler>)
         {
             return [handler = std::move(handler)] //
-                (const ID&, const void*, std::uint64_t) { handler(); };
+                (ID, const void*, std::uint64_t) { handler(); };
         }
         // one arg
-        else if constexpr (std::is_invocable_v<Handler, const ID&>)
+        else if constexpr (std::is_invocable_v<Handler, ID>)
         {
             return [handler = std::move(handler)] //
-                (const ID& id, const void*, std::uint64_t) { handler(id); };
+                (ID id, const void*, std::uint64_t) { handler(id); };
         }
         else if constexpr (std::is_invocable_v<Handler, AutoCast>)
         {
             return [handler = std::move(handler)] //
-                (const ID&, const void* data, std::uint64_t size)
-            { handler(AutoCast{data, &size}); };
+                (ID, const void* data, std::uint64_t size) { handler(AutoCast{data, &size}); };
         }
         // two args
         else if constexpr (std::is_invocable_v<Handler, const void*, std::uint64_t>)
         {
             return [handler = std::move(handler)] //
-                (const ID&, const void* data, std::uint64_t size) { handler(data, size); };
+                (ID, const void* data, std::uint64_t size) { handler(data, size); };
         }
-        else if constexpr (std::is_invocable_v<Handler, const ID&, AutoCast>)
+        else if constexpr (std::is_invocable_v<Handler, ID, AutoCast>)
         {
             return [handler = std::move(handler)] //
-                (const ID& id, const void* data, std::uint64_t size)
+                (ID id, const void* data, std::uint64_t size)
             { handler(id, AutoCast(data, &size)); };
         }
         else

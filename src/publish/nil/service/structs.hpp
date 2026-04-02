@@ -164,11 +164,11 @@ namespace nil::service
 
     private:
         virtual void impl_on_message(
-            std::function<void(const ID&, const void*, std::uint64_t)> handler
+            std::function<void(ID, const void*, std::uint64_t)> handler
         ) = 0;
-        virtual void impl_on_ready(std::function<void(const ID&)> handler) = 0;
-        virtual void impl_on_connect(std::function<void(const ID&)> handler) = 0;
-        virtual void impl_on_disconnect(std::function<void(const ID&)> handler) = 0;
+        virtual void impl_on_ready(std::function<void(ID)> handler) = 0;
+        virtual void impl_on_connect(std::function<void(ID)> handler) = 0;
+        virtual void impl_on_disconnect(std::function<void(ID)> handler) = 0;
     };
 
     struct IEventService
@@ -186,7 +186,7 @@ namespace nil::service
             impl_on_get(std::move(handler));
         }
 
-        void on_ready(std::function<void(const ID&)> handler)
+        void on_ready(std::function<void(ID)> handler)
         {
             impl_on_ready(std::move(handler));
         }
@@ -209,7 +209,7 @@ namespace nil::service
 
     private:
         virtual void impl_on_get(std::function<bool(WebTransaction&)> callback) = 0;
-        virtual void impl_on_ready(std::function<void(const ID&)> handler) = 0;
+        virtual void impl_on_ready(std::function<void(ID)> handler) = 0;
     };
 
     void set_content_type(WebTransaction& transaction, std::string_view type);

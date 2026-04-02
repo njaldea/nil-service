@@ -26,7 +26,7 @@ namespace nil::service::http::server
         utils::invoke(on_connect_cb, ID{this, connection, &ws::Connection::to_string_remote});
     }
 
-    void WebSocket::message(const ID& id, const void* data, std::uint64_t size)
+    void WebSocket::message(ID id, const void* data, std::uint64_t size)
     {
         utils::invoke(on_message_cb, id, data, size);
     }
@@ -114,24 +114,22 @@ namespace nil::service::http::server
         }
     }
 
-    void WebSocket::impl_on_message(
-        std::function<void(const ID&, const void*, std::uint64_t)> handler
-    )
+    void WebSocket::impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler)
     {
         on_message_cb.push_back(std::move(handler));
     }
 
-    void WebSocket::impl_on_ready(std::function<void(const ID&)> handler)
+    void WebSocket::impl_on_ready(std::function<void(ID)> handler)
     {
         on_ready_cb.push_back(std::move(handler));
     }
 
-    void WebSocket::impl_on_connect(std::function<void(const ID&)> handler)
+    void WebSocket::impl_on_connect(std::function<void(ID)> handler)
     {
         on_connect_cb.push_back(std::move(handler));
     }
 
-    void WebSocket::impl_on_disconnect(std::function<void(const ID&)> handler)
+    void WebSocket::impl_on_disconnect(std::function<void(ID)> handler)
     {
         on_disconnect_cb.push_back(std::move(handler));
     }
