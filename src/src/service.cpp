@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -245,6 +246,81 @@ extern "C"
             );
     }
 
+    void nil_service_web_on_ready(nil_service_web service, nil_service_callback_info callback)
+    {
+        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        static_cast<nil::service::IWebService*>(service.handle)
+            ->on_ready(
+                [exec = callback.exec, holder](const nil::service::ID& id)
+                {
+                    auto c_id = from_cpp_id(id);
+                    exec(&c_id, holder->context);
+                }
+            );
+    }
+
+    void nil_service_web_on_get(nil_service_web service, nil_service_web_get_callback_info callback)
+    {
+        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        static_cast<nil::service::IWebService*>(service.handle)
+            ->on_get(
+                [exec = callback.exec, holder](nil::service::WebTransaction& transaction)
+                {
+                    if (exec == nullptr)
+                    {
+                        return false;
+                    }
+                    const auto c_transaction = nil_service_web_transaction{.handle = &transaction};
+                    return exec(c_transaction, holder->context) != 0;
+                }
+            );
+    }
+
+    nil_service_event nil_service_web_use_ws(nil_service_web service, const char* route)
+    {
+        auto* event = static_cast<nil::service::IWebService*>(service.handle)
+                          ->use_ws(route == nullptr ? "/" : route);
+        return {.handle = event};
+    }
+
+    void nil_service_web_transaction_set_content_type(
+        nil_service_web_transaction transaction,
+        const char* content_type
+    )
+    {
+        if (content_type == nullptr)
+        {
+            return;
+        }
+        auto& tx = *static_cast<nil::service::WebTransaction*>(transaction.handle);
+        nil::service::set_content_type(tx, content_type);
+    }
+
+    void nil_service_web_transaction_send(
+        nil_service_web_transaction transaction,
+        const void* body,
+        uint64_t size
+    )
+    {
+        const auto* ptr = static_cast<const char*>(body);
+        auto& tx = *static_cast<nil::service::WebTransaction*>(transaction.handle);
+        nil::service::send(tx, std::string_view{ptr == nullptr ? "" : ptr, size});
+    }
+
+    const char* nil_service_web_transaction_get_route(
+        nil_service_web_transaction transaction,
+        uint64_t* size
+    )
+    {
+        auto& tx = *static_cast<nil::service::WebTransaction*>(transaction.handle);
+        const auto route = nil::service::get_route(tx);
+        if (size != nullptr)
+        {
+            *size = route.size();
+        }
+        return route.data();
+    }
+
     nil_service_message nil_service_event_to_message(nil_service_event service)
     {
         auto* event = static_cast<nil::service::IEventService*>(service.handle);
@@ -261,6 +337,42 @@ extern "C"
     {
         auto* gateway = static_cast<nil::service::IGatewayService*>(service.handle);
         return {.handle = static_cast<nil::service::IStandaloneService*>(gateway)};
+    }
+
+    nil_service_event nil_service_gateway_to_event(nil_service_gateway service)
+    {
+        auto* gateway = static_cast<nil::service::IGatewayService*>(service.handle);
+        return {.handle = static_cast<nil::service::IEventService*>(gateway)};
+    }
+
+    nil_service_message nil_service_gateway_to_message(nil_service_gateway service)
+    {
+        auto* gateway = static_cast<nil::service::IGatewayService*>(service.handle);
+        return {.handle = static_cast<nil::service::IMessageService*>(gateway)};
+    }
+
+    nil_service_callback nil_service_gateway_to_callback(nil_service_gateway service)
+    {
+        auto* gateway = static_cast<nil::service::IGatewayService*>(service.handle);
+        return {.handle = static_cast<nil::service::ICallbackService*>(gateway)};
+    }
+
+    nil_service_runnable nil_service_gateway_to_runnable(nil_service_gateway service)
+    {
+        auto* gateway = static_cast<nil::service::IGatewayService*>(service.handle);
+        return {.handle = static_cast<nil::service::IRunnableService*>(gateway)};
+    }
+
+    nil_service_message nil_service_standalone_to_message(nil_service_standalone service)
+    {
+        auto* standalone = static_cast<nil::service::IStandaloneService*>(service.handle);
+        return {.handle = static_cast<nil::service::IMessageService*>(standalone)};
+    }
+
+    nil_service_callback nil_service_standalone_to_callback(nil_service_standalone service)
+    {
+        auto* standalone = static_cast<nil::service::IStandaloneService*>(service.handle);
+        return {.handle = static_cast<nil::service::ICallbackService*>(standalone)};
     }
 
     nil_service_event nil_service_standalone_to_event(nil_service_standalone service)
@@ -363,6 +475,24 @@ extern "C"
             .buffer = buffer
         };
         return {.handle = create(options).release()};
+    }
+
+    nil_service_web nil_service_create_http_server(const char* host, uint16_t port, uint64_t buffer)
+    {
+        const auto options
+            = nil::service::http::server::Options{.host = host, .port = port, .buffer = buffer};
+        return {.handle = create(options).release()};
+    }
+
+    nil_service_runnable nil_service_web_to_runnable(nil_service_web service)
+    {
+        auto* web = static_cast<nil::service::IWebService*>(service.handle);
+        return {.handle = static_cast<nil::service::IRunnableService*>(web)};
+    }
+
+    void nil_service_web_destroy(nil_service_web service)
+    {
+        delete static_cast<nil::service::IWebService*>(service.handle); // NOLINT
     }
 
     void nil_service_standalone_destroy(nil_service_standalone service)

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <nil/xalt/MACROS.h>
-
 // NOLINTNEXTLINE(hicpp-deprecated-headers,modernize-deprecated-headers)
 #include <stddef.h>
 
@@ -40,13 +38,25 @@ extern "C"
     typedef struct nil_service_standalone
     {
         void* handle;
-    } nil_service_standalone; // IStandalone: IEventService, IEventService
+    } nil_service_standalone; // IStandalone: IEventService, IRunnableService
 
     // NOLINTNEXTLINE(modernize-use-using)
     typedef struct nil_service_gateway
     {
         void* handle;
     } nil_service_gateway; // IGatewayService
+
+    // NOLINTNEXTLINE(modernize-use-using)
+    typedef struct nil_service_web
+    {
+        void* handle;
+    } nil_service_web; // IWebService
+
+    // NOLINTNEXTLINE(modernize-use-using)
+    typedef struct nil_service_web_transaction
+    {
+        void* handle;
+    } nil_service_web_transaction; // WebTransaction
 
     void nil_service_gateway_add_service(nil_service_gateway gateway, nil_service_event service);
 
@@ -126,6 +136,14 @@ extern "C"
         void (*cleanup)(void*);
     } nil_service_callback_info;
 
+    // NOLINTNEXTLINE(modernize-use-using)
+    typedef struct nil_service_web_get_callback_info
+    {
+        int (*exec)(nil_service_web_transaction transaction, void*);
+        void* context;
+        void (*cleanup)(void*);
+    } nil_service_web_get_callback_info;
+
     void nil_service_callback_on_ready(
         nil_service_callback service,
         nil_service_callback_info callback
@@ -146,13 +164,47 @@ extern "C"
         nil_service_msg_callback_info callback
     );
 
+    void nil_service_web_on_ready(nil_service_web service, nil_service_callback_info callback);
+
+    void nil_service_web_on_get(
+        nil_service_web service,
+        nil_service_web_get_callback_info callback
+    );
+
+    nil_service_event nil_service_web_use_ws(nil_service_web service, const char* route);
+
+    void nil_service_web_transaction_set_content_type(
+        nil_service_web_transaction transaction,
+        const char* content_type
+    );
+
+    void nil_service_web_transaction_send(
+        nil_service_web_transaction transaction,
+        const void* body,
+        uint64_t size
+    );
+
+    const char* nil_service_web_transaction_get_route(
+        nil_service_web_transaction transaction,
+        uint64_t* size
+    );
+
     // clang-format off
     nil_service_message nil_service_event_to_message(nil_service_event service);
     nil_service_callback nil_service_event_to_callback(nil_service_event service);
     
     nil_service_standalone nil_service_gateway_to_standalone(nil_service_gateway service);
+    nil_service_event nil_service_gateway_to_event(nil_service_gateway service);
+    nil_service_message nil_service_gateway_to_message(nil_service_gateway service);
+    nil_service_callback nil_service_gateway_to_callback(nil_service_gateway service);
+    nil_service_runnable nil_service_gateway_to_runnable(nil_service_gateway service);
+
+    nil_service_message nil_service_standalone_to_message(nil_service_standalone service);
+    nil_service_callback nil_service_standalone_to_callback(nil_service_standalone service);
     nil_service_event nil_service_standalone_to_event(nil_service_standalone service);
     nil_service_runnable nil_service_standalone_to_runnable(nil_service_standalone service);
+
+    nil_service_runnable nil_service_web_to_runnable(nil_service_web service);
     // clang-format on
 
     nil_service_standalone nil_service_create_udp_client(
@@ -192,8 +244,15 @@ extern "C"
         uint64_t buffer
     );
 
+    nil_service_web nil_service_create_http_server(
+        const char* host,
+        uint16_t port,
+        uint64_t buffer
+    );
+
     nil_service_gateway nil_service_create_gateway(void);
     void nil_service_gateway_destroy(nil_service_gateway gateway);
+    void nil_service_web_destroy(nil_service_web service);
     void nil_service_standalone_destroy(nil_service_standalone service);
 #ifdef __cplusplus
 }

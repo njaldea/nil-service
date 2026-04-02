@@ -9,19 +9,22 @@ enum
     GATEWAY_TCP_PORT = 1101,
     GATEWAY_UDP_PORT = 1102,
     GATEWAY_WS_PORT = 1103,
+    HTTP_PORT = 1103,
+    HTTP_BUFFER_SIZE = 1024UL * 1024UL * 100UL,
     DEFAULT_BUFFER_SIZE = 2048,
     INPUT_BUFFER_SIZE = 4096,
     MAX_SERVICE_COUNT = 4
 };
 
 static const double DEFAULT_UDP_TIMEOUT_S = 1.0;
-static const char DEFAULT_ROUTE[] = "/";
+static const char DEFAULT_ROUTE[] = "/ws";
 
 typedef enum Transport
 {
     TRANSPORT_TCP,
     TRANSPORT_UDP,
     TRANSPORT_WS,
+    TRANSPORT_HTTP,
     TRANSPORT_GATEWAY
 } Transport;
 
@@ -33,6 +36,7 @@ typedef struct AppContext
     nil_service_message message;
     nil_service_callback callback;
     nil_service_gateway gateway;
+    nil_service_web web;
 } AppContext;
 
 static void input_loop(nil_service_message message_service);
@@ -106,9 +110,19 @@ static int is_gateway_transport(const char* transport)
     return transport != NULL && strcmp(transport, "gateway") == 0;
 }
 
+static int is_http_transport(const char* transport)
+{
+    return transport != NULL && strcmp(transport, "http") == 0;
+}
+
 static int is_leaf_transport(const char* transport)
 {
     return is_tcp_transport(transport) || is_udp_transport(transport) || is_ws_transport(transport);
+}
+
+static int has_http_command(int argc, char** argv)
+{
+    return argc == 2 && is_http_transport(argv[1]);
 }
 
 static int has_gateway_command(int argc, char** argv)
@@ -124,7 +138,8 @@ static int has_leaf_command(int argc, char** argv)
 
 static int has_valid_command(int argc, char** argv)
 {
-    return has_gateway_command(argc, argv) || has_leaf_command(argc, argv);
+    return has_gateway_command(argc, argv) || has_leaf_command(argc, argv)
+        || has_http_command(argc, argv);
 }
 
 static Transport parse_transport(int argc, char** argv)
@@ -132,6 +147,11 @@ static Transport parse_transport(int argc, char** argv)
     if (has_gateway_command(argc, argv))
     {
         return TRANSPORT_GATEWAY;
+    }
+
+    if (has_http_command(argc, argv))
+    {
+        return TRANSPORT_HTTP;
     }
 
     if (is_udp_transport(argv[1]))
@@ -155,6 +175,7 @@ static const char* parse_mode(int argc, char** argv)
 static void print_usage(const char* program)
 {
     fprintf(stderr, "usage: %s gateway\n", program);
+    fprintf(stderr, "   or: %s http\n", program);
     fprintf(stderr, "   or: %s <tcp|udp|ws> <server|client>\n", program);
 }
 
@@ -168,6 +189,11 @@ static uint16_t default_port_for_transport(Transport transport)
     if (transport == TRANSPORT_WS)
     {
         return GATEWAY_WS_PORT;
+    }
+
+    if (transport == TRANSPORT_HTTP)
+    {
+        return HTTP_PORT;
     }
 
     return GATEWAY_TCP_PORT;
@@ -245,6 +271,54 @@ static void register_callbacks(nil_service_callback callback_service)
     );
 }
 
+static void register_web_ready(const nil_service_id* id, void* context)
+{
+    (void)context;
+    print_id("web ready    : ", id);
+}
+
+static int on_web_get(nil_service_web_transaction transaction, void* context)
+{
+    uint64_t route_size = 0U;
+    const char* route = nil_service_web_transaction_get_route(transaction, &route_size);
+    (void)context;
+
+    if (route == NULL)
+    {
+        return 0;
+    }
+
+    if (route_size == 1U && route[0] == '/')
+    {
+        static const char body[]
+            = "<!DOCTYPE html>"
+              "<html lang=\"en\">"
+              "<head>"
+              "<script type=\"module\">"
+              "const foo = (host, port) => {"
+              "    let nil = new WebSocket(`/ws`);"
+              "    nil.binaryType = \"arraybuffer\";"
+              "    nil.onopen = () => console.log(\"open\");"
+              "    nil.onclose = () => console.log(\"close\");"
+              "    nil.onmessage = async (e) => {"
+              "        const data = new Uint8Array(event.data);"
+              "        const rest = new TextDecoder().decode(data);"
+              "        console.log(tag, rest);"
+              "    };"
+              "    return nil;"
+              "};"
+              "globalThis.foo = foo;"
+              "</script>"
+              "</head>"
+              "<body>hello world</body>";
+        nil_service_web_transaction_set_content_type(transaction, "text/html");
+        nil_service_web_transaction_send(transaction, body, sizeof(body) - 1U);
+        return 1;
+    }
+
+    return 0;
+}
+
 static void init_service(AppContext* app, size_t index, nil_service_standalone standalone)
 {
     nil_service_event event_service = nil_service_standalone_to_event(standalone);
@@ -285,6 +359,23 @@ static void build_gateway_service(AppContext* app, const char* mode)
 static void build_app(AppContext* app, Transport transport, const char* mode)
 {
     memset(app, 0, sizeof(*app));
+
+    if (transport == TRANSPORT_HTTP)
+    {
+        nil_service_event ws_event;
+
+        app->service_count = 1U;
+        app->web = nil_service_create_http_server(
+            "0.0.0.0",
+            default_port_for_transport(transport),
+            HTTP_BUFFER_SIZE
+        );
+        ws_event = nil_service_web_use_ws(app->web, DEFAULT_ROUTE);
+        app->message = nil_service_event_to_message(ws_event);
+        app->callback = nil_service_event_to_callback(ws_event);
+        app->runnable[0U] = nil_service_web_to_runnable(app->web);
+        return;
+    }
 
     if (transport == TRANSPORT_GATEWAY)
     {
@@ -347,6 +438,13 @@ static void destroy_services(AppContext* app)
 {
     size_t index = app->service_count;
 
+    if (app->web.handle != NULL)
+    {
+        nil_service_web_destroy(app->web);
+        app->web.handle = NULL;
+        return;
+    }
+
     if (app->gateway.handle != NULL)
     {
         while (index > 1U)
@@ -390,6 +488,11 @@ static void input_loop(nil_service_message message_service)
             continue;
         }
 
+        if (message_service.handle == NULL)
+        {
+            continue;
+        }
+
         nil_service_message_publish(message_service, buffer, (uint64_t)length);
     }
 }
@@ -401,8 +504,8 @@ int main(int argc, char** argv)
     pthread_t input_thread = {0};
     size_t started_subservice_threads = 0U;
     int create_result = 0;
-    Transport transport = parse_transport(argc, argv);
-    const char* mode = parse_mode(argc, argv);
+    Transport transport = TRANSPORT_TCP;
+    const char* mode = NULL;
 
     if (!has_valid_command(argc, argv))
     {
@@ -410,9 +513,27 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    transport = parse_transport(argc, argv);
+    mode = parse_mode(argc, argv);
+
     build_app(&app, transport, mode);
 
-    register_callbacks(app.callback);
+    if (app.web.handle != NULL)
+    {
+        nil_service_web_on_ready(
+            app.web,
+            (nil_service_callback_info){.exec = register_web_ready, .context = NULL, .cleanup = NULL}
+        );
+        nil_service_web_on_get(
+            app.web,
+            (nil_service_web_get_callback_info){.exec = on_web_get, .context = NULL, .cleanup = NULL}
+        );
+        register_callbacks(app.callback);
+    }
+    else
+    {
+        register_callbacks(app.callback);
+    }
 
     create_result = start_subservices(&app, subservice_threads, &started_subservice_threads);
     if (create_result != 0)
