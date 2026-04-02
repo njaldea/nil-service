@@ -169,14 +169,14 @@ extern "C"
     }
 
     void nil_service_message_send_ids(
-        nil_service_id id,
+        nil_service_ids ids,
         nil_service_message service,
         const void* data,
         uint64_t size
     )
     {
         static_cast<nil::service::IMessageService*>(service.handle)
-            ->send({to_cpp_id(&id)}, to_payload(data, size));
+            ->send(to_cpp_ids(&ids), to_payload(data, size));
     }
 
     void nil_service_callback_on_ready(

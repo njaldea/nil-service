@@ -8,8 +8,9 @@ enum
 {
     GATEWAY_TCP_PORT = 1101,
     GATEWAY_UDP_PORT = 1102,
-    GATEWAY_WS_PORT = 1103,
-    HTTP_PORT = 1103,
+    WS_HTTP_PORT = 1104,
+    GATEWAY_WS_PORT = WS_HTTP_PORT,
+    HTTP_PORT = WS_HTTP_PORT,
     HTTP_BUFFER_SIZE = 1024UL * 1024UL * 100UL,
     DEFAULT_BUFFER_SIZE = 2048,
     INPUT_BUFFER_SIZE = 4096,
@@ -302,6 +303,8 @@ static int on_web_get(nil_service_web_transaction transaction, void* context)
               "    nil.onclose = () => console.log(\"close\");"
               "    nil.onmessage = async (e) => {"
               "        const data = new Uint8Array(event.data);"
+              "        const tag = new DataView(data.buffer)"
+              "            .getUint32(0, false);"
               "        const rest = new TextDecoder().decode(data);"
               "        console.log(tag, rest);"
               "    };"

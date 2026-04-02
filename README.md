@@ -1,63 +1,41 @@
 # nil/service
 
-This very opinionated library is intended to simplify creation of different services for network communincation.
+Networking service toolkit for C++ with an optional C API.
 
-Here are the services provided by this library:
+## What You Get
 
-| name    | description                                                                       |
-| ------- | --------------------------------------------------------------------------------- |
-| _self_  | works like an echo server. messages sent/published is handled by its own handlers |
-| _udp_   | client/server                                                                     |
-| _tcp_   | client/server                                                                     |
-| _ws_    | client/server                                                                     |
-| _wss_   | client/server                                                                     |
-| _http_  | server. supports routes and promotion to websocket                                |
-| _https_ | server. supports routes and promotion to websocket                                |
+| Protocol | Role | Notes |
+| --- | --- | --- |
+| self | standalone | loopback/echo-style local service |
+| udp | client/server | supports timeout |
+| tcp | client/server | stream transport |
+| ws | client/server | websocket over tcp |
+| http | server | routes + websocket upgrade |
 
-## Options
+## Documentation Map
 
-The following are properties of the Option struct required for creating the services.
+- C++ API and utilities: this file
+- C API guide: [docs/c-api.md](docs/c-api.md)
+- Sandbox examples: [sandbox/main.cpp](sandbox/main.cpp), [sandbox/main.c](sandbox/main.c)
 
-### `<protocol>::server::Options`
-
-| name    | protocol                   | description                              | default   |
-| ------- | -------------------------- | ---------------------------------------- | --------- |
-| cert    | wss https                  | path for key/dh/cert pem files           |           |
-| port    | tcp udp ws http wss https  | network port to use                      |           |
-| buffer  | tcp udp ws http wss https  | buffer size to use                       | 1024      |
-| route   | ws wss                     | route to host                            | "/"       |
-| timeout | udp                        | timeout to consider a connection is lost | 2 seconds |
-
-### `<protocol>::client::Options`
-
-| name    | protocol        | description                              | default   |
-| ------- | --------------- | ---------------------------------------- | --------- |
-| host    | tcp udp ws wss  | network host to connect to               |           |
-| port    | tcp udp ws wss  | network port to connect to               |           |
-| route   | ws wss          | route to connect to                      | "/"       |
-| buffer  | tcp udp ws wss  | buffer size to use                       | 1024      |
-| timeout | udp             | timeuout to consier a connection is lost | 2 seconds |
-
-## Creating The Services
-
-Each service has their own create method.
+## Service Creation (C++)
 
 ```cpp
 namespace ns = nil::service;
-auto a = ns::self::create();
-auto a = ns::udp::server::create({...});
-auto a = ns::udp::client::create({...});
-auto a = ns::tcp::server::create({...});
-auto a = ns::tcp::client::create({...});
-auto a = ns::ws::server::create({...});
-auto a = ns::ws::client::create({...});
-auto w = ns::http::server::create({...});
-auto w = ns::https::server::create({...});
+
+auto self = ns::self::create();
+auto udp_server = ns::udp::server::create({...});
+auto udp_client = ns::udp::client::create({...});
+auto tcp_server = ns::tcp::server::create({...});
+auto tcp_client = ns::tcp::client::create({...});
+auto ws_server = ns::ws::server::create({...});
+auto ws_client = ns::ws::client::create({...});
+auto http_server = ns::http::server::create({...});
 ```
 
-## APIs
+## Service APIs (C++)
 
-### Service
+### Event service
 
 ```cpp
 service->on_ready(handler);
@@ -65,233 +43,114 @@ service->on_connect(handler);
 service->on_disconnect(handler);
 service->on_message(handler);
 
-service->send(id, buffer, buffer_size);
-service->send(id, message_with_codec);
-service->send(id, vector_of_uint8);
-
-service->publish(buffer, buffer_size);
-service->publish(message_with_codec);
-service->publish(vector_of_uint8);
+service->send(id, buffer, size);
+service->publish(buffer, size);
 ```
 
-### Standalone Service
-
-Standalone service also support the basic Service methods.
+### Standalone service
 
 ```cpp
-std::unique_ptr<nil::service::IStandAloneService> service
-    = nil::service::...::create({...});
-
-service->start();    // runs the service - blocking
-service->stop();     // stops the service - releases run
-service->restart();  // restarts the service 
-                     // required after stopping and before re-running
-
+service->start();
+service->stop();
+service->restart();
 ```
 
-### Web Service
+### Web service
 
 ```cpp
-auto service = nil::service::http::server::create({...});
-// auto service = nil::service::https::server::create({...});
+auto web = nil::service::http::server::create({...});
 
-// only supports on_ready
-service->on_ready(handler);
-
-// special api for creating routes
-service->on_get(
-    [](nil::service::WebTransaction& transaction)
+web->on_ready(handler);
+web->on_get(
+    [](nil::service::WebTransaction& tx)
     {
-        if ("/" != get_route(transaction))
+        if ("/" != get_route(tx))
         {
             return false;
         }
-        set_content_type(transaction, "text/html");
-        send(transaction, "<body>CONTENT</body>");
-        return true; // to indicate that the next registered on_get will not be invoked
+
+        set_content_type(tx, "text/html");
+        send(tx, "<body>hello</body>");
+        return true;
     }
 );
 
-// special api for creating route with websocket.
-// returns a Service (S proxy)
-nil::service::IEventService* s = service->use_ws("/ws");
+nil::service::IEventService* ws = web->use_ws("/ws");
 ```
 
-### `on_message` overloads
+## Options Summary
 
-- the following callable signatures will be handled:
+### server::Options
+
+| Field | Protocols | Notes |
+| --- | --- | --- |
+| host | tcp, udp, ws, http | bind address |
+| port | tcp, udp, ws, http | bind port |
+| buffer | tcp, udp, ws, http | io buffer size |
+| route | ws | websocket route, default "/" |
+| timeout | udp | disconnect timeout, default 2s |
+
+### client::Options
+
+| Field | Protocols | Notes |
+| --- | --- | --- |
+| host | tcp, udp, ws | target address |
+| port | tcp, udp, ws | target port |
+| route | ws | websocket route, default "/" |
+| buffer | tcp, udp, ws | io buffer size |
+| timeout | udp | disconnect timeout, default 2s |
+
+### Default Values
+
+- tcp client/server buffer: `1024`
+- udp client/server buffer: `1024`, timeout: `2s`
+- ws client/server route: `/`, buffer: `1024`
+- http server buffer: `8192`
+
+## on_message Signatures
+
+Supported handler shapes include:
 
 ```cpp
-service.on_message(handler);
-
-// the following are possible signatures for the call operator of handler
 [](){};
-[](const nil::service::ID& id){};
-[](const nil::service::ID& id, const void* buffer, std::uint64_t size){};
-[](const nil::service::ID& id, const WithCodec& custom_data){};
-[](const void* buffer, std::uint64_t size){};
-[](const WithCodec& custom_data){};
-
-// we can use `auto` for id
-// use `const auto&` or other variants. up to you.
-[](auto id, const void* buffer, std::uint64_t size){};
-[](auto id, const WithCodec&){};
-[](auto id){};
-
-// use auto will automatically be deduced
-[](auto id, auto buffer, auto size){};
-
-// two auto will be deduced as buffer / size
-[](auto buffer, auto size){};
-
-// custom types can't be deduced with auto
-[](const nil::service::ID& id, auto custom_data){
-    YourType data = custom_data; // has deserialize
-};
-// custom_data's type is unknown
-// an internal type named `AutoCast` is going to be passed
-// which can be casted to the right payload if needed.
+[](nil::service::ID){};
+[](nil::service::ID, const void*, std::uint64_t){};
+[](nil::service::ID, const CustomType&){};
+[](const void*, std::uint64_t){};
+[](const CustomType&){};
 ```
 
-Preferrably, it is better to use distinct types to avoid confusion. but you do you.
+`auto` forms are also supported by the adapter utilities.
 
-### `consume<T>(data, size)`
+## Utility Helpers
 
-A utility method to simplify consumption of data and size to an appropriate type.
-This is expected to move the data pointer and size depending on how much of the buffer is used.
+### consume<T>
 
-```cpp
-const auto payload = nil::service::consume<std::uint64_t>(data, size);
-// sizeof(std::uint64_t) == 8
-// data should have moved by 8 bytes
-// size should have been decremented by 8
-```
+Consumes bytes from `(data, size)` and advances both according to `codec<T>`.
 
-This utilizes `codec`s which will be discussesd at the end.
+### concat / concat_into
 
-### `concat(T...)`
+Serialize one or more values into a contiguous payload using `codec<T>`.
 
-This utility method provides a way to concatenate multiple payloads into one.
-and returns it as an `std::vector<std::uint8_t>`
+### map / mapping
 
-```cpp
-publish(service, nil::service::concat(0u, "message for 0"s));
-publish(service, nil::service::concat(1u, false));
-```
+Build message routers using a header value and per-header handlers.
 
-This utilizes `codec`s which will be discussesd at the end.
+### codec<T>
 
-### `concat_into(void* output, T...)`
+Provide `size`, `serialize`, and `deserialize` to integrate custom payload types.
 
-This utility method provides a way to concatenate multiple payloads into one.
+## Lifetime And Thread-Safety Notes
 
-It assumes that the buffer has enough memory allocated through `codec<T>::size`
+- `nil::service::to_string(ID)` is valid only while handling the callback that supplied that id.
+- `ID::to_string` / `to_string(ID)` is not thread-safe.
 
-```cpp
-nil::service::concat_into(buffer, 0u, "message for 0"s);
-nil::service::concat_into(buffer, 1u, false);
-```
+## Build Notes
 
-This utilizes `codec`s which will be discussesd at the end.
+- C API is built when `ENABLE_C_API` is ON.
+- See [src/CMakeLists.txt](src/CMakeLists.txt) for target details.
 
-### `map<T, H...>(mapping<T, H>... handler)`
+## Operational Notes
 
-This utility method creates a handler that will do the following:
-- parses the first section of the buffer (like having a header)
-- calls the right mapping (callback) based on the header
-- returns a handler compatible to `on_message`
-
-```cpp
-T header1;
-T header2;
-map(
-    mapping(header1, handler1),
-    mapping(header2, handler2)
-);
-```
-
-Notes:
-- all mappings inside the map should have the same header type.
-- handlers will follow the same signature support as `on_message`.
-
-### `codec`
-
-to allow serialization of custom type (message for send/publish), `codec` is expected to be implemented by the user.
-
-the following codecs are already implemented:
-
-```cpp
-codec<std::string>
-codec<std::uint8_t>
-codec<std::uint16_t>
-codec<std::uint32_t>
-codec<std::uint64_t>
-codec<std::int8_t>
-codec<std::int16_t>
-codec<std::int32_t>
-codec<std::int64_t>
-codec<char>
-codec<T[N]> // only deserialize
-```
-
-a `codec` is expected to have `size`, `serialize` and `deserialize` method. see example below for more information.
-
-```cpp
-// my_codec.hpp
-
-#include <nil/service/codec.hpp>
-#include <nil/service/consume.hpp>
-#include <nil/service/concat.hpp>
-
-struct CustomType
-{
-    std::int64_t content_1;
-    std::int32_t content_2;
-    std::int32_t content_3;
-};
-
-namespace nil::service
-{
-    template <>
-    struct codec<CustomType>
-    {
-        static std::size_t size(const CustomType& message)
-        {
-            return codec<std::int64_t>::size(message.content_1)
-                + codec<std::int32_t>::size(message.content_2)
-                + codec<std::int32_t>::size(message.content_3);
-        }
-
-        static std::size_t serialize(void* data, const CustomType& message)
-        {
-            return concat_into(
-                data,
-                message.content_1,
-                message.content_2,
-                message.content_3
-            );
-        }
-
-        static CustomType deserialize(const void* data, std::uint64_t size)
-        {
-            CustomType m;
-            m.content_1 = consume<std::int64_t>(data, size);
-            m.content_2 = consume<std::int32_t>(data, size);
-            m.content_3 = consume<std::int32_t>(data, size);
-            return m;
-        }
-    };
-}
-
-// Include your codec
-#include "my_codec.hpp"
-
-service->on_message([](const auto& id, const CustomType& message){});
-
-CustomType message;
-service->publish(message);
-```
-
-## NOTES:
-- due to the nature of UDP, if one side gets "destroyed" and is able to reconnect "immediately", disconnection will not be "detected".
-- host is not resolved. currently expects only IP and port.
+- Hostnames are not resolved internally; use ip/port values.
+- With UDP, very fast reconnect scenarios may skip observable disconnect events.

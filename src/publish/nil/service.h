@@ -10,6 +10,8 @@
 extern "C"
 {
 #endif
+    // Unless explicitly documented otherwise, API functions require valid non-null handles.
+
     // NOLINTNEXTLINE(modernize-use-using)
     typedef struct nil_service_runnable
     {
@@ -56,7 +58,7 @@ extern "C"
     typedef struct nil_service_web_transaction
     {
         void* handle;
-    } nil_service_web_transaction; // WebTransaction
+    } nil_service_web_transaction; // WebTransaction (valid only inside web on_get callback)
 
     void nil_service_gateway_add_service(nil_service_gateway gateway, nil_service_event service);
 
@@ -81,9 +83,13 @@ extern "C"
     {
         const void* owner;
         const void* id;
-        void* _; // std::string (*to_string)(const void*);
+        void* _; // std::string (*to_string)(const void*); callback-scoped; not thread-safe.
     } nil_service_id;
 
+    // NOTE:
+    // - nil_service_id_print / string conversion is valid only while handling a callback
+    //   that provided this id.
+    // - conversion uses internal storage and is not thread-safe.
     void nil_service_id_print(nil_service_id id);
 
     // NOLINTNEXTLINE(modernize-use-using)
@@ -114,7 +120,7 @@ extern "C"
         uint64_t size
     );
     void nil_service_message_send_ids(
-        nil_service_id id,
+        nil_service_ids ids,
         nil_service_message service,
         const void* data,
         uint64_t size
@@ -171,19 +177,27 @@ extern "C"
         nil_service_web_get_callback_info callback
     );
 
+    // Returns a non-owning event-service view backed by `service`.
+    // The returned handle must not outlive `service`.
     nil_service_event nil_service_web_use_ws(nil_service_web service, const char* route);
 
+    // `transaction` is only valid during the on_get callback invocation.
     void nil_service_web_transaction_set_content_type(
         nil_service_web_transaction transaction,
         const char* content_type
     );
 
+    // `transaction` is only valid during the on_get callback invocation.
+    // `body` is copied into the response before this function returns.
     void nil_service_web_transaction_send(
         nil_service_web_transaction transaction,
         const void* body,
         uint64_t size
     );
 
+    // `transaction` is only valid during the on_get callback invocation.
+    // Returned pointer aliases internal request memory and is not null-terminated.
+    // If `size` is not null, it receives the route length.
     const char* nil_service_web_transaction_get_route(
         nil_service_web_transaction transaction,
         uint64_t* size
@@ -193,6 +207,8 @@ extern "C"
     nil_service_message nil_service_event_to_message(nil_service_event service);
     nil_service_callback nil_service_event_to_callback(nil_service_event service);
     
+    // Conversion helpers return non-owning views and never transfer ownership.
+    // Destroy only the original owning handle (`gateway`, `web`, or `standalone`).
     nil_service_standalone nil_service_gateway_to_standalone(nil_service_gateway service);
     nil_service_event nil_service_gateway_to_event(nil_service_gateway service);
     nil_service_message nil_service_gateway_to_message(nil_service_gateway service);
@@ -251,6 +267,9 @@ extern "C"
     );
 
     nil_service_gateway nil_service_create_gateway(void);
+
+    // Destroy owning handles created by nil_service_create_*.
+    // Any converted/view handles derived from these become invalid after destroy.
     void nil_service_gateway_destroy(nil_service_gateway gateway);
     void nil_service_web_destroy(nil_service_web service);
     void nil_service_standalone_destroy(nil_service_standalone service);

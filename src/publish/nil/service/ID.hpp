@@ -36,9 +36,14 @@ namespace nil::service
 
         const void* owner = nullptr;
         const void* id = nullptr;
+        // Callback-scoped string converter. The pointed implementation may use
+        // internal transient storage and is not guaranteed to be thread-safe.
         std::string (*to_string)(const void*) = nullptr;
     };
 
+    // NOTE:
+    // - Valid only while handling the callback that supplied this ID.
+    // - Not thread-safe.
     std::string to_string(ID id);
 }
 
