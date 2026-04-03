@@ -8,7 +8,10 @@ namespace nil::service::gateway
     class Impl final: public IGatewayService
     {
     public:
-        Impl() = default;
+        Impl()
+            : context(std::make_unique<boost::asio::io_context>())
+        {
+        }
 
         ~Impl() noexcept override = default;
 
@@ -43,86 +46,123 @@ namespace nil::service::gateway
 
         void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
-            for (auto* service : services)
-            {
-                service->on_message(
-                    [this, handler](ID id, const void* data, std::uint64_t size)
-                    {
-                        const auto* start = static_cast<const std::uint8_t*>(data);
-                        const auto* end = start + size;
-                        this->dispatch([id, d = std::vector<std::uint8_t>(start, end), handler]()
-                                       { handler(id, d.data(), d.size()); });
-                    }
-                );
-            }
+            on_message_handlers.push_back(std::move(handler));
         }
 
         void impl_on_ready(std::function<void(ID)> handler) override
         {
-            for (auto* service : services)
-            {
-                service->on_ready([this, handler](ID id)
-                                  { this->dispatch([id, handler]() { handler(id); }); });
-            }
+            on_ready_handlers.push_back(std::move(handler));
         }
 
         void impl_on_connect(std::function<void(ID)> handler) override
         {
-            for (auto* service : services)
-            {
-                service->on_connect([this, handler](ID id)
-                                    { this->dispatch([id, handler]() { handler(id); }); });
-            }
+            on_connect_handlers.push_back(std::move(handler));
         }
 
         void impl_on_disconnect(std::function<void(ID)> handler) override
         {
-            for (auto* service : services)
-            {
-                service->on_disconnect([this, handler](ID id)
-                                       { this->dispatch([id, handler]() { handler(id); }); });
-            }
+            on_disconnect_handlers.push_back(std::move(handler));
         }
 
         void add_service(IEventService& service) override
         {
             services.push_back(&service);
+            attach_message_forwarder(service);
+            attach_event_forwarder(service, &Impl::on_ready_handlers, &IEventService::on_ready);
+            attach_event_forwarder(service, &Impl::on_connect_handlers, &IEventService::on_connect);
+            attach_event_forwarder(
+                service,
+                &Impl::on_disconnect_handlers,
+                &IEventService::on_disconnect
+            );
         }
 
         void start() override
         {
-            if (!context)
-            {
-                context = std::make_unique<boost::asio::io_context>();
-            }
+            context->restart();
             auto _ = boost::asio::make_work_guard(*context);
             context->run();
         }
 
         void stop() override
         {
-            if (context)
-            {
-                context->stop();
-            }
+            context->stop();
         }
 
         void restart() override
         {
-            context.reset();
+            context = std::make_unique<boost::asio::io_context>();
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (context)
-            {
-                boost::asio::post(*context, std::move(task));
-            }
+            boost::asio::post(*context, std::move(task));
         }
 
     private:
+        using MsgHandler = std::function<void(ID, const void*, std::uint64_t)>;
+        using EventHandler = std::function<void(ID)>;
+
         std::vector<IEventService*> services;
         std::unique_ptr<boost::asio::io_context> context;
+        std::vector<MsgHandler> on_message_handlers;
+        std::vector<EventHandler> on_ready_handlers;
+        std::vector<EventHandler> on_connect_handlers;
+        std::vector<EventHandler> on_disconnect_handlers;
+
+        static void invoke_event_handlers(const std::vector<EventHandler>& handlers, const ID& id)
+        {
+            for (const auto& handler : handlers)
+            {
+                if (handler)
+                {
+                    handler(id);
+                }
+            }
+        }
+
+        static void invoke_message_handlers(
+            const std::vector<MsgHandler>& handlers,
+            const ID& id,
+            const std::vector<std::uint8_t>& payload
+        )
+        {
+            for (const auto& handler : handlers)
+            {
+                if (handler)
+                {
+                    handler(id, payload.data(), payload.size());
+                }
+            }
+        }
+
+        void attach_message_forwarder(IEventService& service)
+        {
+            service.on_message(
+                [this](ID id, const void* data, std::uint64_t size)
+                {
+                    const auto* start = static_cast<const std::uint8_t*>(data);
+                    const auto* end = start + size;
+                    auto payload = std::vector<std::uint8_t>(start, end);
+                    this->dispatch([this, id, payload = std::move(payload)]()
+                                   { invoke_message_handlers(on_message_handlers, id, payload); });
+                }
+            );
+        }
+
+        void attach_event_forwarder(
+            IEventService& service,
+            const std::vector<EventHandler> Impl::*handlers,
+            void (IEventService::*subscribe)(std::function<void(ID)>)
+        )
+        {
+            (service.*subscribe)(
+                [this, handlers](ID id) {
+                    this->dispatch([this, handlers, id]()
+                                   { invoke_event_handlers(this->*handlers, id); });
+                }
+            );
+        }
     };
 
     std::unique_ptr<IGatewayService> create()

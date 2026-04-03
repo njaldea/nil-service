@@ -17,7 +17,7 @@ GENERATOR="Ninja"
 
 HELP()
 {
-    echo "[-h|d|t|s|f]"
+    echo "[-h|d|t|s|c]"
     echo "options:"
     echo "h         Print this help"
     echo "d         Configure Debug Build (default: Release)"
@@ -65,4 +65,5 @@ cmake                                                                       \
     -DVCPKG_OVERLAY_TRIPLETS="${REPO_PATH}/triplets"                        \
     -DENABLE_SANDBOX=${ENABLE_SANDBOX}                                      \
     -DENABLE_TEST=${ENABLE_TEST}                                            \
+    -DENABLE_C_API=${ENABLE_C_API}                                          \
     ${TRIPLET}

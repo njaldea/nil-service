@@ -32,21 +32,10 @@ namespace nil::service::ws::server
 
         void start() override
         {
-            for (const auto& cb : on_message_cb)
+            if (!callbacks_attached)
             {
-                ws->on_message(cb);
-            }
-            for (const auto& cb : on_connect_cb)
-            {
-                ws->on_connect(cb);
-            }
-            for (const auto& cb : on_disconnect_cb)
-            {
-                ws->on_disconnect(cb);
-            }
-            for (const auto& cb : on_ready_cb)
-            {
-                ws->on_ready(cb);
+                callbacks_attached = true;
+                attach_callbacks();
             }
             server->start();
         }
@@ -58,6 +47,7 @@ namespace nil::service::ws::server
 
         void restart() override
         {
+            callbacks_attached = false;
             server->restart();
         }
 
@@ -77,9 +67,29 @@ namespace nil::service::ws::server
         std::vector<std::function<void(ID)>> on_ready_cb;
         std::vector<std::function<void(ID)>> on_connect_cb;
         std::vector<std::function<void(ID)>> on_disconnect_cb;
+        bool callbacks_attached = false;
 
-        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler
-        ) override
+        void attach_callbacks()
+        {
+            for (const auto& cb : on_message_cb)
+            {
+                ws->on_message(cb);
+            }
+            for (const auto& cb : on_connect_cb)
+            {
+                ws->on_connect(cb);
+            }
+            for (const auto& cb : on_disconnect_cb)
+            {
+                ws->on_disconnect(cb);
+            }
+            for (const auto& cb : on_ready_cb)
+            {
+                ws->on_ready(cb);
+            }
+        }
+
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
             on_message_cb.push_back(std::move(handler));
         }

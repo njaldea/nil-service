@@ -22,17 +22,7 @@ namespace nil::service::self
         {
             if (context)
             {
-                boost::asio::post(
-                    *context,
-                    [this, msg = std::move(payload)]() {
-                        utils::invoke(
-                            on_message_cb,
-                            ID{this, this, &to_string},
-                            msg.data(),
-                            msg.size()
-                        );
-                    }
-                );
+                queue_self_message(std::move(payload));
             }
         }
 
@@ -44,17 +34,11 @@ namespace nil::service::self
                     *context,
                     [this, ids = std::move(ids), msg = std::move(payload)]()
                     {
-                        if (ids.end()
-                            == std::find(ids.begin(), ids.end(), ID{this, this, &to_string}))
+                        if (!contains_self_id(ids))
                         {
                             return;
                         }
-                        utils::invoke(
-                            on_message_cb,
-                            ID{this, this, &to_string},
-                            msg.data(),
-                            msg.size()
-                        );
+                        emit_self_message(msg);
                     }
                 );
             }
@@ -62,10 +46,22 @@ namespace nil::service::self
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            if (ids.end() != std::find(ids.begin(), ids.end(), ID{this, this, &to_string}))
+            if (!context)
             {
-                utils::invoke(on_message_cb, ID{this, this, &to_string}, data.data(), data.size());
+                return;
             }
+
+            boost::asio::post(
+                *context,
+                [this, ids = std::move(ids), msg = std::move(data)]()
+                {
+                    if (!contains_self_id(ids))
+                    {
+                        return;
+                    }
+                    emit_self_message(msg);
+                }
+            );
         }
 
         void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler
@@ -130,6 +126,30 @@ namespace nil::service::self
         }
 
     private:
+        [[nodiscard]] ID self_id() const
+        {
+            return {this, this, &to_string};
+        }
+
+        [[nodiscard]] bool contains_self_id(const std::vector<ID>& ids) const
+        {
+            return ids.end() != std::find(ids.begin(), ids.end(), self_id());
+        }
+
+        void emit_self_message(const std::vector<std::uint8_t>& msg)
+        {
+            const auto id = self_id();
+            utils::invoke(on_message_cb, id, msg.data(), msg.size());
+        }
+
+        void queue_self_message(std::vector<std::uint8_t> msg)
+        {
+            boost::asio::post(
+                *context,
+                [this, msg = std::move(msg)]() { emit_self_message(msg); }
+            );
+        }
+
         std::unique_ptr<boost::asio::io_context> context;
         std::vector<std::function<void(ID, const void*, std::uint64_t)>> on_message_cb;
         std::vector<std::function<void(ID)>> on_ready_cb;

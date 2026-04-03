@@ -14,9 +14,14 @@ void add_help(nil::clix::Node& node)
     flag(node, "help", {.skey = 'h', .msg = "this help"});
 }
 
-void add_port(nil::clix::Node& node)
+void add_server_port(nil::clix::Node& node)
 {
     number(node, "port", {.skey = 'p', .msg = "port", .fallback = 0});
+}
+
+void add_client_port(nil::clix::Node& node)
+{
+    number(node, "port", {.skey = 'p', .msg = "port"});
 }
 
 void add_route(nil::clix::Node& node)
@@ -155,28 +160,36 @@ int runner(const nil::clix::Options& options)
     return 0;
 }
 
-template <auto server_maker, auto client_maker, auto... option_adder>
-void sc_node(nil::clix::Node& node)
+template <typename s, typename c>
+struct sc_node;
+
+template <auto server_maker, auto client_maker, auto... server_options, auto... client_options>
+struct sc_node<
+    nil::xalt::tlist<nil::xalt::typify<server_maker>, nil::xalt::typify<server_options>...>,
+    nil::xalt::tlist<nil::xalt::typify<client_maker>, nil::xalt::typify<client_options>...>>
 {
-    add_help(node);
-    use(node, nil::clix::prebuilt::Help(&std::cout));
-    sub(node,
-        "server",
-        "server",
-        [](auto& nn)
-        {
-            (option_adder(nn), ...);
-            use(nn, runner<server_maker>);
-        });
-    sub(node,
-        "client",
-        "client",
-        [](auto& nn)
-        {
-            (option_adder(nn), ...);
-            use(nn, runner<client_maker>);
-        });
-}
+    void operator()(nil::clix::Node& node)
+    {
+        add_help(node);
+        use(node, nil::clix::prebuilt::Help(&std::cout));
+        sub(node,
+            "server",
+            "server",
+            [](auto& nn)
+            {
+                (server_options(nn), ...);
+                use(nn, runner<server_maker>);
+            });
+        sub(node,
+            "client",
+            "client",
+            [](auto& nn)
+            {
+                (client_options(nn), ...);
+                use(nn, runner<client_maker>);
+            });
+    }
+};
 
 nil::service::IEventService* add_web_service(nil::service::IWebService& server)
 {
@@ -246,16 +259,16 @@ void add_web_node(nil::clix::Node& node)
 
 int main(int argc, const char** argv)
 {
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
     add_help(node);
     use(node, nil::clix::prebuilt::Help(&std::cout));
     sub(node,
-        "all",
-        "use all protocol",
+        "gateway",
+        "use gateway",
         [](auto& n)
         {
             add_help(n);
-            add_port(n);
+            add_server_port(n);
             add_route(n);
             use(n,
                 [](const nil::clix::Options& options)
@@ -271,6 +284,8 @@ int main(int argc, const char** argv)
                     gateway->add_service(*ws);
 
                     handlers(*gateway);
+
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
 
                     std::vector<std::thread> v;
                     v.emplace_back([&]() { udp->start(); });
@@ -295,34 +310,47 @@ int main(int argc, const char** argv)
         "udp",
         "use udp protocol",
         sc_node<
-            create_options<&nil::service::udp::server::create>,
-            create_options<&nil::service::udp::client::create>,
-            add_help,
-            add_port>);
+            nil::xalt::tlist<
+                nil::xalt::typify<&create_options<&nil::service::udp::server::create>>,
+                nil::xalt::typify<&add_help>,
+                nil::xalt::typify<&add_server_port>>,
+            nil::xalt::tlist<
+                nil::xalt::typify<&create_options<&nil::service::udp::client::create>>,
+                nil::xalt::typify<&add_help>,
+                nil::xalt::typify<&add_client_port>>>());
     sub(node,
         "tcp",
         "use tcp protocol",
         sc_node<
-            create_options<&nil::service::tcp::server::create>,
-            create_options<&nil::service::tcp::client::create>,
-            add_help,
-            add_port>);
+            nil::xalt::tlist<
+                nil::xalt::typify<&create_options<&nil::service::tcp::server::create>>,
+                nil::xalt::typify<&add_help>,
+                nil::xalt::typify<&add_server_port>>,
+            nil::xalt::tlist<
+                nil::xalt::typify<&create_options<&nil::service::tcp::client::create>>,
+                nil::xalt::typify<&add_help>,
+                nil::xalt::typify<&add_client_port>>>());
     sub(node,
         "ws",
         "use ws protocol",
         sc_node<
-            create_ws_sc<&nil::service::ws::server::create>,
-            create_ws_sc<&nil::service::ws::client::create>,
-            add_help,
-            add_port,
-            add_route>);
+            nil::xalt::tlist<
+                nil::xalt::typify<&create_options<&nil::service::tcp::server::create>>,
+                nil::xalt::typify<&add_help>,
+                nil::xalt::typify<&add_server_port>,
+                nil::xalt::typify<&add_route>>,
+            nil::xalt::tlist<
+                nil::xalt::typify<&create_options<&nil::service::tcp::client::create>>,
+                nil::xalt::typify<&add_help>,
+                nil::xalt::typify<&add_client_port>,
+                nil::xalt::typify<&add_route>>>());
     sub(node,
         "http",
         "serve http server",
         &add_web_node< //
             create_http_server<&nil::service::http::server::create>,
             add_help,
-            add_port>);
+            add_server_port>);
 
     nil::clix::run(node, argc, argv);
 }

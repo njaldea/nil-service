@@ -12,7 +12,12 @@
         },
         "c-api": {
             "description": "Enable C api",
-            "dependencies": []
+            "dependencies": [
+                {
+                    "name": "nil-clix",
+                    "features": ["c-api"]
+                }
+            ]
         }
     }
 }

@@ -6,6 +6,31 @@
 
 namespace nil::service::http::server
 {
+    namespace
+    {
+        void write_payload(ws::Connection& connection, const std::vector<std::uint8_t>& msg)
+        {
+            connection.write(msg.data(), msg.size());
+        }
+
+        [[nodiscard]] bool contains_id(const std::vector<ID>& ids, const ID& id)
+        {
+            return ids.end() != std::find(ids.begin(), ids.end(), id);
+        }
+
+        [[nodiscard]] auto find_connection(
+            std::vector<std::unique_ptr<ws::Connection>>& connections,
+            const ID& id
+        )
+        {
+            return std::find_if(
+                connections.begin(),
+                connections.end(),
+                [&id](const auto& connection) { return connection->remote_id() == id; }
+            );
+        }
+    }
+
     std::string WebSocket::to_string_local(const void* c)
     {
         return static_cast<const WebSocket*>(c)->route;
@@ -60,7 +85,7 @@ namespace nil::service::http::server
                 {
                     for (const auto& connection : connections)
                     {
-                        connection->write(msg.data(), msg.size());
+                        write_payload(*connection, msg);
                     }
                 }
             );
@@ -77,12 +102,12 @@ namespace nil::service::http::server
                 {
                     for (const auto& connection : connections)
                     {
-                        if (ids.end() == std::find(ids.begin(), ids.end(), connection->remote_id()))
+                        if (!contains_id(ids, connection->remote_id()))
                         {
                             continue;
                         }
 
-                        connection->write(msg.data(), msg.size());
+                        write_payload(*connection, msg);
                     }
                 }
             );
@@ -99,14 +124,10 @@ namespace nil::service::http::server
                 {
                     for (const auto& id : ids)
                     {
-                        auto it = std::find_if(
-                            connections.begin(),
-                            connections.end(),
-                            [&id](const auto& connection) { return connection->remote_id() == id; }
-                        );
+                        auto it = find_connection(connections, id);
                         if (it != connections.end())
                         {
-                            (*it)->write(msg.data(), msg.size());
+                            write_payload(**it, msg);
                         }
                     }
                 }

@@ -83,15 +83,11 @@ namespace nil::service::udp::server
         {
             boost::asio::post(
                 context->strand,
-                [this, i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE), msg = std::move(data)]()
+                [this, msg = std::move(data)]()
                 {
-                    const auto b = std::array<boost::asio::const_buffer, 2>{
-                        boost::asio::buffer(i),
-                        boost::asio::buffer(msg)
-                    };
                     for (const auto& connection : connections)
                     {
-                        context->socket.send_to(b, connection->endpoint);
+                        send_external(connection->endpoint, msg);
                     }
                 }
             );
@@ -103,27 +99,16 @@ namespace nil::service::udp::server
                 context->strand,
                 [this,
                  ids = std::move(ids),
-                 i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
                  msg = std::move(data)]()
                 {
-                    const auto b = std::array<boost::asio::const_buffer, 2>{
-                        boost::asio::buffer(i),
-                        boost::asio::buffer(msg)
-                    };
                     for (const auto& connection : connections)
                     {
-                        if (ids.end()
-                            == std::find_if(
-                                ids.begin(),
-                                ids.end(),
-                                [&](const auto& id)
-                                { return id.owner == this && id.id == connection.get(); }
-                            ))
+                        if (!has_connection_id(ids, connection.get()))
                         {
                             continue;
                         }
 
-                        context->socket.send_to(b, connection->endpoint);
+                        send_external(connection->endpoint, msg);
                     }
                 }
             );
@@ -135,25 +120,13 @@ namespace nil::service::udp::server
                 context->strand,
                 [this,
                  ids = std::move(ids),
-                 i = utils::to_array(utils::UDP_EXTERNAL_MESSAGE),
                  msg = std::move(data)]()
                 {
-                    const auto b = std::array<boost::asio::const_buffer, 2>{
-                        boost::asio::buffer(i),
-                        boost::asio::buffer(msg)
-                    };
                     for (const auto& connection : connections)
                     {
-                        auto it = std::find_if(
-                            ids.begin(),
-                            ids.end(),
-                            [&](const auto& id)
-                            { return id.owner == this && connection.get() == id.id; }
-                        );
-
-                        if (it != ids.end())
+                        if (has_connection_id(ids, connection.get()))
                         {
-                            context->socket.send_to(b, connection->endpoint);
+                            send_external(connection->endpoint, msg);
                         }
                     }
                 }
@@ -190,6 +163,34 @@ namespace nil::service::udp::server
         std::vector<std::function<void(ID)>> on_ready_cb;
         std::vector<std::function<void(ID)>> on_connect_cb;
         std::vector<std::function<void(ID)>> on_disconnect_cb;
+
+        [[nodiscard]] bool has_connection_id(
+            const std::vector<ID>& ids,
+            const Connection* connection
+        ) const
+        {
+            return ids.end()
+                != std::find_if(
+                    ids.begin(),
+                    ids.end(),
+                    [&](const auto& id) { return id.owner == this && id.id == connection; }
+                );
+        }
+
+        void send_external(
+            const boost::asio::ip::udp::endpoint& endpoint,
+            const std::vector<std::uint8_t>& msg
+        )
+        {
+            const auto header = utils::to_array(utils::UDP_EXTERNAL_MESSAGE);
+            context->socket.send_to(
+                std::array<boost::asio::const_buffer, 2>{
+                    boost::asio::buffer(header),
+                    boost::asio::buffer(msg)
+                },
+                endpoint
+            );
+        }
 
         void ping(const boost::asio::ip::udp::endpoint& endpoint, Connection* connection)
         {

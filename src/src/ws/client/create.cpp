@@ -82,13 +82,7 @@ namespace nil::service::ws::client
         {
             boost::asio::post(
                 context->strand,
-                [this, msg = std::move(data)]()
-                {
-                    if (connection != nullptr)
-                    {
-                        connection->write(msg.data(), msg.size());
-                    }
-                }
+                [this, msg = std::move(data)]() { write_if_connected(msg); }
             );
         }
 
@@ -98,10 +92,9 @@ namespace nil::service::ws::client
                 context->strand,
                 [this, ids = std::move(ids), msg = std::move(data)]()
                 {
-                    if (connection != nullptr
-                        && ids.end() != std::find(ids.begin(), ids.end(), connection->remote_id()))
+                    if (has_remote_id(ids))
                     {
-                        connection->write(msg.data(), msg.size());
+                        write_if_connected(msg);
                     }
                 }
             );
@@ -113,13 +106,9 @@ namespace nil::service::ws::client
                 context->strand,
                 [this, ids = std::move(ids), msg = std::move(data)]()
                 {
-                    if (connection != nullptr)
+                    if (has_remote_id(ids))
                     {
-                        auto it = std::find(ids.begin(), ids.end(), connection->remote_id());
-                        if (it != ids.end())
-                        {
-                            connection->write(msg.data(), msg.size());
-                        }
+                        write_if_connected(msg);
                     }
                 }
             );
@@ -134,6 +123,23 @@ namespace nil::service::ws::client
         std::vector<std::function<void(ID)>> on_ready_cb;
         std::vector<std::function<void(ID)>> on_connect_cb;
         std::vector<std::function<void(ID)>> on_disconnect_cb;
+
+        [[nodiscard]] bool has_remote_id(const std::vector<ID>& ids) const
+        {
+            if (connection == nullptr)
+            {
+                return false;
+            }
+            return ids.end() != std::find(ids.begin(), ids.end(), connection->remote_id());
+        }
+
+        void write_if_connected(const std::vector<std::uint8_t>& msg)
+        {
+            if (connection != nullptr)
+            {
+                connection->write(msg.data(), msg.size());
+            }
+        }
 
         void connect(ws::Connection* target_connection) override
         {

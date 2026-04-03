@@ -87,7 +87,7 @@ namespace nil::service::tcp::server
                 {
                     for (const auto& connection : connections)
                     {
-                        connection->write(msg.data(), msg.size());
+                        write_payload(*connection, msg);
                     }
                 }
             );
@@ -101,12 +101,12 @@ namespace nil::service::tcp::server
                 {
                     for (const auto& connection : connections)
                     {
-                        if (ids.end() == std::find(ids.begin(), ids.end(), connection->remote_id()))
+                        if (!contains_id(ids, connection->remote_id()))
                         {
                             continue;
                         }
 
-                        connection->write(msg.data(), msg.size());
+                        write_payload(*connection, msg);
                     }
                 }
             );
@@ -120,14 +120,10 @@ namespace nil::service::tcp::server
                 {
                     for (const auto& id : ids)
                     {
-                        auto it = std::find_if(
-                            connections.begin(),
-                            connections.end(),
-                            [&id](const auto& connection) { return id == connection->remote_id(); }
-                        );
+                        auto it = find_connection(id);
                         if (it != connections.end())
                         {
-                            (*it)->write(msg.data(), msg.size());
+                            write_payload(**it, msg);
                         }
                     }
                 }
@@ -143,6 +139,26 @@ namespace nil::service::tcp::server
         std::vector<std::function<void(ID)>> on_ready_cb;
         std::vector<std::function<void(ID)>> on_connect_cb;
         std::vector<std::function<void(ID)>> on_disconnect_cb;
+
+        static void write_payload(Connection& connection, const std::vector<std::uint8_t>& msg)
+        {
+            connection.write(msg.data(), msg.size());
+        }
+
+        [[nodiscard]] static bool contains_id(const std::vector<ID>& ids, const ID& target)
+        {
+            return ids.end() != std::find(ids.begin(), ids.end(), target);
+        }
+
+        [[nodiscard]] auto find_connection(const ID& id
+        ) -> std::vector<std::unique_ptr<Connection>>::iterator
+        {
+            return std::find_if(
+                connections.begin(),
+                connections.end(),
+                [&id](const auto& connection) { return id == connection->remote_id(); }
+            );
+        }
 
         void connect(Connection* connection) override
         {

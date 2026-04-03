@@ -128,7 +128,7 @@ namespace nil::service::http::server
 
         boost::asio::steady_timer deadline;
 
-        void handle_ws(http::server::WebSocket& websocket)
+        [[nodiscard]] bool handle_ws(http::server::WebSocket& websocket)
         {
             namespace bb = boost::beast;
             namespace bbws = bb::websocket;
@@ -169,7 +169,10 @@ namespace nil::service::http::server
                         websocket.connections.push_back(std::move(connection));
                     }
                 );
+                return true;
             }
+
+            return false;
         }
 
         void process_request()
@@ -185,8 +188,12 @@ namespace nil::service::http::server
                     auto it = parent.wss.find(request.target());
                     if (it != parent.wss.end())
                     {
-                        response.result(boost::beast::http::status::ok);
-                        handle_ws(it->second);
+                        if (!handle_ws(it->second))
+                        {
+                            response.result(boost::beast::http::status::bad_request);
+                            response.set(boost::beast::http::field::content_type, "text/plain");
+                            write_response();
+                        }
                     }
                     else
                     {
@@ -200,6 +207,9 @@ namespace nil::service::http::server
                                 return;
                             }
                         }
+
+                        response.set(boost::beast::http::field::content_type, "text/plain");
+                        write_response();
                     }
                 }
                 break;

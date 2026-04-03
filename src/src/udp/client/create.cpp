@@ -15,11 +15,10 @@ namespace nil::service::udp::client
     {
         explicit Context()
             : strand(make_strand(ctx))
-            , socket(strand, {boost::asio::ip::make_address("0.0.0.0"), 0})
+            , socket(strand)
             , pingtimer(strand)
             , timeout(strand)
         {
-            socket.set_option(boost::asio::socket_base::reuse_address(true));
         }
 
         boost::asio::io_context ctx;
@@ -61,7 +60,10 @@ namespace nil::service::udp::client
             if (!context)
             {
                 context = std::make_unique<Context>();
-                utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string_local});
+                if (!open_socket())
+                {
+                    return;
+                }
                 ping();
                 receive();
             }
@@ -95,18 +97,7 @@ namespace nil::service::udp::client
             {
                 boost::asio::post(
                     context->strand,
-                    [this, msg = std::move(data)]()
-                    {
-                        const auto header
-                            = boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE));
-                        context->socket.send_to(
-                            std::array<boost::asio::const_buffer, 2>{
-                                header,
-                                boost::asio::buffer(msg)
-                            },
-                            {boost::asio::ip::make_address(options.host), options.port}
-                        );
-                    }
+                    [this, msg = std::move(data)]() { send_external(msg); }
                 );
             }
         }
@@ -119,25 +110,11 @@ namespace nil::service::udp::client
                     context->strand,
                     [this, ids = std::move(ids), msg = std::move(data)]()
                     {
-                        if (ids.end()
-                            == std::find(
-                                ids.begin(),
-                                ids.end(),
-                                ID{this, this, &Impl::to_string_remote}
-                            ))
+                        if (!contains_remote_id(ids))
                         {
                             return;
                         }
-
-                        const auto header
-                            = boost::asio::buffer(utils::to_array(utils::UDP_EXTERNAL_MESSAGE));
-                        context->socket.send_to(
-                            std::array<boost::asio::const_buffer, 2>{
-                                header,
-                                boost::asio::buffer(msg)
-                            },
-                            {boost::asio::ip::make_address(options.host), options.port}
-                        );
+                        send_external(msg);
                     }
                 );
             }
@@ -165,6 +142,51 @@ namespace nil::service::udp::client
         std::vector<std::function<void(ID)>> on_connect_cb;
         std::vector<std::function<void(ID)>> on_disconnect_cb;
 
+        [[nodiscard]] bool open_socket()
+        {
+            boost::system::error_code ec;
+            const auto address = boost::asio::ip::make_address(options.host, ec);
+            if (ec)
+            {
+                return false;
+            }
+
+            context->socket.open(
+                address.is_v6() ? boost::asio::ip::udp::v6() : boost::asio::ip::udp::v4(),
+                ec
+            );
+            if (ec)
+            {
+                return false;
+            }
+
+            context->socket.set_option(boost::asio::socket_base::reuse_address(true), ec);
+            return !ec;
+        }
+
+        [[nodiscard]] boost::asio::ip::udp::endpoint remote_endpoint() const
+        {
+            return {boost::asio::ip::make_address(options.host), options.port};
+        }
+
+        [[nodiscard]] bool contains_remote_id(const std::vector<ID>& ids) const
+        {
+            return ids.end()
+                != std::find(ids.begin(), ids.end(), ID{this, this, &Impl::to_string_remote});
+        }
+
+        void send_external(const std::vector<std::uint8_t>& msg)
+        {
+            const auto marker = utils::to_array(utils::UDP_EXTERNAL_MESSAGE);
+            context->socket.send_to(
+                std::array<boost::asio::const_buffer, 2>{
+                    boost::asio::buffer(marker),
+                    boost::asio::buffer(msg)
+                },
+                remote_endpoint()
+            );
+        }
+
         void usermsg(const std::uint8_t* data, std::uint64_t size)
         {
             utils::invoke(on_message_cb, ID{this, this, &Impl::to_string_remote}, data, size);
@@ -175,6 +197,7 @@ namespace nil::service::udp::client
             if (!connected)
             {
                 connected = true;
+                utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string_local});
                 utils::invoke(on_connect_cb, ID{this, this, &Impl::to_string_remote});
             }
             context->timeout.expires_after(options.timeout);
@@ -189,9 +212,24 @@ namespace nil::service::udp::client
                     {
                         connected = false;
                         utils::invoke(on_disconnect_cb, ID{this, this, &Impl::to_string_remote});
+                        recreate_socket();
                     }
                 }
             );
+        }
+
+        void recreate_socket()
+        {
+            boost::system::error_code ec;
+            context->socket.cancel(ec);
+            context->socket.close(ec);
+
+            if (!open_socket())
+            {
+                return;
+            }
+
+            receive();
         }
 
         void message(const std::uint8_t* data, std::uint64_t size)
@@ -244,8 +282,7 @@ namespace nil::service::udp::client
             );
         }
 
-        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler
-        ) override
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
             on_message_cb.push_back(std::move(handler));
         }
