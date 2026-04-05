@@ -7,6 +7,7 @@
 #include <nil/xalt/fn_sign.hpp>
 #include <nil/xalt/tlist.hpp>
 
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 

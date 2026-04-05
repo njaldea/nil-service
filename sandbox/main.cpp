@@ -4,6 +4,7 @@
 #include <nil/clix/prebuilt/Help.hpp>
 
 #include <nil/xalt/fn_sign.hpp>
+#include <nil/xalt/literal.hpp>
 #include <nil/xalt/tlist.hpp>
 
 #include <iostream>
@@ -27,6 +28,17 @@ void add_client_port(nil::clix::Node& node)
 void add_route(nil::clix::Node& node)
 {
     param(node, "route", {.skey = 'r', .msg = "route", .fallback = "/"});
+}
+
+void add_pipe_options(nil::clix::Node& node)
+{
+    param(node, "read", {.msg = "fifo path to read from", .fallback = "/tmp/pipe-input"});
+    param(node, "write", {.msg = "fifo path to write to", .fallback = "/tmp/pipe-output"});
+    flag(
+        node,
+        "flipped",
+        {.skey = 'f', .msg = "flip the read/write fifo paths for the peer process"}
+    );
 }
 
 template <auto maker>
@@ -57,6 +69,31 @@ auto create_wss_server(const nil::clix::Options& options)
 auto create_self(const nil::clix::Options& /* options */)
 {
     return nil::service::self::create();
+}
+
+auto create_pipe(const nil::clix::Options& options)
+{
+    return nil::service::pipe::create({
+        [read_path = param(options, "read"),
+         write_path = param(options, "write"),
+         flipped = flag(options, "flipped")]()
+        {
+            auto final_read_path = read_path;
+            auto final_write_path = write_path;
+
+            if (flipped)
+            {
+                std::swap(final_read_path, final_write_path);
+            }
+
+            return nil::service::pipe::Options{
+                .make_read
+                = [path = final_read_path]() { return nil::service::pipe::r_mkfifo(path); },
+                .make_write
+                = [path = final_write_path]() { return nil::service::pipe::mkfifo(path); },
+            };
+        }() //
+    });
 }
 
 template <auto maker>
@@ -160,34 +197,30 @@ int runner(const nil::clix::Options& options)
     return 0;
 }
 
-template <typename s, typename c>
-struct sc_node;
+template <nil::xalt::literal cmd, nil::xalt::literal desc, auto maker, auto... option_adders>
+struct sub_cmd
+{
+    void operator()(nil::clix::Node& node)
+    {
+        sub(node,
+            nil::xalt::literal_v<cmd>,
+            nil::xalt::literal_v<desc>,
+            [](auto& nn)
+            {
+                (option_adders(nn), ...);
+                use(nn, runner<maker>);
+            });
+    }
+};
 
-template <auto server_maker, auto client_maker, auto... server_options, auto... client_options>
-struct sc_node<
-    nil::xalt::tlist<nil::xalt::typify<server_maker>, nil::xalt::typify<server_options>...>,
-    nil::xalt::tlist<nil::xalt::typify<client_maker>, nil::xalt::typify<client_options>...>>
+template <typename... Ts>
+struct sub_cmds
 {
     void operator()(nil::clix::Node& node)
     {
         add_help(node);
         use(node, nil::clix::prebuilt::Help(&std::cout));
-        sub(node,
-            "server",
-            "server",
-            [](auto& nn)
-            {
-                (server_options(nn), ...);
-                use(nn, runner<server_maker>);
-            });
-        sub(node,
-            "client",
-            "client",
-            [](auto& nn)
-            {
-                (client_options(nn), ...);
-                use(nn, runner<client_maker>);
-            });
+        (Ts()(node), ...);
     }
 };
 
@@ -270,15 +303,18 @@ int main(int argc, const char** argv)
             add_help(n);
             add_server_port(n);
             add_route(n);
+            add_pipe_options(n);
             use(n,
                 [](const nil::clix::Options& options)
                 {
                     namespace ns = nil::service;
+                    auto pipe = create_pipe(options);
                     auto udp = create_options<&ns::udp::server::create>(options);
                     auto tcp = create_options<&ns::tcp::server::create>(options);
                     auto ws = create_ws_sc<&ns::ws::server::create>(options);
 
                     auto gateway = nil::service::gateway::create();
+                    gateway->add_service(*pipe);
                     gateway->add_service(*udp);
                     gateway->add_service(*tcp);
                     gateway->add_service(*ws);
@@ -288,6 +324,7 @@ int main(int argc, const char** argv)
                     std::this_thread::sleep_for(std::chrono::seconds(1));
 
                     std::vector<std::thread> v;
+                    v.emplace_back([&]() { pipe->start(); });
                     v.emplace_back([&]() { udp->start(); });
                     v.emplace_back([&]() { tcp->start(); });
                     v.emplace_back([&]() { ws->start(); });
@@ -298,52 +335,58 @@ int main(int argc, const char** argv)
                     return 0;
                 });
         });
-    sub(node,
-        "self",
-        "use self protocol",
-        [](auto& n)
-        {
-            add_help(n);
-            use(n, runner<&create_self>);
-        });
+    sub_cmd<"self", "use self protocol", &create_self, &add_help>()(node);
+    sub_cmd<"pipe", "use pipe protocol", &create_pipe, &add_help, &add_pipe_options>()(node);
     sub(node,
         "udp",
         "use udp protocol",
-        sc_node<
-            nil::xalt::tlist<
-                nil::xalt::typify<&create_options<&nil::service::udp::server::create>>,
-                nil::xalt::typify<&add_help>,
-                nil::xalt::typify<&add_server_port>>,
-            nil::xalt::tlist<
-                nil::xalt::typify<&create_options<&nil::service::udp::client::create>>,
-                nil::xalt::typify<&add_help>,
-                nil::xalt::typify<&add_client_port>>>());
+        sub_cmds<
+            sub_cmd<
+                "server",
+                "server",
+                &create_options<&nil::service::udp::server::create>,
+                add_help,
+                add_server_port>,
+            sub_cmd<
+                "client",
+                "client",
+                &create_options<&nil::service::udp::client::create>,
+                add_help,
+                add_client_port>>());
     sub(node,
         "tcp",
         "use tcp protocol",
-        sc_node<
-            nil::xalt::tlist<
-                nil::xalt::typify<&create_options<&nil::service::tcp::server::create>>,
-                nil::xalt::typify<&add_help>,
-                nil::xalt::typify<&add_server_port>>,
-            nil::xalt::tlist<
-                nil::xalt::typify<&create_options<&nil::service::tcp::client::create>>,
-                nil::xalt::typify<&add_help>,
-                nil::xalt::typify<&add_client_port>>>());
+        sub_cmds<
+            sub_cmd<
+                "server",
+                "server",
+                &create_options<&nil::service::tcp::server::create>,
+                add_help,
+                add_server_port>,
+            sub_cmd<
+                "client",
+                "client",
+                &create_options<&nil::service::tcp::client::create>,
+                add_help,
+                add_client_port>>());
     sub(node,
         "ws",
         "use ws protocol",
-        sc_node<
-            nil::xalt::tlist<
-                nil::xalt::typify<&create_options<&nil::service::tcp::server::create>>,
-                nil::xalt::typify<&add_help>,
-                nil::xalt::typify<&add_server_port>,
-                nil::xalt::typify<&add_route>>,
-            nil::xalt::tlist<
-                nil::xalt::typify<&create_options<&nil::service::tcp::client::create>>,
-                nil::xalt::typify<&add_help>,
-                nil::xalt::typify<&add_client_port>,
-                nil::xalt::typify<&add_route>>>());
+        sub_cmds<
+            sub_cmd<
+                "server",
+                "server",
+                &create_options<&nil::service::ws::server::create>,
+                add_help,
+                add_server_port,
+                add_route>,
+            sub_cmd<
+                "client",
+                "client",
+                &create_options<&nil::service::ws::client::create>,
+                add_help,
+                add_client_port,
+                add_route>>());
     sub(node,
         "http",
         "serve http server",

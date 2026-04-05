@@ -247,6 +247,33 @@ extern "C"
         uint64_t buffer
     );
 
+#if defined(__unix__) || defined(__unix) || defined(unix) || defined(__APPLE__)
+    // Opens an existing FIFO or creates it first. Returns an open fd or -1 on failure.
+    int nil_service_pipe_mkfifo(const char* path);
+    int nil_service_pipe_r_mkfifo(const char* path);
+    int nil_service_pipe_w_mkfifo(const char* path);
+
+    // NOLINTNEXTLINE(modernize-use-using)
+    typedef struct nil_service_pipe_fd_provider
+    {
+        int (*exec)(void*);
+        void* context;
+        void (*cleanup)(void*);
+    } nil_service_pipe_fd_provider;
+
+    // Creates a standalone pipe service from caller-provided fd providers.
+    // Providers may return:
+    // -1: disable that direction
+    // -2: (read provider only) retry later
+    // >=0: owned fd transferred to service ownership
+    // Provider cleanup callbacks run when provider state is released by the service.
+    nil_service_standalone nil_service_create_pipe(
+        nil_service_pipe_fd_provider read_fd,
+        nil_service_pipe_fd_provider write_fd,
+        uint64_t buffer
+    );
+#endif
+
     nil_service_standalone nil_service_create_ws_client(
         const char* host,
         uint16_t port,

@@ -87,7 +87,7 @@ namespace nil::service::tcp::client
                 context->strand,
                 [this, ids = std::move(ids), msg = std::move(data)]()
                 {
-                    if (has_remote_id(ids))
+                    if (!has_remote_id(ids))
                     {
                         write_if_connected(msg);
                     }

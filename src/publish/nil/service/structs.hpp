@@ -1,11 +1,17 @@
 #pragma once
 
+#include "concat.hpp"
 #include "detail/create_handler.hpp"
 #include "detail/create_message_handler.hpp"
 
+#include <cstdint>
 #include <functional>
+#include <iosfwd>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace nil::service
 {
@@ -163,9 +169,8 @@ namespace nil::service
         }
 
     private:
-        virtual void impl_on_message(
-            std::function<void(ID, const void*, std::uint64_t)> handler
-        ) = 0;
+        virtual void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler)
+            = 0;
         virtual void impl_on_ready(std::function<void(ID)> handler) = 0;
         virtual void impl_on_connect(std::function<void(ID)> handler) = 0;
         virtual void impl_on_disconnect(std::function<void(ID)> handler) = 0;

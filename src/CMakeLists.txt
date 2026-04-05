@@ -19,6 +19,7 @@ set(
         publish/nil/service/udp/client/create.hpp
         publish/nil/service/tcp/server/create.hpp
         publish/nil/service/tcp/client/create.hpp
+        publish/nil/service/pipe/create.hpp
         publish/nil/service/ws/server/create.hpp
         publish/nil/service/ws/client/create.hpp
 )
@@ -46,6 +47,10 @@ set(
         src/http/server/WebSocket.cpp
         src/http/server/WebSocket.hpp
 )
+
+if(UNIX)
+    list(APPEND SOURCES src/pipe/create.cpp src/pipe/mfkifo.cpp)
+endif()
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 

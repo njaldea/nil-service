@@ -4,13 +4,14 @@ Networking service toolkit for C++ with an optional C API.
 
 ## What You Get
 
-| Protocol | Role | Notes |
-| --- | --- | --- |
-| self | standalone | loopback/echo-style local service |
-| udp | client/server | supports timeout |
-| tcp | client/server | stream transport |
-| ws | client/server | websocket over tcp |
-| http | server | routes + websocket upgrade |
+| Protocol | Role          | Notes                             |
+| -------- | ------------- | --------------------------------- |
+| self     | standalone    | loopback/echo-style local service |
+| udp      | client/server | supports timeout                  |
+| tcp      | client/server | stream transport                  |
+| ws       | client/server | websocket over tcp                |
+| http     | server        | routes + websocket upgrade        |
+| pipe     | standalone    | only for posix pipes              |
 
 ## Documentation Map
 
@@ -24,6 +25,7 @@ Networking service toolkit for C++ with an optional C API.
 namespace ns = nil::service;
 
 auto self = ns::self::create();
+auto pipe = ns::pipe::create({...});
 auto udp_server = ns::udp::server::create({...});
 auto udp_client = ns::udp::client::create({...});
 auto tcp_server = ns::tcp::server::create({...});
@@ -80,28 +82,47 @@ nil::service::IEventService* ws = web->use_ws("/ws");
 
 ## Options Summary
 
+### pipe::Options
+
+| Field      | Notes |
+| ---------- | ----- |
+| make_read  | returns `-1` to disable reads, `-2` to retry later, or an owned read fd |
+| make_write | returns `-1` to disable writes, or an owned write fd (no retry path) |
+| buffer     | maximum accepted receive payload size |
+
+Pipe fd requirements and behavior expected from the caller:
+
+- ownership of each non-`-1` fd returned by `make_read` / `make_write` is transferred to the service.
+- `make_write` must return a writable fd (`O_WRONLY` or `O_RDWR`).
+- when using `O_WRONLY`, caller is expected to keep a read handle open on the FIFO to avoid write-side failures.
+- `make_read` should return a readable fd (`O_RDONLY` or `O_RDWR`).
+- when both directions are enabled, read and write should be distinct fds representing opposite FIFO ends.
+- service sends periodic zero-size header probes while both ends exist and `on_connect` has not fired yet.
+- `on_connect` is fired when any inbound header is received (including zero-size probe frames).
+
 ### server::Options
 
-| Field | Protocols | Notes |
-| --- | --- | --- |
-| host | tcp, udp, ws, http | bind address |
-| port | tcp, udp, ws, http | bind port |
-| buffer | tcp, udp, ws, http | io buffer size |
-| route | ws | websocket route, default "/" |
-| timeout | udp | disconnect timeout, default 2s |
+| Field   | Protocols          | Notes                          |
+| ------- | ------------------ | ------------------------------ |
+| host    | tcp, udp, ws, http | bind address                   |
+| port    | tcp, udp, ws, http | bind port                      |
+| buffer  | tcp, udp, ws, http | io buffer size                 |
+| route   | ws                 | websocket route, default "/"   |
+| timeout | udp                | disconnect timeout, default 2s |
 
 ### client::Options
 
-| Field | Protocols | Notes |
-| --- | --- | --- |
-| host | tcp, udp, ws | target address |
-| port | tcp, udp, ws | target port |
-| route | ws | websocket route, default "/" |
-| buffer | tcp, udp, ws | io buffer size |
-| timeout | udp | disconnect timeout, default 2s |
+| Field   | Protocols    | Notes                          |
+| ------- | ------------ | ------------------------------ |
+| host    | tcp, udp, ws | target address                 |
+| port    | tcp, udp, ws | target port                    |
+| route   | ws           | websocket route, default "/"   |
+| buffer  | tcp, udp, ws | io buffer size                 |
+| timeout | udp          | disconnect timeout, default 2s |
 
 ### Default Values
 
+- pipe read buffer: `1024`
 - tcp client/server buffer: `1024`
 - udp client/server buffer: `1024`, timeout: `2s`
 - ws client/server route: `/`, buffer: `1024`

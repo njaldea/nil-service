@@ -1,6 +1,7 @@
 #include <nil/service.h>
 
 #include <nil/service.hpp>
+#include <nil/xalt/raii.hpp>
 
 #include <chrono>
 #include <memory>
@@ -10,31 +11,6 @@
 namespace
 {
     static_assert(sizeof(nil_service_id::_) == sizeof(nil::service::ID::to_string));
-
-    struct ContextCleanup
-    {
-        explicit ContextCleanup(void* init_context, void (*init_cleanup)(void*))
-            : context(init_context)
-            , cleanup(init_cleanup)
-        {
-        }
-
-        ContextCleanup(const ContextCleanup&) = default;
-        ContextCleanup(ContextCleanup&&) = default;
-        ContextCleanup& operator=(const ContextCleanup&) = default;
-        ContextCleanup& operator=(ContextCleanup&&) = default;
-
-        ~ContextCleanup()
-        {
-            if (cleanup != nullptr)
-            {
-                cleanup(context);
-            }
-        }
-
-        void* context;
-        void (*cleanup)(void*);
-    };
 
     nil_service_id from_cpp_id(nil::service::ID id)
     {
@@ -119,9 +95,9 @@ extern "C"
         nil_service_dispatch_info callback
     )
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::IRunnableService*>(service.handle)
-            ->dispatch([exec = callback.exec, holder]() { exec(holder->context); });
+            ->dispatch([exec = callback.exec, holder]() { exec(holder->object); });
     }
 
     void nil_service_id_print(nil_service_id id)
@@ -184,7 +160,7 @@ extern "C"
         nil_service_callback_info callback
     )
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::ICallbackService*>(service.handle)
             ->on_ready(
                 [exec = callback.exec, holder](const nil::service::ID& id)
@@ -192,7 +168,7 @@ extern "C"
                     (void)id;
                     (void)exec;
                     auto c_id = from_cpp_id(id);
-                    exec(&c_id, holder->context);
+                    exec(&c_id, holder->object);
                 }
             );
     }
@@ -202,13 +178,13 @@ extern "C"
         nil_service_callback_info callback
     )
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::ICallbackService*>(service.handle)
             ->on_connect(
                 [exec = callback.exec, holder](const nil::service::ID& id)
                 {
                     auto c_id = from_cpp_id(id);
-                    exec(&c_id, holder->context);
+                    exec(&c_id, holder->object);
                 }
             );
     }
@@ -218,13 +194,13 @@ extern "C"
         nil_service_callback_info callback
     )
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::ICallbackService*>(service.handle)
             ->on_disconnect(
                 [exec = callback.exec, holder](const nil::service::ID& id)
                 {
                     auto c_id = from_cpp_id(id);
-                    exec(&c_id, holder->context);
+                    exec(&c_id, holder->object);
                 }
             );
     }
@@ -234,34 +210,34 @@ extern "C"
         nil_service_msg_callback_info callback
     )
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::ICallbackService*>(service.handle)
             ->on_message(
                 [exec = callback.exec,
                  holder](const nil::service::ID& id, const void* data, std::uint64_t size)
                 {
                     auto c_id = from_cpp_id(id);
-                    exec(&c_id, data, size, holder->context);
+                    exec(&c_id, data, size, holder->object);
                 }
             );
     }
 
     void nil_service_web_on_ready(nil_service_web service, nil_service_callback_info callback)
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::IWebService*>(service.handle)
             ->on_ready(
                 [exec = callback.exec, holder](const nil::service::ID& id)
                 {
                     auto c_id = from_cpp_id(id);
-                    exec(&c_id, holder->context);
+                    exec(&c_id, holder->object);
                 }
             );
     }
 
     void nil_service_web_on_get(nil_service_web service, nil_service_web_get_callback_info callback)
     {
-        auto holder = std::make_shared<ContextCleanup>(callback.context, callback.cleanup);
+        auto holder = std::make_shared<nil::xalt::raii<void>>(callback.context, callback.cleanup);
         static_cast<nil::service::IWebService*>(service.handle)
             ->on_get(
                 [exec = callback.exec, holder](nil::service::WebTransaction& transaction)
@@ -271,7 +247,7 @@ extern "C"
                         return false;
                     }
                     const auto c_transaction = nil_service_web_transaction{.handle = &transaction};
-                    return exec(c_transaction, holder->context) != 0;
+                    return exec(c_transaction, holder->object) != 0;
                 }
             );
     }
@@ -444,6 +420,72 @@ extern "C"
             = nil::service::tcp::server::Options{.host = host, .port = port, .buffer = buffer};
         return {.handle = create(options).release()};
     }
+
+#if defined(__unix__) || defined(__unix) || defined(unix) || defined(__APPLE__)
+    int nil_service_pipe_mkfifo(const char* path)
+    {
+        if (path == nullptr)
+        {
+            return -1;
+        }
+        return nil::service::pipe::mkfifo(path);
+    }
+
+    int nil_service_pipe_r_mkfifo(const char* path)
+    {
+        if (path == nullptr)
+        {
+            return -1;
+        }
+        return nil::service::pipe::r_mkfifo(path);
+    }
+
+    int nil_service_pipe_w_mkfifo(const char* path)
+    {
+        if (path == nullptr)
+        {
+            return -1;
+        }
+        return nil::service::pipe::w_mkfifo(path);
+    }
+
+    nil_service_standalone nil_service_create_pipe(
+        nil_service_pipe_fd_provider read_fd,
+        nil_service_pipe_fd_provider write_fd,
+        uint64_t buffer
+    )
+    {
+        auto read_holder
+            = std::make_shared<nil::xalt::raii<void>>(read_fd.context, read_fd.cleanup);
+        auto write_holder
+            = std::make_shared<nil::xalt::raii<void>>(write_fd.context, write_fd.cleanup);
+
+        const auto options = nil::service::pipe::Options{
+            .make_read =
+                [exec = read_fd.exec, holder = read_holder]()
+            {
+                if (exec == nullptr)
+                {
+                    return -1;
+                }
+
+                return exec(holder->object);
+            },
+            .make_write =
+                [exec = write_fd.exec, holder = write_holder]()
+            {
+                if (exec == nullptr)
+                {
+                    return -1;
+                }
+
+                return exec(holder->object);
+            },
+            .buffer = buffer,
+        };
+        return {.handle = nil::service::pipe::create(options).release()};
+    }
+#endif
 
     nil_service_standalone nil_service_create_ws_client(
         const char* host,
