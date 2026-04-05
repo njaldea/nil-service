@@ -110,7 +110,7 @@ namespace nil::service::udp::client
                     context->strand,
                     [this, ids = std::move(ids), msg = std::move(data)]()
                     {
-                        if (!contains_remote_id(ids))
+                        if (contains_remote_id(ids))
                         {
                             return;
                         }

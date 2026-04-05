@@ -97,13 +97,11 @@ namespace nil::service::udp::server
         {
             boost::asio::post(
                 context->strand,
-                [this,
-                 ids = std::move(ids),
-                 msg = std::move(data)]()
+                [this, ids = std::move(ids), msg = std::move(data)]()
                 {
                     for (const auto& connection : connections)
                     {
-                        if (!has_connection_id(ids, connection.get()))
+                        if (has_connection_id(ids, connection.get()))
                         {
                             continue;
                         }
@@ -118,9 +116,7 @@ namespace nil::service::udp::server
         {
             boost::asio::post(
                 context->strand,
-                [this,
-                 ids = std::move(ids),
-                 msg = std::move(data)]()
+                [this, ids = std::move(ids), msg = std::move(data)]()
                 {
                     for (const auto& connection : connections)
                     {
@@ -171,9 +167,9 @@ namespace nil::service::udp::server
         {
             return ids.end()
                 != std::find_if(
-                    ids.begin(),
-                    ids.end(),
-                    [&](const auto& id) { return id.owner == this && id.id == connection; }
+                       ids.begin(),
+                       ids.end(),
+                       [&](const auto& id) { return id.owner == this && id.id == connection; }
                 );
         }
 
@@ -282,8 +278,7 @@ namespace nil::service::udp::server
             );
         }
 
-        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler
-        ) override
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
             on_message_cb.push_back(std::move(handler));
         }

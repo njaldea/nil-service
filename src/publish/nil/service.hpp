@@ -9,6 +9,8 @@
 #include "service/tcp/client/create.hpp" // IWYU pragma: export
 #include "service/tcp/server/create.hpp" // IWYU pragma: export
 
+#include "service/pipe/create.hpp" // IWYU pragma: export
+
 #include "service/udp/client/create.hpp" // IWYU pragma: export
 #include "service/udp/server/create.hpp" // IWYU pragma: export
 

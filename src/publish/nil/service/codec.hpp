@@ -3,6 +3,7 @@
 #include <nil/xalt/errors.hpp>
 #include <nil/xalt/tlist.hpp>
 
+#include <concepts>
 #include <cstdint>
 #include <string>
 #include <utility>

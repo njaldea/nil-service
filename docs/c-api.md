@@ -11,6 +11,7 @@ Build:
 ## Scope Boundaries
 
 Supported creators in the C API:
+- pipe standalone (POSIX only)
 - tcp client/server
 - udp client/server
 - ws client/server
@@ -47,6 +48,7 @@ Precondition rule:
 ## Creation And Destruction
 
 Standalone creators:
+- nil_service_create_pipe (POSIX only)
 - nil_service_create_udp_client
 - nil_service_create_udp_server
 - nil_service_create_tcp_client
@@ -58,12 +60,18 @@ Web creator:
 - nil_service_create_http_server
 
 Defaults:
+- pipe create API accepts caller-provided read/write fd providers (`exec/context/cleanup`)
 - timeout passed to udp create APIs: caller provided
 - buffer passed to create APIs: caller provided
 - ws route defaults to `/` when route argument is null
 
 Gateway creator:
 - nil_service_create_gateway
+
+POSIX pipe helper:
+- nil_service_pipe_mkfifo
+- nil_service_pipe_r_mkfifo
+- nil_service_pipe_w_mkfifo
 
 Destroy:
 - nil_service_standalone_destroy
@@ -142,6 +150,22 @@ nil_service_web_transaction:
 Handle preconditions:
 - Most functions do not perform runtime null checks and assume valid handles.
 - Passing invalid/null handles is undefined behavior.
+
+POSIX pipe service:
+- Available only on POSIX platforms (`__unix__`, `__unix`, `unix`, or `__APPLE__`).
+- `nil_service_pipe_mkfifo` creates or opens a FIFO path with read-write mode and returns an open fd, or `-1` on failure.
+- `nil_service_pipe_r_mkfifo` creates or opens a FIFO path with read-only mode and returns an open fd, or `-1` on failure.
+- `nil_service_pipe_w_mkfifo` creates or opens a FIFO path with write-only mode and returns an open fd, or `-1` on failure.
+- `nil_service_create_pipe` accepts two `nil_service_pipe_fd_provider` values (`read_fd` and `write_fd`), each containing `exec/context/cleanup`.
+- Provider return semantics:
+	- `-1`: disable that direction
+	- `-2`: retry later (supported for read provider)
+	- `>= 0`: owned fd transferred to service ownership
+- Provider cleanup callbacks run when provider state is released by the service.
+- Returned write fds must be writable (`O_WRONLY` or `O_RDWR`).
+- If write provider returns `O_WRONLY`, caller is expected to keep a read handle open on the FIFO to avoid write-side failures.
+- Returned read fds must be readable (`O_RDONLY` or `O_RDWR`).
+- Before inbound traffic is observed, the service periodically writes zero-size header probes on `write_fd`; `on_connect` is emitted when inbound headers are observed.
 
 nil_service_id:
 - nil_service_id_print (string conversion) is valid only during the callback that provided the id.

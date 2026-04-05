@@ -101,7 +101,7 @@ namespace nil::service::tcp::server
                 {
                     for (const auto& connection : connections)
                     {
-                        if (!contains_id(ids, connection->remote_id()))
+                        if (contains_id(ids, connection->remote_id()))
                         {
                             continue;
                         }

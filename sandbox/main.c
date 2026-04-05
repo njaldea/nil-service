@@ -10,6 +10,7 @@
 enum run_mode
 {
 	MODE_GATEWAY,
+	MODE_PIPE,
 	MODE_UDP_SERVER,
 	MODE_UDP_CLIENT,
 	MODE_TCP_SERVER,
@@ -52,6 +53,12 @@ typedef struct sub_builder_context
 	int needs_route;
 } sub_builder_context;
 
+typedef struct pipe_fd_provider_context
+{
+	int (*open_fn)(const char* path);
+	char* path;
+} pipe_fd_provider_context;
+
 static const int64_t g_port_fallback = 0;
 static const char* const g_route_fallback = "/";
 static const double g_udp_timeout = 2.0;
@@ -59,6 +66,7 @@ static const uint64_t g_default_buffer = 1024;
 static const uint64_t g_http_buffer = 1024ULL * 1024ULL * 100ULL;
 
 static const runner_context g_mode_gateway = {.mode = MODE_GATEWAY};
+static const runner_context g_mode_pipe = {.mode = MODE_PIPE};
 static const runner_context g_mode_udp_server = {.mode = MODE_UDP_SERVER};
 static const runner_context g_mode_udp_client = {.mode = MODE_UDP_CLIENT};
 static const runner_context g_mode_tcp_server = {.mode = MODE_TCP_SERVER};
@@ -105,6 +113,50 @@ static int str_eq(const char* lhs, const char* rhs)
 	return strcmp(lhs, rhs) == 0;
 }
 
+static char* dup_cstr(const char* value)
+{
+	char* copy = NULL;
+	size_t len = 0;
+
+	if (value == NULL)
+	{
+		return NULL;
+	}
+
+	len = strlen(value);
+	copy = (char*)malloc(len + 1U);
+	if (copy == NULL)
+	{
+		return NULL;
+	}
+
+	memcpy(copy, value, len + 1U);
+	return copy;
+}
+
+static int pipe_fd_provider_exec(void* context)
+{
+	pipe_fd_provider_context* provider = (pipe_fd_provider_context*)context;
+	if (provider == NULL || provider->open_fn == NULL || provider->path == NULL)
+	{
+		return -1;
+	}
+
+	return provider->open_fn(provider->path);
+}
+
+static void pipe_fd_provider_cleanup(void* context)
+{
+	pipe_fd_provider_context* provider = (pipe_fd_provider_context*)context;
+	if (provider == NULL)
+	{
+		return;
+	}
+
+	free(provider->path);
+	free(provider);
+}
+
 static void add_help(nil_clix_node node)
 {
 	nil_clix_node_flag(
@@ -137,6 +189,29 @@ static void add_route(nil_clix_node node)
 	nil_clix_node_param(node,
 		"route",
 		(nil_clix_param_info){.skey = "r", .msg = "route", .fallback = g_route_fallback});
+}
+
+static void add_pipe_read(nil_clix_node node)
+{
+	nil_clix_node_param(node,
+		"read",
+		(nil_clix_param_info){.skey = NULL, .msg = "read fifo path", .fallback = "/tmp/pipe-input"});
+}
+
+static void add_pipe_write(nil_clix_node node)
+{
+	nil_clix_node_param(node,
+		"write",
+		(nil_clix_param_info){.skey = NULL, .msg = "write fifo path", .fallback =  "/tmp/pipe-output"});
+}
+
+static void add_pipe_flipped(nil_clix_node node)
+{
+	nil_clix_node_flag(
+		node,
+		"flipped",
+		(nil_clix_flag_info){.skey = "f", .msg = "swap read and write fifo handles"}
+	);
 }
 
 static void on_ready(const nil_service_id* id, void* context)
@@ -446,6 +521,80 @@ static int run_standalone(enum run_mode mode, nil_clix_options options)
 	return 0;
 }
 
+static int run_pipe(nil_clix_options options)
+{
+#if defined(__unix__) || defined(__unix) || defined(unix) || defined(__APPLE__)
+	const char* read_path = nil_clix_options_param(options, "read");
+	const char* write_path = nil_clix_options_param(options, "write");
+	nil_service_standalone standalone;
+	service_runner runner;
+
+	if (nil_clix_options_flag(options, "flipped") != 0)
+	{
+		const char* tmp = read_path;
+		read_path = write_path;
+		write_path = tmp;
+	}
+
+	{
+		pipe_fd_provider_context* read_provider
+			= (pipe_fd_provider_context*)malloc(sizeof(pipe_fd_provider_context));
+		pipe_fd_provider_context* write_provider
+			= (pipe_fd_provider_context*)malloc(sizeof(pipe_fd_provider_context));
+
+		if (read_provider == NULL || write_provider == NULL)
+		{
+			free(read_provider);
+			free(write_provider);
+			return 1;
+		}
+
+		read_provider->open_fn = nil_service_pipe_r_mkfifo;
+		read_provider->path = dup_cstr(read_path);
+		write_provider->open_fn = nil_service_pipe_mkfifo;
+		write_provider->path = dup_cstr(write_path);
+
+		if (read_provider->path == NULL || write_provider->path == NULL)
+		{
+			pipe_fd_provider_cleanup(read_provider);
+			pipe_fd_provider_cleanup(write_provider);
+			return 1;
+		}
+
+		standalone = nil_service_create_pipe(
+			(nil_service_pipe_fd_provider){
+				.exec = pipe_fd_provider_exec,
+				.context = read_provider,
+				.cleanup = pipe_fd_provider_cleanup,
+			},
+			(nil_service_pipe_fd_provider){
+				.exec = pipe_fd_provider_exec,
+				.context = write_provider,
+				.cleanup = pipe_fd_provider_cleanup,
+			},
+			g_default_buffer
+		);
+	}
+	if (standalone.handle == NULL)
+	{
+		return 1;
+	}
+
+	attach_handlers(nil_service_standalone_to_callback(standalone));
+
+	runner.runnable = nil_service_standalone_to_runnable(standalone);
+	runner.io_message = nil_service_standalone_to_message(standalone);
+	loop_runner(&runner);
+
+	nil_service_standalone_destroy(standalone);
+	return 0;
+#else
+	(void)options;
+	fprintf(stderr, "pipe creator is only available on POSIX platforms\n");
+	return 1;
+#endif
+}
+
 static int run_http(nil_clix_options options)
 {
 	const uint16_t port = (uint16_t)nil_clix_options_number(options, "port");
@@ -533,6 +682,8 @@ static int run_mode_exec(nil_clix_options options, void* context)
 	{
 		case MODE_GATEWAY:
 			return run_gateway(options);
+		case MODE_PIPE:
+			return run_pipe(options);
 		case MODE_UDP_SERVER:
 		case MODE_UDP_CLIENT:
 		case MODE_TCP_SERVER:
@@ -637,6 +788,16 @@ static void build_gateway(nil_clix_node node, void* context)
 	attach_runner(node, &g_mode_gateway);
 }
 
+static void build_pipe(nil_clix_node node, void* context)
+{
+	(void)context;
+	add_help(node);
+	add_pipe_read(node);
+	add_pipe_write(node);
+	add_pipe_flipped(node);
+	attach_runner(node, &g_mode_pipe);
+}
+
 static void build_self(nil_clix_node node, void* context)
 {
 	(void)context;
@@ -664,6 +825,11 @@ int main(int argc, const char* const* argv)
 		"gateway",
 		"use gateway",
 		(nil_clix_sub_info){.exec = build_gateway, .context = NULL, .cleanup = NULL});
+
+	nil_clix_node_sub(node,
+		"pipe",
+		"use posix pipe protocol",
+		(nil_clix_sub_info){.exec = build_pipe, .context = NULL, .cleanup = NULL});
 
 	nil_clix_node_sub(node,
 		"self",

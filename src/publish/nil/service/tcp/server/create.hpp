@@ -14,7 +14,7 @@ namespace nil::service::tcp::server
         std::uint16_t port = 0;
         /**
          * @brief buffer size to use:
-         *  - one for receiving per connection
+         *  - maximum payload size accepted while receiving per connection
          */
         std::uint64_t buffer = 1024;
     };

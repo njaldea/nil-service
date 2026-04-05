@@ -34,7 +34,7 @@ namespace nil::service::self
                     *context,
                     [this, ids = std::move(ids), msg = std::move(payload)]()
                     {
-                        if (!contains_self_id(ids))
+                        if (contains_self_id(ids))
                         {
                             return;
                         }
@@ -64,8 +64,7 @@ namespace nil::service::self
             );
         }
 
-        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler
-        ) override
+        void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
             on_message_cb.push_back(std::move(handler));
         }
@@ -144,10 +143,7 @@ namespace nil::service::self
 
         void queue_self_message(std::vector<std::uint8_t> msg)
         {
-            boost::asio::post(
-                *context,
-                [this, msg = std::move(msg)]() { emit_self_message(msg); }
-            );
+            boost::asio::post(*context, [this, msg = std::move(msg)]() { emit_self_message(msg); });
         }
 
         std::unique_ptr<boost::asio::io_context> context;

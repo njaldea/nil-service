@@ -7,6 +7,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE nil::clix)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE service)
 
+add_executable(${PROJECT_NAME}-pipe pipe_stdout.cpp)
+target_link_libraries(${PROJECT_NAME}-pipe PRIVATE service)
+
 if(ENABLE_C_API)
     find_package(nil-clix CONFIG REQUIRED c-api)
 

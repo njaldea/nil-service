@@ -14,7 +14,7 @@ namespace nil::service::tcp
         , remote_endpoint(socket.remote_endpoint())
         , impl(init_impl)
     {
-        r_buffer.resize(buffer);
+        r_buffer.resize(buffer + utils::TCP_HEADER_SIZE);
     }
 
     Connection::~Connection() noexcept = default;
@@ -43,17 +43,28 @@ namespace nil::service::tcp
                 if (pos + count != size)
                 {
                     readHeader(pos + count, size);
+                    return;
                 }
-                else
-                {
-                    readBody(utils::START_INDEX, utils::from_array<std::uint64_t>(r_buffer.data()));
-                }
+
+                readBody(utils::START_INDEX, utils::from_array<std::uint64_t>(r_buffer.data()));
             }
         );
     }
 
     void Connection::readBody(std::uint64_t pos, std::uint64_t size)
     {
+        if (size == 0)
+        {
+            readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
+            return;
+        }
+
+        if (size > r_buffer.size() - utils::TCP_HEADER_SIZE)
+        {
+            impl.disconnect(this);
+            return;
+        }
+
         socket.async_read_some(
             boost::asio::buffer(r_buffer.data() + pos, size - pos),
             [pos, size, this](const boost::system::error_code& ec, std::size_t count)
