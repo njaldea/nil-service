@@ -48,7 +48,10 @@ namespace nil::service
         NIL_SERVICE_CODEC_DECLARE(std::int32_t);
         NIL_SERVICE_CODEC_DECLARE(std::int64_t);
 
+        NIL_SERVICE_CODEC_DECLARE(bool);
         NIL_SERVICE_CODEC_DECLARE(char);
+        NIL_SERVICE_CODEC_DECLARE(float);
+        NIL_SERVICE_CODEC_DECLARE(double);
 #undef NIL_SERVICE_CODEC_DECLARE
 
         template <typename T>

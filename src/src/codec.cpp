@@ -39,6 +39,9 @@ namespace nil::service::detail
     NIL_SERVICE_CODEC_DEFINE(std::int32_t);
     NIL_SERVICE_CODEC_DEFINE(std::int64_t);
 
+    NIL_SERVICE_CODEC_DEFINE(bool);
     NIL_SERVICE_CODEC_DEFINE(char);
+    NIL_SERVICE_CODEC_DEFINE(float);
+    NIL_SERVICE_CODEC_DEFINE(double);
 #undef NIL_SERVICE_CODEC_DEFINE
 }

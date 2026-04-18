@@ -5,7 +5,9 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdint>
 
 namespace nil::service::utils
@@ -46,38 +48,40 @@ namespace nil::service::utils
     template <typename T>
     std::array<std::uint8_t, sizeof(T)> to_array(T value)
     {
-        if constexpr (sizeof(T) == 1)
+        std::array<std::uint8_t, sizeof(T)> retval{};
+        if constexpr (std::is_same_v<T, bool>)
         {
-            return {{std::uint8_t(value)}};
+            retval[0] = value ? 1 : 0;
         }
         else
         {
-            std::array<std::uint8_t, sizeof(T)> retval;
-            for (auto i = 0u; i < sizeof(T); ++i)
+            std::memcpy(retval.data(), &value, sizeof(T));
+            if constexpr (std::endian::native == std::endian::big)
             {
-                const auto index = (sizeof(T) - i - 1);
-                retval[i] = std::uint8_t(value >> (index * TO_BITS));
+                std::reverse(retval.begin(), retval.end());
             }
-            return retval;
         }
+        return retval;
     }
 
     template <typename T>
     T from_array(const std::uint8_t* data)
     {
-        if constexpr (sizeof(T) == 1)
+        if constexpr (std::is_same_v<T, bool>)
         {
-            return T(data[0]);
+            return data[0] != 0;
         }
         else
         {
-            auto t = T();
-            for (auto i = 0u; i < sizeof(T); ++i)
+            std::array<std::uint8_t, sizeof(T)> temp;
+            std::memcpy(temp.data(), data, sizeof(T));
+            if constexpr (std::endian::native == std::endian::big)
             {
-                const auto index = (sizeof(T) - i - 1);
-                t |= T(data[i]) << (index * TO_BITS);
+                std::reverse(temp.begin(), temp.end());
             }
-            return t;
+            T value;
+            std::memcpy(&value, temp.data(), sizeof(T));
+            return value;
         }
     }
 }
