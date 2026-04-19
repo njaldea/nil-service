@@ -48,7 +48,7 @@ namespace nil::service::http::server
 
     void WebSocket::connect(ws::Connection* connection)
     {
-        utils::invoke(on_connect_cb, ID{this, connection, &ws::Connection::to_string_remote});
+        utils::invoke(on_connect_cb, connection->remote_id());
     }
 
     void WebSocket::message(ID id, const void* data, std::uint64_t size)
@@ -60,8 +60,9 @@ namespace nil::service::http::server
     {
         boost::asio::post(
             *context,
-            [this, id = ID{this, connection, &ws::Connection::to_string_remote}]()
+            [this, id = connection->remote_id()]()
             {
+                utils::invoke(on_disconnect_cb, id);
                 connections.erase(
                     std::remove_if(
                         connections.begin(),
@@ -70,7 +71,6 @@ namespace nil::service::http::server
                     ),
                     connections.end()
                 );
-                utils::invoke(on_disconnect_cb, id);
             }
         );
     }

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27.1)
 
 project(
     nil-service
-    VERSION 1.0.13
+    VERSION 1.0.14
     LANGUAGES CXX
     DESCRIPTION "boost net library wrapper"
 )

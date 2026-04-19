@@ -36,6 +36,8 @@ namespace nil::service::ws
         void read();
 
         boost::beast::websocket::stream<boost::beast::tcp_stream> ws;
+        boost::asio::ip::tcp::endpoint local_endpoint;
+        boost::asio::ip::tcp::endpoint remote_endpoint;
         boost::beast::flat_buffer flat_buffer;
         ConnectedImpl<Connection>& impl;
     };

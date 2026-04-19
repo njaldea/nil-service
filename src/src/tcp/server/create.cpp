@@ -171,6 +171,7 @@ namespace nil::service::tcp::server
                 context->strand,
                 [this, id = connection->remote_id()]()
                 {
+                    utils::invoke(on_disconnect_cb, id);
                     connections.erase(
                         std::remove_if(
                             connections.begin(),
@@ -179,7 +180,6 @@ namespace nil::service::tcp::server
                         ),
                         connections.end()
                     );
-                    utils::invoke(on_disconnect_cb, id);
                 }
             );
         }

@@ -9,6 +9,8 @@ namespace nil::service::ws
         ConnectedImpl<Connection>& init_impl
     )
         : ws(std::move(init_ws))
+        , local_endpoint(ws.next_layer().socket().local_endpoint())
+        , remote_endpoint(ws.next_layer().socket().remote_endpoint())
         , flat_buffer(init_buffer)
         , impl(init_impl)
     {
@@ -50,16 +52,12 @@ namespace nil::service::ws
 
     std::string Connection::to_string_local(const void* c)
     {
-        return utils::to_id(
-            static_cast<const Connection*>(c)->ws.next_layer().socket().local_endpoint()
-        );
+        return utils::to_id(static_cast<const Connection*>(c)->local_endpoint);
     }
 
     std::string Connection::to_string_remote(const void* c)
     {
-        return utils::to_id(
-            static_cast<const Connection*>(c)->ws.next_layer().socket().remote_endpoint()
-        );
+        return utils::to_id(static_cast<const Connection*>(c)->remote_endpoint);
     }
 
     ID Connection::remote_id() const
