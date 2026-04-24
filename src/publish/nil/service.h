@@ -70,7 +70,8 @@ extern "C"
         void (*cleanup)(void*);
     } nil_service_dispatch_info;
 
-    void nil_service_runnable_start(nil_service_runnable service);
+    void nil_service_runnable_run(nil_service_runnable service);
+    void nil_service_runnable_poll(nil_service_runnable service);
     void nil_service_runnable_stop(nil_service_runnable service);
     void nil_service_runnable_restart(nil_service_runnable service);
     void nil_service_runnable_dispatch(

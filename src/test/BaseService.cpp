@@ -58,7 +58,12 @@ public:
     TestService& operator=(const TestService&) = delete;
     ~TestService() noexcept override = default;
 
-    void start() override
+    void run() override
+    {
+        nil::service::utils::invoke(on_connect_cb, id);
+    }
+
+    void poll() override
     {
         nil::service::utils::invoke(on_connect_cb, id);
     }
@@ -102,14 +107,12 @@ public:
 private:
     nil::service::ID id;
 
-    std::vector<std::function<void(nil::service::ID, const void*, std::uint64_t)>>
-        on_message_cb;
+    std::vector<std::function<void(nil::service::ID, const void*, std::uint64_t)>> on_message_cb;
     std::vector<std::function<void(nil::service::ID)>> on_ready_cb;
     std::vector<std::function<void(nil::service::ID)>> on_connect_cb;
     std::vector<std::function<void(nil::service::ID)>> on_disconnect_cb;
 
-    void impl_on_message(
-        std::function<void(nil::service::ID, const void*, std::uint64_t)> handler
+    void impl_on_message(std::function<void(nil::service::ID, const void*, std::uint64_t)> handler
     ) override
     {
         on_message_cb.push_back(std::move(handler));
@@ -144,7 +147,7 @@ TEST(BaseService, on_message)
     service.on_message([&]() { mock.Call("message"); });
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    service.start();
+    service.run();
     EXPECT_CALL(mock, Call("message")).Times(1);
     service.publish("abc", 4);
     EXPECT_CALL(mock, Call("message")).Times(1);
@@ -172,7 +175,7 @@ TEST(BaseService, on_message_with_id)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    service.start();
+    service.run();
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("message")).Times(1);
     service.publish("abc", 4);
@@ -203,7 +206,7 @@ TEST(BaseService, on_message_with_id_with_raw)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    service.start();
+    service.run();
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
     service.publish("abc", 3);
@@ -234,7 +237,7 @@ TEST(BaseService, on_message_with_id_with_codec)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    service.start();
+    service.run();
     EXPECT_CALL(mock, Call("peer id")).Times(1);
     EXPECT_CALL(mock, Call("abc")).Times(1);
     service.publish("abc", 3);
@@ -263,7 +266,7 @@ TEST(BaseService, on_message_without_id_with_raw)
     );
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    service.start();
+    service.run();
     EXPECT_CALL(mock, Call("abc")).Times(1);
     service.publish("abc", 3);
     EXPECT_CALL(mock, Call("abc")).Times(1);
@@ -285,7 +288,7 @@ TEST(BaseService, on_message_without_id_with_codec)
     service.on_message([&](const std::string& message) { mock.Call(message); });
 
     EXPECT_CALL(mock, Call("connect")).Times(1);
-    service.start();
+    service.run();
     EXPECT_CALL(mock, Call("axy")).Times(1);
     service.publish("axy", 3);
     EXPECT_CALL(mock, Call("axy")).Times(1);

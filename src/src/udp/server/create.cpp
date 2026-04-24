@@ -2,6 +2,7 @@
 
 #include "../../utils.hpp"
 
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -35,8 +36,14 @@ namespace nil::service::udp::server
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
+            , context(std::make_unique<Context>(options.host, options.port))
         {
             buffer.resize(options.buffer);
+            boost::asio::post(
+                context->ctx,
+                [this]() { utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string}); }
+            );
+            receive();
         }
 
         ~Impl() noexcept override = default;
@@ -47,36 +54,35 @@ namespace nil::service::udp::server
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void start() override
+        void run() override
         {
-            if (!context)
-            {
-                context = std::make_unique<Context>(options.host, options.port);
-                utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string});
-                receive();
-            }
+            auto _ = boost::asio::make_work_guard(context->ctx);
             context->ctx.run();
+        }
+
+        void poll() override
+        {
+            context->ctx.poll();
         }
 
         void stop() override
         {
-            if (context)
-            {
-                context->ctx.stop();
-            }
+            context->ctx.stop();
         }
 
         void restart() override
         {
-            context.reset();
+            context = std::make_unique<Context>(options.host, options.port);
+            boost::asio::post(
+                context->ctx,
+                [this]() { utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string}); }
+            );
+            receive();
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (context)
-            {
-                boost::asio::dispatch(context->ctx, std::move(task));
-            }
+            boost::asio::dispatch(context->ctx, std::move(task));
         }
 
         void publish(std::vector<std::uint8_t> data) override

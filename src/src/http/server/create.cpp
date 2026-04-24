@@ -4,6 +4,7 @@
 #include "../../utils.hpp"
 #include "WebSocket.hpp"
 
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
@@ -46,7 +47,22 @@ namespace nil::service::http::server
 
         explicit Impl(Options init_options)
             : options(std::move(init_options))
+            , context(std::make_unique<Context>(options.host, options.port))
         {
+            boost::asio::post(
+                context->ctx,
+                [this]()
+                {
+                    utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string});
+                    for (auto& [route, ws] : wss)
+                    {
+                        ws.context = &context->ctx;
+                        ws.set_route(to_string(this) + route);
+                        ws.ready();
+                    }
+                    accept();
+                }
+            );
         }
 
         IEventService* use_ws(const std::string& key) override
@@ -54,7 +70,8 @@ namespace nil::service::http::server
             return &wss[key];
         }
 
-        void start() override;
+        void run() override;
+        void poll() override;
         void stop() override;
         void restart() override;
         void dispatch(std::function<void()> task) override;
@@ -93,7 +110,7 @@ namespace nil::service::http::server
         {
         }
 
-        void start()
+        void run()
         {
             auto self = shared_from_this();
             boost::beast::http::async_read(
@@ -165,7 +182,7 @@ namespace nil::service::http::server
 
                         auto connection
                             = std::make_unique<ws::Connection>(s, std::move(*ws), websocket);
-                        connection->start();
+                        connection->run();
                         websocket.connections.push_back(std::move(connection));
                     }
                 );
@@ -243,42 +260,44 @@ namespace nil::service::http::server
         }
     };
 
-    void Impl::start()
+    void Impl::run()
     {
-        if (!context)
-        {
-            context = std::make_unique<Context>(options.host, options.port);
-            utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string});
-            for (auto& [route, ws] : wss)
-            {
-                ws.context = &context->ctx;
-                ws.set_route(to_string(this) + route);
-                ws.ready();
-            }
-            accept();
-        }
+        auto _ = boost::asio::make_work_guard(context->ctx);
         context->ctx.run();
+    }
+
+    void Impl::poll()
+    {
+        context->ctx.poll();
     }
 
     void Impl::stop()
     {
-        if (context)
-        {
-            context->ctx.stop();
-        }
+        context->ctx.stop();
     }
 
     void Impl::restart()
     {
-        context.reset();
+        context = std::make_unique<Context>(options.host, options.port);
+        boost::asio::post(
+            context->ctx,
+            [this]()
+            {
+                utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string});
+                for (auto& [route, ws] : wss)
+                {
+                    ws.context = &context->ctx;
+                    ws.set_route(to_string(this) + route);
+                    ws.ready();
+                }
+                accept();
+            }
+        );
     }
 
     void Impl::dispatch(std::function<void()> task)
     {
-        if (context)
-        {
-            boost::asio::dispatch(context->ctx, std::move(task));
-        }
+        boost::asio::dispatch(context->ctx, std::move(task));
     }
 
     void Impl::accept()
@@ -288,8 +307,7 @@ namespace nil::service::http::server
             {
                 if (!ec)
                 {
-                    std::make_shared<Transaction>(*this, options.buffer, std::move(socket))
-                        ->start();
+                    std::make_shared<Transaction>(*this, options.buffer, std::move(socket))->run();
                 }
                 accept();
             }

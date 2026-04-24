@@ -18,39 +18,42 @@ namespace nil::service::self
         }
 
     public:
+        explicit Impl()
+            : context(std::make_unique<boost::asio::io_context>())
+        {
+            boost::asio::post(
+                *context,
+                [this]()
+                {
+                    const auto id = ID{this, this, &to_string};
+                    utils::invoke(on_ready_cb, id);
+                    utils::invoke(on_connect_cb, id);
+                }
+            );
+        }
+
         void publish(std::vector<std::uint8_t> payload) override
         {
-            if (context)
-            {
-                queue_self_message(std::move(payload));
-            }
+            queue_self_message(std::move(payload));
         }
 
         void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> payload) override
         {
-            if (context)
-            {
-                boost::asio::post(
-                    *context,
-                    [this, ids = std::move(ids), msg = std::move(payload)]()
+            boost::asio::post(
+                *context,
+                [this, ids = std::move(ids), msg = std::move(payload)]()
+                {
+                    if (contains_self_id(ids))
                     {
-                        if (contains_self_id(ids))
-                        {
-                            return;
-                        }
-                        emit_self_message(msg);
+                        return;
                     }
-                );
-            }
+                    emit_self_message(msg);
+                }
+            );
         }
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            if (!context)
-            {
-                return;
-            }
-
             boost::asio::post(
                 *context,
                 [this, ids = std::move(ids), msg = std::move(data)]()
@@ -84,44 +87,39 @@ namespace nil::service::self
             on_disconnect_cb.push_back(std::move(handler));
         }
 
-        void start() override
+        void run() override
         {
-            if (!context)
-            {
-                context = std::make_unique<boost::asio::io_context>();
-                boost::asio::post(
-                    *context,
-                    [this]()
-                    {
-                        const auto id = ID{this, this, &to_string};
-                        utils::invoke(on_ready_cb, id);
-                        utils::invoke(on_connect_cb, id);
-                    }
-                );
-            }
             auto _ = boost::asio::make_work_guard(*context);
             context->run();
         }
 
+        void poll() override
+        {
+            context->poll();
+        }
+
         void stop() override
         {
-            if (context)
-            {
-                context->stop();
-            }
+            context->stop();
         }
 
         void restart() override
         {
-            context.reset();
+            context = std::make_unique<boost::asio::io_context>();
+            boost::asio::post(
+                *context,
+                [this]()
+                {
+                    const auto id = ID{this, this, &to_string};
+                    utils::invoke(on_ready_cb, id);
+                    utils::invoke(on_connect_cb, id);
+                }
+            );
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (context)
-            {
-                boost::asio::post(*context, std::move(task));
-            }
+            boost::asio::post(*context, std::move(task));
         }
 
     private:

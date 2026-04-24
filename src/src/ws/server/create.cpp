@@ -13,6 +13,7 @@ namespace nil::service::ws::server
               ))
             , ws(server->use_ws(options.route))
         {
+            attach_callbacks();
         }
 
         void publish(std::vector<std::uint8_t> payload) override
@@ -30,14 +31,14 @@ namespace nil::service::ws::server
             ws->send(std::move(ids), std::move(payload));
         }
 
-        void start() override
+        void run() override
         {
-            if (!callbacks_attached)
-            {
-                callbacks_attached = true;
-                attach_callbacks();
-            }
-            server->start();
+            server->run();
+        }
+
+        void poll() override
+        {
+            server->poll();
         }
 
         void stop() override
@@ -47,16 +48,12 @@ namespace nil::service::ws::server
 
         void restart() override
         {
-            callbacks_attached = false;
             server->restart();
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (server)
-            {
-                server->dispatch(std::move(task));
-            }
+            server->dispatch(std::move(task));
         }
 
     private:
@@ -67,26 +64,45 @@ namespace nil::service::ws::server
         std::vector<std::function<void(ID)>> on_ready_cb;
         std::vector<std::function<void(ID)>> on_connect_cb;
         std::vector<std::function<void(ID)>> on_disconnect_cb;
-        bool callbacks_attached = false;
 
         void attach_callbacks()
         {
-            for (const auto& cb : on_message_cb)
-            {
-                ws->on_message(cb);
-            }
-            for (const auto& cb : on_connect_cb)
-            {
-                ws->on_connect(cb);
-            }
-            for (const auto& cb : on_disconnect_cb)
-            {
-                ws->on_disconnect(cb);
-            }
-            for (const auto& cb : on_ready_cb)
-            {
-                ws->on_ready(cb);
-            }
+            ws->on_message(
+                [this](ID id, const void* data, std::uint64_t size)
+                {
+                    for (const auto& cb : on_message_cb)
+                    {
+                        cb(id, data, size);
+                    }
+                }
+            );
+            ws->on_connect(
+                [this](ID id)
+                {
+                    for (const auto& cb : on_connect_cb)
+                    {
+                        cb(id);
+                    }
+                }
+            );
+            ws->on_disconnect(
+                [this](ID id)
+                {
+                    for (const auto& cb : on_disconnect_cb)
+                    {
+                        cb(id);
+                    }
+                }
+            );
+            ws->on_ready(
+                [this](ID id)
+                {
+                    for (const auto& cb : on_ready_cb)
+                    {
+                        cb(id);
+                    }
+                }
+            );
         }
 
         void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override

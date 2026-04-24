@@ -67,7 +67,7 @@ namespace nil::service::pipe
         std::optional<boost::asio::posix::stream_descriptor> writer;
     };
 
-    struct Impl: IStandaloneService
+    struct Impl final: IStandaloneService
     {
         static std::string to_string(const void* ptr)
         {
@@ -77,7 +77,10 @@ namespace nil::service::pipe
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
+            , context(std::make_unique<Context>())
         {
+            reconnect_read(true);
+            reconnect_write();
         }
 
         ~Impl() override = default;
@@ -87,31 +90,21 @@ namespace nil::service::pipe
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void start() override
+        void run() override
         {
-            if (!context)
-            {
-                context = std::make_unique<Context>();
-                const auto read_ok = reconnect_read(true);
-                const auto write_ok = reconnect_write();
-                if (!read_ok && !write_ok)
-                {
-                    context.reset();
-                    return;
-                }
-            }
-
             auto _ = boost::asio::make_work_guard(context->ctx);
             context->ctx.run();
         }
 
+        void poll() override
+        {
+            context->ctx.poll();
+        }
+
         void stop() override
         {
-            if (context)
-            {
-                cancel_timers();
-                context->ctx.stop();
-            }
+            cancel_timers();
+            context->ctx.stop();
         }
 
         void restart() override
@@ -123,20 +116,19 @@ namespace nil::service::pipe
             ready_notified = false;
             connected = false;
             read_loop_active = false;
-            context.reset();
+            context = std::make_unique<Context>();
+            reconnect_read(false);
+            reconnect_write();
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (context)
-            {
-                boost::asio::post(context->ctx, std::move(task));
-            }
+            boost::asio::post(context->ctx, std::move(task));
         }
 
         void publish(std::vector<std::uint8_t> data) override
         {
-            if (!context || !context->writer)
+            if (!context->writer)
             {
                 return;
             }
@@ -149,7 +141,7 @@ namespace nil::service::pipe
 
         void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            if (!context || !context->writer)
+            if (!context->writer)
             {
                 return;
             }
@@ -168,7 +160,7 @@ namespace nil::service::pipe
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            if (!context || !context->writer)
+            if (!context->writer)
             {
                 return;
             }
@@ -185,7 +177,7 @@ namespace nil::service::pipe
             );
         }
 
-    protected:
+    private:
         Options options;
         std::unique_ptr<Context> context;
         int read_fd = NO_FD;
@@ -233,22 +225,12 @@ namespace nil::service::pipe
 
         void cancel_timers()
         {
-            if (!context)
-            {
-                return;
-            }
-
             context->retry_read.cancel();
             context->probe.cancel();
         }
 
         void schedule_read_retry()
         {
-            if (!context)
-            {
-                return;
-            }
-
             context->retry_read.expires_after(std::chrono::milliseconds(RETRY_INTERVAL_MS));
             context->retry_read.async_wait(
                 [this](const boost::system::error_code& ec)
@@ -264,7 +246,7 @@ namespace nil::service::pipe
         template <typename ResumeFn>
         void schedule_read_wait(ResumeFn resume)
         {
-            if (!context || !context->reader)
+            if (!context->reader)
             {
                 return;
             }
@@ -273,7 +255,7 @@ namespace nil::service::pipe
             context->retry_read.async_wait(
                 [this, resume = std::move(resume)](const boost::system::error_code& ec)
                 {
-                    if (!ec && context && context->reader)
+                    if (!ec && context->reader)
                     {
                         resume();
                     }
@@ -283,11 +265,6 @@ namespace nil::service::pipe
 
         void schedule_probe()
         {
-            if (!context)
-            {
-                return;
-            }
-
             context->probe.cancel();
             if (!can_probe())
             {
@@ -336,7 +313,7 @@ namespace nil::service::pipe
 
         [[nodiscard]] bool can_probe() const
         {
-            return context && !connected && context->reader && context->writer;
+            return context->reader && context->writer;
         }
 
         [[nodiscard]] static bool should_retry_read_later(const boost::system::error_code& ec)
@@ -386,11 +363,6 @@ namespace nil::service::pipe
 
         bool reconnect_read(bool should_notify_ready)
         {
-            if (!context)
-            {
-                return false;
-            }
-
             cancel_timers();
             read_loop_active = false;
             context->reset_reader();
@@ -429,11 +401,6 @@ namespace nil::service::pipe
 
         bool reconnect_write()
         {
-            if (!context)
-            {
-                return false;
-            }
-
             context->probe.cancel();
             context->reset_writer();
             write_fd = NO_FD;
@@ -459,11 +426,6 @@ namespace nil::service::pipe
 
         void handle_read_disconnect()
         {
-            if (!context)
-            {
-                return;
-            }
-
             cancel_timers();
 
             notify_disconnected();
@@ -476,7 +438,7 @@ namespace nil::service::pipe
 
         bool write_message(const std::uint8_t* data, std::uint64_t size)
         {
-            if (!context || !context->writer)
+            if (!context->writer)
             {
                 return false;
             }
@@ -504,7 +466,7 @@ namespace nil::service::pipe
 
         void readHeader(std::uint64_t pos, std::uint64_t size)
         {
-            if (!context || !context->reader)
+            if (!context->reader)
             {
                 return;
             }
@@ -533,7 +495,7 @@ namespace nil::service::pipe
                     {
                         utils::invoke(on_connect_cb, self_id());
                         connected = true;
-                        context->probe.cancel();
+                        // Don't cancel probe - keep sending until both sides see connection
                     }
 
                     const auto payload_size = utils::from_array<std::uint64_t>(r_buffer.data());
@@ -550,7 +512,7 @@ namespace nil::service::pipe
 
         void readBody(std::uint64_t pos, std::uint64_t size)
         {
-            if (!context || !context->reader)
+            if (!context->reader)
             {
                 return;
             }
@@ -588,7 +550,6 @@ namespace nil::service::pipe
             );
         }
 
-    private:
         void impl_on_message(std::function<void(ID, const void*, std::uint64_t)> handler) override
         {
             on_message_cb.push_back(std::move(handler));

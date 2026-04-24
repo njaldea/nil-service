@@ -19,7 +19,7 @@ namespace nil::service::ws
 
     Connection::~Connection() noexcept = default;
 
-    void Connection::start()
+    void Connection::run()
     {
         impl.connect(this);
         read();

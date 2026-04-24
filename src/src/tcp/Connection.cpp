@@ -19,7 +19,7 @@ namespace nil::service::tcp
 
     Connection::~Connection() noexcept = default;
 
-    void Connection::start()
+    void Connection::run()
     {
         readHeader(utils::START_INDEX, utils::TCP_HEADER_SIZE);
         impl.connect(this);

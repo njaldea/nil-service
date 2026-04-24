@@ -2,6 +2,7 @@
 
 #include "../../utils.hpp"
 
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -44,8 +45,14 @@ namespace nil::service::udp::client
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
+            , context(std::make_unique<Context>())
         {
             buffer.resize(options.buffer);
+            if (open_socket())
+            {
+                ping();
+                receive();
+            }
         }
 
         ~Impl() noexcept override = default;
@@ -55,69 +62,59 @@ namespace nil::service::udp::client
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void start() override
+        void run() override
         {
-            if (!context)
-            {
-                context = std::make_unique<Context>();
-                if (!open_socket())
-                {
-                    return;
-                }
-                ping();
-                receive();
-            }
+            auto _ = boost::asio::make_work_guard(context->ctx);
             context->ctx.run();
+        }
+
+        void poll() override
+        {
+            context->ctx.poll();
         }
 
         void stop() override
         {
-            if (context)
-            {
-                context->ctx.stop();
-            }
+            context->ctx.stop();
         }
 
         void restart() override
         {
-            context.reset();
+            context = std::make_unique<Context>();
+            buffer.resize(options.buffer);
+            if (open_socket())
+            {
+                ping();
+                receive();
+            }
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (context)
-            {
-                boost::asio::dispatch(context->ctx, std::move(task));
-            }
+            boost::asio::dispatch(context->ctx, std::move(task));
         }
 
         void publish(std::vector<std::uint8_t> data) override
         {
-            if (context)
-            {
-                boost::asio::post(
-                    context->strand,
-                    [this, msg = std::move(data)]() { send_external(msg); }
-                );
-            }
+            boost::asio::post(
+                context->strand,
+                [this, msg = std::move(data)]() { send_external(msg); }
+            );
         }
 
         void publish_ex(std::vector<ID> ids, std::vector<std::uint8_t> data) override
         {
-            if (context)
-            {
-                boost::asio::post(
-                    context->strand,
-                    [this, ids = std::move(ids), msg = std::move(data)]()
+            boost::asio::post(
+                context->strand,
+                [this, ids = std::move(ids), msg = std::move(data)]()
+                {
+                    if (contains_remote_id(ids))
                     {
-                        if (contains_remote_id(ids))
-                        {
-                            return;
-                        }
-                        send_external(msg);
+                        return;
                     }
-                );
-            }
+                    send_external(msg);
+                }
+            );
         }
 
         void send(std::vector<ID> ids, std::vector<std::uint8_t> data) override

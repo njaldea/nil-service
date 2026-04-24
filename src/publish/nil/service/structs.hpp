@@ -27,7 +27,12 @@ namespace nil::service
         /**
          * @brief start the service. blocking.
          */
-        virtual void start() = 0;
+        virtual void run() = 0;
+
+        /**
+         * @brief execute all pending handlers without blocking.
+         */
+        virtual void poll() = 0;
 
         /**
          * @brief stop the service. non-blocking.

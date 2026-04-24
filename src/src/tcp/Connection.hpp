@@ -25,7 +25,7 @@ namespace nil::service::tcp
         Connection& operator=(Connection&&) noexcept = delete;
         Connection& operator=(const Connection&) = delete;
 
-        void start();
+        void run();
         void write(const std::uint8_t* data, std::uint64_t size);
         ID remote_id() const;
 

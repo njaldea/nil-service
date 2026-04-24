@@ -18,3 +18,14 @@ if(ENABLE_C_API)
     target_link_libraries(${PROJECT_NAME}-c PRIVATE nil::clix-c-api)
     target_link_libraries(${PROJECT_NAME}-c PRIVATE pthread)
 endif()
+
+if(ENABLE_TEST)
+    add_test(
+        NAME sandbox_integration_test
+        COMMAND bash ${CMAKE_SOURCE_DIR}/sandbox/test_sandbox.sh
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties(sandbox_integration_test PROPERTIES
+        ENVIRONMENT "SANDBOX=$<TARGET_FILE:sandbox>"
+    )
+endif()

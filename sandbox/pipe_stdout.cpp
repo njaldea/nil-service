@@ -22,7 +22,7 @@ int main()
     service->on_disconnect([](const auto& id)
                            { std::cerr << "disconnected : " << to_string(id) << std::endl; });
 
-    std::thread run_loop([&]() { service->start(); });
+    std::thread run_loop([&]() { service->run(); });
 
     std::string line;
     while (std::getline(std::cin, line))

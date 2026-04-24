@@ -81,7 +81,8 @@ Destroy:
 ## Core Runnable API
 
 Use runnable views to run services:
-- nil_service_runnable_start
+- nil_service_runnable_run: blocking call that processes events until stop() is invoked
+- nil_service_runnable_poll: non-blocking call that processes pending events once and returns
 - nil_service_runnable_stop
 - nil_service_runnable_restart
 - nil_service_runnable_dispatch
@@ -150,6 +151,7 @@ nil_service_web_transaction:
 Handle preconditions:
 - Most functions do not perform runtime null checks and assume valid handles.
 - Passing invalid/null handles is undefined behavior.
+- Service async contexts are initialized in the constructor, ensuring thread-safe initialization regardless of when nil_service_runnable_run is first called.
 
 POSIX pipe service:
 - Available only on POSIX platforms (`__unix__`, `__unix`, `unix`, or `__APPLE__`).
@@ -165,7 +167,7 @@ POSIX pipe service:
 - Returned write fds must be writable (`O_WRONLY` or `O_RDWR`).
 - If write provider returns `O_WRONLY`, caller is expected to keep a read handle open on the FIFO to avoid write-side failures.
 - Returned read fds must be readable (`O_RDONLY` or `O_RDWR`).
-- Before inbound traffic is observed, the service periodically writes zero-size header probes on `write_fd`; `on_connect` is emitted when inbound headers are observed.
+- The service sends periodic zero-size probe messages every 25ms while both read and write fds are available. Probes continue indefinitely to enable reliable connection and reconnection detection. The `on_connect` callback is invoked when the first inbound message (including zero-size probes) is received.
 
 nil_service_id:
 - nil_service_id_print (string conversion) is valid only during the callback that provided the id.

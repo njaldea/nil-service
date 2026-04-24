@@ -18,6 +18,7 @@ Networking service toolkit for C++ with an optional C API.
 - C++ API and utilities: this file
 - C API guide: [docs/c-api.md](docs/c-api.md)
 - Sandbox examples: [sandbox/main.cpp](sandbox/main.cpp), [sandbox/main.c](sandbox/main.c)
+- Integration tests: [sandbox/test_sandbox.sh](sandbox/test_sandbox.sh)
 
 ## Service Creation (C++)
 
@@ -52,7 +53,8 @@ service->publish(buffer, size);
 ### Standalone service
 
 ```cpp
-service->start();
+service->run();      // blocking: runs event loop until stop() called
+service->poll();     // non-blocking: processes pending events once
 service->stop();
 service->restart();
 ```
@@ -92,13 +94,12 @@ nil::service::IEventService* ws = web->use_ws("/ws");
 
 Pipe fd requirements and behavior expected from the caller:
 
-- ownership of each non-`-1` fd returned by `make_read` / `make_write` is transferred to the service.
+- Ownership of each non-`-1` fd returned by `make_read` / `make_write` is transferred to the service.
 - `make_write` must return a writable fd (`O_WRONLY` or `O_RDWR`).
-- when using `O_WRONLY`, caller is expected to keep a read handle open on the FIFO to avoid write-side failures.
+- When using `O_WRONLY`, the caller must keep a read handle open on the FIFO to avoid write-side failures.
 - `make_read` should return a readable fd (`O_RDONLY` or `O_RDWR`).
-- when both directions are enabled, read and write should be distinct fds representing opposite FIFO ends.
-- service sends periodic zero-size header probes while both ends exist and `on_connect` has not fired yet.
-- `on_connect` is fired when any inbound header is received (including zero-size probe frames).
+- When both directions are enabled, read and write should be distinct fds representing opposite FIFO ends.
+- The service sends periodic zero-size probe messages every 25ms while both fds are available. These probes enable reliable connection detection even under timing variations, and support reconnection scenarios. The `on_connect` callback fires when the first inbound message (including zero-size probes) is received.
 
 ### server::Options
 
@@ -165,13 +166,17 @@ Provide `size`, `serialize`, and `deserialize` to integrate custom payload types
 
 - `nil::service::to_string(ID)` is valid only while handling the callback that supplied that id.
 - `ID::to_string` / `to_string(ID)` is not thread-safe.
+- Service async contexts are initialized in the constructor, ensuring thread-safe initialization regardless of when `run()` is first called. Services are safe to use from multiple threads as long as event callbacks are serialized through the service's strand.
 
 ## Build Notes
 
 - C API is built when `ENABLE_C_API` is ON.
-- See [src/CMakeLists.txt](src/CMakeLists.txt) for target details.
+- Integration tests are built when `ENABLE_TEST` is ON (default). Run with `ctest -V` or invoke `sandbox/test_sandbox.sh` directly.
+- See [src/CMakeLists.txt](src/CMakeLists.txt) for build target details.
 
 ## Operational Notes
 
 - Hostnames are not resolved internally; use ip/port values.
 - With UDP, very fast reconnect scenarios may skip observable disconnect events.
+- Pipe service sends periodic zero-size probe messages every 25ms while both read and write fds are available. This enables reliable connection and reconnection detection. Overhead is approximately 320 bytes/sec per pipe.
+- Event loop execution: use `run()` to block until `stop()` is called, or use `poll()` to process pending events once and return immediately.

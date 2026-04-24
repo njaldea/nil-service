@@ -3,6 +3,7 @@
 #include "../../utils.hpp"
 #include "../Connection.hpp"
 
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -32,7 +33,9 @@ namespace nil::service::tcp::client
     public:
         explicit Impl(Options init_options)
             : options(std::move(init_options))
+            , context(std::make_unique<Context>())
         {
+            connect();
         }
 
         ~Impl() override = default;
@@ -42,35 +45,31 @@ namespace nil::service::tcp::client
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        void start() override
+        void run() override
         {
-            if (!context)
-            {
-                context = std::make_unique<Context>();
-                connect();
-            }
+            auto _ = boost::asio::make_work_guard(context->ctx);
             context->ctx.run();
+        }
+
+        void poll() override
+        {
+            context->ctx.poll();
         }
 
         void stop() override
         {
-            if (context)
-            {
-                context->ctx.stop();
-            }
+            context->ctx.stop();
         }
 
         void restart() override
         {
-            context.reset();
+            context = std::make_unique<Context>();
+            connect();
         }
 
         void dispatch(std::function<void()> task) override
         {
-            if (context)
-            {
-                boost::asio::post(context->ctx, std::move(task));
-            }
+            boost::asio::post(context->ctx, std::move(task));
         }
 
         void publish(std::vector<std::uint8_t> data) override
@@ -182,7 +181,7 @@ namespace nil::service::tcp::client
                             on_ready_cb,
                             ID{this, connection.get(), &Connection::to_string_local}
                         );
-                        connection->start();
+                        connection->run();
                         return;
                     }
                     reconnect();

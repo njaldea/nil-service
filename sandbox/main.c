@@ -405,7 +405,7 @@ static void input_output(nil_service_message service)
 static void* start_runner_thread(void* context)
 {
 	const nil_service_runnable runnable = *(const nil_service_runnable*)context;
-	nil_service_runnable_start(runnable);
+	nil_service_runnable_run(runnable);
 	return NULL;
 }
 
@@ -614,7 +614,7 @@ static int run_http(nil_clix_options options)
 static void* start_standalone_thread(void* context)
 {
 	const nil_service_runnable runnable = *(const nil_service_runnable*)context;
-	nil_service_runnable_start(runnable);
+	nil_service_runnable_run(runnable);
 	return NULL;
 }
 
@@ -648,7 +648,7 @@ static int run_gateway(nil_clix_options options)
 	(void)pthread_create(&ws_thread, NULL, start_standalone_thread, (void*)&ws_runnable);
 	(void)pthread_create(&io_thread, NULL, run_input_thread, (void*)&gateway_message);
 
-	nil_service_runnable_start(gateway_runnable);
+	nil_service_runnable_run(gateway_runnable);
 
 	(void)pthread_join(io_thread, NULL);
 	nil_service_runnable_stop(gateway_runnable);

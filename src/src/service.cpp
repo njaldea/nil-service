@@ -75,9 +75,14 @@ extern "C"
         delete static_cast<nil::service::IGatewayService*>(gateway.handle); // NOLINT
     }
 
-    void nil_service_runnable_start(nil_service_runnable service)
+    void nil_service_runnable_run(nil_service_runnable service)
     {
-        static_cast<nil::service::IRunnableService*>(service.handle)->start();
+        static_cast<nil::service::IRunnableService*>(service.handle)->run();
+    }
+
+    void nil_service_runnable_poll(nil_service_runnable service)
+    {
+        static_cast<nil::service::IRunnableService*>(service.handle)->poll();
     }
 
     void nil_service_runnable_stop(nil_service_runnable service)

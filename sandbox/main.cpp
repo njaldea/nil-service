@@ -134,7 +134,7 @@ void loop(T& service, U& io)
 {
     while (true)
     {
-        std::thread t1([&]() { service.start(); });
+        std::thread t1([&]() { service.run(); });
         input_output(io);
         service.stop();
         t1.join();
@@ -324,13 +324,13 @@ int main(int argc, const char** argv)
                     std::this_thread::sleep_for(std::chrono::seconds(1));
 
                     std::vector<std::thread> v;
-                    v.emplace_back([&]() { pipe->start(); });
-                    v.emplace_back([&]() { udp->start(); });
-                    v.emplace_back([&]() { tcp->start(); });
-                    v.emplace_back([&]() { ws->start(); });
+                    v.emplace_back([&]() { pipe->run(); });
+                    v.emplace_back([&]() { udp->run(); });
+                    v.emplace_back([&]() { tcp->run(); });
+                    v.emplace_back([&]() { ws->run(); });
                     v.emplace_back([&]() { input_output(*gateway); });
 
-                    gateway->start();
+                    gateway->run();
 
                     return 0;
                 });

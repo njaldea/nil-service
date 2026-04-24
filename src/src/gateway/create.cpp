@@ -77,11 +77,15 @@ namespace nil::service::gateway
             );
         }
 
-        void start() override
+        void run() override
         {
-            context->restart();
             auto _ = boost::asio::make_work_guard(*context);
             context->run();
+        }
+
+        void poll() override
+        {
+            context->poll();
         }
 
         void stop() override
