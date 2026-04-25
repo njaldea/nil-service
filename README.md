@@ -7,7 +7,7 @@ Networking service toolkit for C++ with an optional C API.
 | Protocol | Role          | Notes                             |
 | -------- | ------------- | --------------------------------- |
 | self     | standalone    | loopback/echo-style local service |
-| udp      | client/server | supports timeout                  |
+| udp      | client/server | probe-based connection detection  |
 | tcp      | client/server | stream transport                  |
 | ws       | client/server | websocket over tcp                |
 | http     | server        | routes + websocket upgrade        |
@@ -109,7 +109,6 @@ Pipe fd requirements and behavior expected from the caller:
 | port    | tcp, udp, ws, http | bind port                      |
 | buffer  | tcp, udp, ws, http | io buffer size                 |
 | route   | ws                 | websocket route, default "/"   |
-| timeout | udp                | disconnect timeout, default 2s |
 
 ### client::Options
 
@@ -119,13 +118,12 @@ Pipe fd requirements and behavior expected from the caller:
 | port    | tcp, udp, ws | target port                    |
 | route   | ws           | websocket route, default "/"   |
 | buffer  | tcp, udp, ws | io buffer size                 |
-| timeout | udp          | disconnect timeout, default 2s |
 
 ### Default Values
 
 - pipe read buffer: `1024`
 - tcp client/server buffer: `1024`
-- udp client/server buffer: `1024`, timeout: `2s`
+- udp client/server buffer: `1024`
 - ws client/server route: `/`, buffer: `1024`
 - http server buffer: `8192`
 
@@ -178,5 +176,6 @@ Provide `size`, `serialize`, and `deserialize` to integrate custom payload types
 
 - Hostnames are not resolved internally; use ip/port values.
 - With UDP, very fast reconnect scenarios may skip observable disconnect events.
+- UDP connection detection is probe-based: the client sends a heartbeat every 25ms, the server responds and resets a 50ms disconnect timer per client. No timeout option is exposed.
 - Pipe service sends periodic zero-size probe messages every 25ms while both read and write fds are available. This enables reliable connection and reconnection detection. Overhead is approximately 320 bytes/sec per pipe.
 - Event loop execution: use `run()` to block until `stop()` is called, or use `poll()` to process pending events once and return immediately.

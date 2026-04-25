@@ -28,5 +28,8 @@
     "--background-index"
   ],
   "editor.stickyScroll.defaultModel": "foldingProviderModel",
-  "gitlens.codeLens.enabled": false
+  "gitlens.codeLens.enabled": false,
+  "python.analysis.extraPaths": [
+    "./src/ffi/python"
+  ]
 }

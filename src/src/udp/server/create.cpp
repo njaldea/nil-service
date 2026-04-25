@@ -9,6 +9,7 @@
 #include <boost/asio/strand.hpp>
 
 #include <algorithm>
+#include <chrono>
 
 namespace nil::service::udp::server
 {
@@ -203,7 +204,8 @@ namespace nil::service::udp::server
                 utils::invoke(on_connect_cb, ID{this, connection, &Connection::to_string});
             }
 
-            connection->timer.expires_after(options.timeout);
+            connection->timer.expires_after(std::chrono::milliseconds(utils::PROBE_INTERVAL_MS * 2)
+            );
             connection->timer.async_wait(
                 [this, connection](const boost::system::error_code& ec)
                 {

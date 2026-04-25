@@ -191,14 +191,12 @@ ffi.cdef [[
     nil_service_standalone nil_service_create_udp_client(
         const char* host,
         uint16_t port,
-        uint64_t buffer,
-        double timeout_s
+        uint64_t buffer
     );
     nil_service_standalone nil_service_create_udp_server(
         const char* host,
         uint16_t port,
-        uint64_t buffer,
-        double timeout_s
+        uint64_t buffer
     );
 
     nil_service_standalone nil_service_create_tcp_client(
@@ -256,60 +254,60 @@ local function current_file_dir()
     return dir
 end
 
----@class NilService.ID
+---@class nil_service.ID
 ---@field owner unknown
 ---@field id unknown
----@field to_string fun(self: NilService.ID): string
+---@field to_string fun(self: nil_service.ID): string
 
----@class NilService.Message
----@field publish fun(self: NilService.Message, data: string)
----@field publish_ex fun(self: NilService.Message, id: NilService.ID, data: string)
----@field send fun(self: NilService.Message, id: NilService.ID, data: string)
----@field publish_ex_ids fun(self: NilService.Message, ids: NilService.ID[], data: string)
----@field send_ids fun(self: NilService.Message, ids: NilService.ID[], data: string)
+---@class nil_service.Message
+---@field publish fun(self: nil_service.Message, data: string)
+---@field publish_ex fun(self: nil_service.Message, id: nil_service.ID, data: string)
+---@field send fun(self: nil_service.Message, id: nil_service.ID, data: string)
+---@field publish_ex_ids fun(self: nil_service.Message, ids: nil_service.ID[], data: string)
+---@field send_ids fun(self: nil_service.Message, ids: nil_service.ID[], data: string)
 
----@class NilService.Callback
----@field on_ready fun(self: NilService.Callback, fn: fun(id: NilService.ID))
----@field on_connect fun(self: NilService.Callback, fn: fun(id: NilService.ID))
----@field on_disconnect fun(self: NilService.Callback, fn: fun(id: NilService.ID))
----@field on_message fun(self: NilService.Callback, fn: fun(id: NilService.ID, data: string))
+---@class nil_service.Callback
+---@field on_ready fun(self: nil_service.Callback, fn: fun(id: nil_service.ID))
+---@field on_connect fun(self: nil_service.Callback, fn: fun(id: nil_service.ID))
+---@field on_disconnect fun(self: nil_service.Callback, fn: fun(id: nil_service.ID))
+---@field on_message fun(self: nil_service.Callback, fn: fun(id: nil_service.ID, data: string))
 
----@class NilService.WebTransaction
----@field set_content_type fun(self: NilService.WebTransaction, content_type: string)
----@field send fun(self: NilService.WebTransaction, data: string)
----@field get_route fun(self: NilService.WebTransaction): string
+---@class nil_service.WebTransaction
+---@field set_content_type fun(self: nil_service.WebTransaction, content_type: string)
+---@field send fun(self: nil_service.WebTransaction, data: string)
+---@field get_route fun(self: nil_service.WebTransaction): string
 
----@class NilService.Event : NilService.Message, NilService.Callback
+---@class nil_service.Event : nil_service.Message, nil_service.Callback
 
----@class NilService.Runnable
----@field run fun(self: NilService.Runnable)
----@field poll fun(self: NilService.Runnable)
----@field stop fun(self: NilService.Runnable)
----@field restart fun(self: NilService.Runnable)
----@field dispatch fun(self: NilService.Runnable, fn: fun())
+---@class nil_service.Runnable
+---@field run fun(self: nil_service.Runnable)
+---@field poll fun(self: nil_service.Runnable)
+---@field stop fun(self: nil_service.Runnable)
+---@field restart fun(self: nil_service.Runnable)
+---@field dispatch fun(self: nil_service.Runnable, fn: fun())
 
----@class NilService.Standalone : NilService.Event, NilService.Runnable
----@field destroy fun(self: NilService.Standalone)
+---@class nil_service.Standalone : nil_service.Event, nil_service.Runnable
+---@field destroy fun(self: nil_service.Standalone)
 
----@class NilService.Gateway : NilService.Standalone
----@field add_service fun(self: NilService.Gateway, service: NilService.Event)
----@field destroy fun(self: NilService.Gateway)
+---@class nil_service.Gateway : nil_service.Standalone
+---@field add_service fun(self: nil_service.Gateway, service: nil_service.Event)
+---@field destroy fun(self: nil_service.Gateway)
 
----@class NilService.Web : NilService.Runnable
----@field on_ready fun(self: NilService.Web, fn: fun(id: NilService.ID))
----@field on_get fun(self: NilService.Web, fn: fun(transaction: NilService.WebTransaction): boolean)
----@field use_ws fun(self: NilService.Web, route: string): NilService.Event
----@field destroy fun(self: NilService.Web)
+---@class nil_service.Web : nil_service.Runnable
+---@field on_ready fun(self: nil_service.Web, fn: fun(id: nil_service.ID))
+---@field on_get fun(self: nil_service.Web, fn: fun(transaction: nil_service.WebTransaction): boolean)
+---@field use_ws fun(self: nil_service.Web, route: string): nil_service.Event
+---@field destroy fun(self: nil_service.Web)
 
----@class NilService.Module
----@field create_gateway fun(): NilService.Gateway
----@field create_udp_client fun(host: string, port: number, buffer: number, timeout_s: number): NilService.Standalone
----@field create_udp_server fun(host: string, port: number, buffer: number, timeout_s: number): NilService.Standalone
----@field create_tcp_client fun(host: string, port: number, buffer: number): NilService.Standalone
----@field create_tcp_server fun(host: string, port: number, buffer: number): NilService.Standalone
----@field create_ws_client fun(host: string, port: number, route: string, buffer: number): NilService.Standalone
----@field create_ws_server fun(host: string, port: number, route: string, buffer: number): NilService.Standalone
----@field create_http_server fun(host: string, port: number, buffer: number): NilService.Web
+---@class nil_service.Module
+---@field create_gateway fun(): nil_service.Gateway
+---@field create_udp_client fun(host: string, port: number, buffer: number): nil_service.Standalone
+---@field create_udp_server fun(host: string, port: number, buffer: number): nil_service.Standalone
+---@field create_tcp_client fun(host: string, port: number, buffer: number): nil_service.Standalone
+---@field create_tcp_server fun(host: string, port: number, buffer: number): nil_service.Standalone
+---@field create_ws_client fun(host: string, port: number, route: string, buffer: number): nil_service.Standalone
+---@field create_ws_server fun(host: string, port: number, route: string, buffer: number): nil_service.Standalone
+---@field create_http_server fun(host: string, port: number, buffer: number): nil_service.Web
 
 
 local function create_web_transaction(refs, fns, lib, transaction)
@@ -720,13 +718,13 @@ local function create_service_lib()
             return create_gateway(refs, fns, lib, gateway)
         end,
 
-        create_udp_client = function(host, port, buffer, timeout_s)
-            local standalone = lib.nil_service_create_udp_client(host, port, buffer, timeout_s)
+        create_udp_client = function(host, port, buffer)
+            local standalone = lib.nil_service_create_udp_client(host, port, buffer)
             return create_standalone(refs, fns, lib, standalone)
         end,
 
-        create_udp_server = function(host, port, buffer, timeout_s)
-            local standalone = lib.nil_service_create_udp_server(host, port, buffer, timeout_s)
+        create_udp_server = function(host, port, buffer)
+            local standalone = lib.nil_service_create_udp_server(host, port, buffer)
             return create_standalone(refs, fns, lib, standalone)
         end,
 

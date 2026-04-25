@@ -61,7 +61,6 @@ typedef struct pipe_fd_provider_context
 
 static const int64_t g_port_fallback = 0;
 static const char* const g_route_fallback = "/";
-static const double g_udp_timeout = 2.0;
 static const uint64_t g_default_buffer = 1024;
 static const uint64_t g_http_buffer = 1024ULL * 1024ULL * 100ULL;
 
@@ -437,9 +436,9 @@ static nil_service_standalone create_standalone(
 	switch (mode)
 	{
 		case MODE_UDP_SERVER:
-			return nil_service_create_udp_server(host, port, g_default_buffer, g_udp_timeout);
+			return nil_service_create_udp_server(host, port, g_default_buffer);
 		case MODE_UDP_CLIENT:
-			return nil_service_create_udp_client(host, port, g_default_buffer, g_udp_timeout);
+			return nil_service_create_udp_client(host, port, g_default_buffer);
 		case MODE_TCP_SERVER:
 			return nil_service_create_tcp_server(host, port, g_default_buffer);
 		case MODE_TCP_CLIENT:
@@ -476,7 +475,7 @@ static gateway_bundle create_gateway_services(const char* route)
 	const uint16_t tcp_port = 0U;
 	const uint16_t ws_port = 0U;
 
-	bundle.udp = nil_service_create_udp_server("127.0.0.1", udp_port, g_default_buffer, g_udp_timeout);
+	bundle.udp = nil_service_create_udp_server("127.0.0.1", udp_port, g_default_buffer);
 	bundle.tcp = nil_service_create_tcp_server("127.0.0.1", tcp_port, g_default_buffer);
 	bundle.ws = nil_service_create_ws_server("127.0.0.1", ws_port, route, g_default_buffer);
 	bundle.gateway = nil_service_create_gateway();

@@ -228,14 +228,12 @@ extern "C"
     nil_service_standalone nil_service_create_udp_client(
         const char* host,
         uint16_t port,
-        uint64_t buffer,
-        double timeout_s
+        uint64_t buffer
     );
     nil_service_standalone nil_service_create_udp_server(
         const char* host,
         uint16_t port,
-        uint64_t buffer,
-        double timeout_s
+        uint64_t buffer
     );
 
     nil_service_standalone nil_service_create_tcp_client(

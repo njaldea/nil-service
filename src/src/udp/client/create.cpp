@@ -9,6 +9,7 @@
 #include <boost/asio/strand.hpp>
 
 #include <algorithm>
+#include <chrono>
 
 namespace nil::service::udp::client
 {
@@ -197,7 +198,7 @@ namespace nil::service::udp::client
                 utils::invoke(on_ready_cb, ID{this, this, &Impl::to_string_local});
                 utils::invoke(on_connect_cb, ID{this, this, &Impl::to_string_remote});
             }
-            context->timeout.expires_after(options.timeout);
+            context->timeout.expires_after(std::chrono::milliseconds(utils::PROBE_INTERVAL_MS * 2));
             context->timeout.async_wait(
                 [this](const boost::system::error_code& ec)
                 {
@@ -267,7 +268,7 @@ namespace nil::service::udp::client
                 boost::asio::buffer(utils::to_array(utils::UDP_INTERNAL_MESSAGE)),
                 {boost::asio::ip::make_address(options.host), options.port}
             );
-            context->pingtimer.expires_after(options.timeout / 2);
+            context->pingtimer.expires_after(std::chrono::milliseconds(utils::PROBE_INTERVAL_MS));
             context->pingtimer.async_wait(
                 [this](const boost::system::error_code& ec)
                 {

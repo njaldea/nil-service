@@ -2,3 +2,4 @@
 .build
 .configure
 .vs
+__pycache__

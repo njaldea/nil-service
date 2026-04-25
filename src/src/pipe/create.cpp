@@ -27,7 +27,6 @@ namespace nil::service::pipe
         constexpr auto NO_FD = -1;
         constexpr auto RETRY_FD = -2;
         constexpr auto RETRY_INTERVAL_MS = 25;
-        constexpr auto PROBE_INTERVAL_MS = 25;
     }
 
     struct Context
@@ -271,7 +270,7 @@ namespace nil::service::pipe
                 return;
             }
 
-            context->probe.expires_after(std::chrono::milliseconds(PROBE_INTERVAL_MS));
+            context->probe.expires_after(std::chrono::milliseconds(utils::PROBE_INTERVAL_MS));
             context->probe.async_wait(
                 [this](const boost::system::error_code& ec)
                 {

@@ -55,7 +55,7 @@ end
 -- Initialize non-blocking mode
 set_nonblocking()
 
----@param service NilService.Event
+---@param service nil_service.Event
 local function setup_handlers(service)
     service:on_ready(function(id)
         print("local        : " .. id:to_string())
@@ -76,7 +76,7 @@ local function setup_handlers(service)
     end)
 end
 
----@param service NilService.Standalone | NilService.Gateway
+---@param service nil_service.Standalone | nil_service.Gateway
 local function input_output(service)
     local type_flag = 0
 
@@ -114,7 +114,7 @@ end
 local function run_tcp_server(port)
     print("Starting TCP server on port " .. port)
 
-    local service = nil_service.create_tcp_server("127.0.0.1", port, 1024 * 1024) ---@type NilService.Standalone
+    local service = nil_service.create_tcp_server("127.0.0.1", port, 1024 * 1024) ---@type nil_service.Standalone
     setup_handlers(service)
 
     print("Running TCP server... (type messages or 'reconnect' to exit)")
@@ -128,7 +128,7 @@ end
 local function run_udp_server(port)
     print("Starting UDP server on port " .. port)
 
-    local service = nil_service.create_udp_server("127.0.0.1", port, 1024 * 1024, 10.0) ---@type NilService.Standalone
+    local service = nil_service.create_udp_server("127.0.0.1", port, 1024 * 1024) ---@type nil_service.Standalone
     setup_handlers(service)
 
     print("Running UDP server... (type messages or 'reconnect' to exit)")
@@ -143,7 +143,7 @@ end
 local function run_ws_server(port, route)
     print("Starting WebSocket server on port " .. port .. " at " .. route)
 
-    local service = nil_service.create_ws_server("127.0.0.1", port, route, 1024 * 1024) ---@type NilService.Standalone
+    local service = nil_service.create_ws_server("127.0.0.1", port, route, 1024 * 1024) ---@type nil_service.Standalone
     setup_handlers(service)
 
     print("Running WebSocket server... (type messages or 'reconnect' to exit)")
@@ -156,9 +156,9 @@ end
 local function run_gateway()
     print("Starting Gateway with TCP, UDP, and WebSocket services")
 
-    local tcp = nil_service.create_tcp_server("127.0.0.1", 9000, 1024 * 1024) ---@type NilService.Standalone
-    local udp = nil_service.create_udp_server("127.0.0.1", 9001, 1024 * 1024, 10.0) ---@type NilService.Standalone
-    local ws = nil_service.create_ws_server("127.0.0.1", 9002, "/", 1024 * 1024) ---@type NilService.Standalone
+    local tcp = nil_service.create_tcp_server("127.0.0.1", 9000, 1024 * 1024) ---@type nil_service.Standalone
+    local udp = nil_service.create_udp_server("127.0.0.1", 9001, 1024 * 1024) ---@type nil_service.Standalone
+    local ws = nil_service.create_ws_server("127.0.0.1", 9002, "/", 1024 * 1024) ---@type nil_service.Standalone
 
     local gateway = nil_service.create_gateway()
 
@@ -184,7 +184,7 @@ end
 local function run_tcp_client(port)
     print("Starting TCP client connecting to port " .. port)
 
-    local service = nil_service.create_tcp_client("127.0.0.1", port, 1024 * 1024) ---@type NilService.Standalone
+    local service = nil_service.create_tcp_client("127.0.0.1", port, 1024 * 1024) ---@type nil_service.Standalone
     setup_handlers(service)
 
     print("Running TCP client... (type messages or 'reconnect' to exit)")
@@ -197,7 +197,7 @@ end
 local function run_udp_client(port)
     print("Starting UDP client connecting to port " .. port)
 
-    local service = nil_service.create_udp_client("127.0.0.1", port, 1024 * 1024, 10.0) ---@type NilService.Standalone
+    local service = nil_service.create_udp_client("127.0.0.1", port, 1024 * 1024) ---@type nil_service.Standalone
     setup_handlers(service)
 
     print("Running UDP client... (type messages or 'reconnect' to exit)")
@@ -210,7 +210,7 @@ end
 local function run_ws_client(port, route)
     print("Starting WebSocket client connecting to port " .. port .. " at " .. route)
 
-    local service = nil_service.create_ws_client("127.0.0.1", port, route, 1024 * 1024) ---@type NilService.Standalone
+    local service = nil_service.create_ws_client("127.0.0.1", port, route, 1024 * 1024) ---@type nil_service.Standalone
     setup_handlers(service)
 
     print("Running WebSocket client... (type messages or 'reconnect' to exit)")
@@ -224,14 +224,14 @@ end
 local function run_http_server(port)
     print("Starting HTTP server on port " .. port)
 
-    local web = nil_service.create_http_server("0.0.0.0", port, 100 * 1024 * 1024) ---@type NilService.Web
+    local web = nil_service.create_http_server("0.0.0.0", port, 100 * 1024 * 1024) ---@type nil_service.Web
     
     web:on_ready(function(id)
         print("HTTP server ready: " .. id:to_string())
     end)
 
     web:on_get(function(transaction)
-        ---@cast transaction NilService.WebTransaction
+        ---@cast transaction nil_service.WebTransaction
         local route = transaction:get_route()
         if route == "/" then
             transaction:set_content_type("text/html")

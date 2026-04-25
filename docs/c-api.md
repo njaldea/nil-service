@@ -61,7 +61,6 @@ Web creator:
 
 Defaults:
 - pipe create API accepts caller-provided read/write fd providers (`exec/context/cleanup`)
-- timeout passed to udp create APIs: caller provided
 - buffer passed to create APIs: caller provided
 - ws route defaults to `/` when route argument is null
 

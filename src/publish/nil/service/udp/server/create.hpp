@@ -2,7 +2,6 @@
 
 #include "../../structs.hpp"
 
-#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -19,10 +18,6 @@ namespace nil::service::udp::server
          *  - one for receiving per connection
          */
         std::uint64_t buffer = 1024;
-        /**
-         * @brief time to wait until a "connection" is considered as disconnected
-         */
-        std::chrono::nanoseconds timeout = std::chrono::seconds(2);
     };
 
     std::unique_ptr<IStandaloneService> create(Options options);

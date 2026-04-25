@@ -42,6 +42,8 @@ namespace nil::service::utils
     constexpr std::uint8_t UDP_INTERNAL_MESSAGE = 1u;
     constexpr std::uint8_t UDP_EXTERNAL_MESSAGE = 0u;
 
+    constexpr auto PROBE_INTERVAL_MS = 25;
+
     constexpr auto TO_BITS = 8u;
     constexpr auto START_INDEX = 0u;
 

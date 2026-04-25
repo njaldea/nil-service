@@ -374,35 +374,24 @@ extern "C"
     nil_service_standalone nil_service_create_udp_client(
         const char* host,
         uint16_t port,
-        uint64_t buffer,
-        double timeout_s
+        uint64_t buffer
     )
     {
-        const auto options = nil::service::udp::client::Options{
-            .host = host,
-            .port = port,
-            .buffer = buffer,
-            .timeout = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::duration<double>(timeout_s)
-            )
-        };
+        const auto options
+            = nil::service::udp::client::Options{.host = host, .port = port, .buffer = buffer};
         return {.handle = create(options).release()};
     }
 
     nil_service_standalone nil_service_create_udp_server(
         const char* host,
         uint16_t port,
-        uint64_t buffer,
-        double timeout_s
+        uint64_t buffer
     )
     {
         const auto options = nil::service::udp::server::Options{
             .host = host,
             .port = port,
             .buffer = buffer,
-            .timeout = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::duration<double>(timeout_s)
-            )
         };
         return {.handle = create(options).release()};
     }
