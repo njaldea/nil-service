@@ -88,10 +88,11 @@ extern "C"
     } nil_service_id;
 
     // NOTE:
-    // - nil_service_id_print / string conversion is valid only while handling a callback
-    //   that provided this id.
-    // - conversion uses internal storage and is not thread-safe.
-    void nil_service_id_print(nil_service_id id);
+    // - String conversion is valid only while handling a callback that provided this id.
+    // - Not thread-safe.
+    // Writes the string representation of `id` into `buffer` (at most `size` bytes,
+    // null-terminated). Returns the number of bytes written (excluding null terminator).
+    uint64_t nil_service_id_to_string(nil_service_id id, char* buffer, uint64_t size);
 
     // NOLINTNEXTLINE(modernize-use-using)
     typedef struct nil_service_ids
@@ -146,7 +147,7 @@ extern "C"
     // NOLINTNEXTLINE(modernize-use-using)
     typedef struct nil_service_web_get_callback_info
     {
-        int (*exec)(nil_service_web_transaction transaction, void*);
+        int (*exec)(nil_service_web_transaction* transaction, void*);
         void* context;
         void (*cleanup)(void*);
     } nil_service_web_get_callback_info;

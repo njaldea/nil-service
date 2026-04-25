@@ -216,23 +216,26 @@ static void add_pipe_flipped(nil_clix_node node)
 
 static void on_ready(const nil_service_id* id, void* context)
 {
+	char buf[256];
 	(void)context;
-	printf("local        : ");
-	nil_service_id_print(*id);
+	nil_service_id_to_string(*id, buf, sizeof(buf));
+	printf("local        : %s\n", buf);
 }
 
 static void on_connect(const nil_service_id* id, void* context)
 {
+	char buf[256];
 	(void)context;
-	printf("connected    : ");
-	nil_service_id_print(*id);
+	nil_service_id_to_string(*id, buf, sizeof(buf));
+	printf("connected    : %s\n", buf);
 }
 
 static void on_disconnect(const nil_service_id* id, void* context)
 {
+	char buf[256];
 	(void)context;
-	printf("disconnected : ");
-	nil_service_id_print(*id);
+	nil_service_id_to_string(*id, buf, sizeof(buf));
+	printf("disconnected : %s\n", buf);
 }
 
 static void on_message(const nil_service_id* id, const void* data, uint64_t size, void* context)
@@ -241,12 +244,11 @@ static void on_message(const nil_service_id* id, const void* data, uint64_t size
 	const char* text = "";
 	uint64_t text_size = 0;
 	char tag = '?';
+	char buf[256];
 
 	(void)context;
 
-	printf("message recieved: ");
-	nil_service_id_print(*id);
-	printf("size         : %llu\n", (unsigned long long)size);
+	nil_service_id_to_string(*id, buf, sizeof(buf));
 
 	if (payload != NULL && size > 0U)
 	{
@@ -255,8 +257,7 @@ static void on_message(const nil_service_id* id, const void* data, uint64_t size
 		text_size = size - 1U;
 	}
 
-	printf("from         : ");
-	nil_service_id_print(*id);
+	printf("from         : %s\n", buf);
 	printf("type         : %d\n", tag == 'A' ? 0 : 1);
 	printf("message      : ");
 	if (text_size > 0U)
@@ -285,7 +286,7 @@ static int route_equals(nil_service_web_transaction transaction, const char* tar
 	return memcmp(route, target, target_size) == 0;
 }
 
-static int on_http_get(nil_service_web_transaction transaction, void* context)
+static int on_http_get(nil_service_web_transaction* transaction, void* context)
 {
 	static const char body[]
 		= "<!DOCTYPE html>"
@@ -313,21 +314,22 @@ static int on_http_get(nil_service_web_transaction transaction, void* context)
 
 	(void)context;
 
-	if (!route_equals(transaction, "/"))
+	if (!route_equals(*transaction, "/"))
 	{
 		return 0;
 	}
 
-	nil_service_web_transaction_set_content_type(transaction, "text/html");
-	nil_service_web_transaction_send(transaction, body, (uint64_t)(sizeof(body) - 1U));
+	nil_service_web_transaction_set_content_type(*transaction, "text/html");
+	nil_service_web_transaction_send(*transaction, body, (uint64_t)(sizeof(body) - 1U));
 	return 1;
 }
 
 static void on_http_ready(const nil_service_id* id, void* context)
 {
+	char buf[256];
 	(void)context;
-	printf("ready        : ");
-	nil_service_id_print(*id);
+	nil_service_id_to_string(*id, buf, sizeof(buf));
+	printf("ready        : %s\n", buf);
 }
 
 static void attach_handlers(nil_service_callback callback)

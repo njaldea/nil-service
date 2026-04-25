@@ -203,8 +203,8 @@ struct sub_cmd
     void operator()(nil::clix::Node& node)
     {
         sub(node,
-            nil::xalt::literal_v<cmd>,
-            nil::xalt::literal_v<desc>,
+            nil::xalt::literal_v<cmd>,  // NOLINT
+            nil::xalt::literal_v<desc>, // NOLINT
             [](auto& nn)
             {
                 (option_adders(nn), ...);

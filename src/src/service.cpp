@@ -105,9 +105,12 @@ extern "C"
             ->dispatch([exec = callback.exec, holder]() { exec(holder->object); });
     }
 
-    void nil_service_id_print(nil_service_id id)
+    uint64_t nil_service_id_to_string(nil_service_id id, char* buffer, uint64_t size)
     {
-        printf("%s\n", to_string(to_cpp_id(&id)).c_str());
+        const auto s = to_string(to_cpp_id(&id));
+        const auto n = s.copy(buffer, size - 1);
+        buffer[n] = '\0';
+        return n;
     }
 
     void nil_service_message_publish(nil_service_message service, const void* data, uint64_t size)
@@ -251,8 +254,8 @@ extern "C"
                     {
                         return false;
                     }
-                    const auto c_transaction = nil_service_web_transaction{.handle = &transaction};
-                    return exec(c_transaction, holder->object) != 0;
+                    auto c_transaction = nil_service_web_transaction{.handle = &transaction};
+                    return exec(&c_transaction, holder->object) != 0;
                 }
             );
     }
