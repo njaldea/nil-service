@@ -82,7 +82,7 @@ if(ENABLE_C_API)
         ${PROJECT_NAME}-c-api
         SHARED
         publish/nil/service.h
-        src/service.cpp
+        src/c/service.cpp
     )
 
     target_link_libraries(${PROJECT_NAME}-c-api PRIVATE ${PROJECT_NAME})
