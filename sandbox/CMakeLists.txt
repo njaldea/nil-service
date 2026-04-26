@@ -21,11 +21,20 @@ endif()
 
 if(ENABLE_TEST)
     add_test(
-        NAME sandbox_integration_test
-        COMMAND bash ${CMAKE_SOURCE_DIR}/sandbox/test_sandbox.sh
+        NAME test_common
+        COMMAND bash ${CMAKE_SOURCE_DIR}/sandbox/test_common.sh
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-    set_tests_properties(sandbox_integration_test PROPERTIES
+    set_tests_properties(test_common PROPERTIES
+        ENVIRONMENT "SANDBOX=$<TARGET_FILE:sandbox>"
+    )
+    
+    add_test(
+        NAME test_pipe
+        COMMAND bash ${CMAKE_SOURCE_DIR}/sandbox/test_pipe.sh
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties(test_pipe PROPERTIES
         ENVIRONMENT "SANDBOX=$<TARGET_FILE:sandbox>"
     )
 endif()

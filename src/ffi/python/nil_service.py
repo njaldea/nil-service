@@ -7,39 +7,39 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional, List
 
 
-class nil_serviceRunnable(ctypes.Structure):
+class NilServiceRunnable(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceMessage(ctypes.Structure):
+class NilServiceMessage(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceCallback(ctypes.Structure):
+class NilServiceCallback(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceEvent(ctypes.Structure):
+class NilServiceEvent(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceStandalone(ctypes.Structure):
+class NilServiceStandalone(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceGateway(ctypes.Structure):
+class NilServiceGateway(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceWeb(ctypes.Structure):
+class NilServiceWeb(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceWebTransaction(ctypes.Structure):
+class NilServiceWebTransaction(ctypes.Structure):
     _fields_ = [("handle", ctypes.c_void_p)]
 
 
-class nil_serviceId(ctypes.Structure):
+class NilServiceId(ctypes.Structure):
     _fields_ = [
         ("owner", ctypes.c_void_p),
         ("id", ctypes.c_void_p),
@@ -47,28 +47,28 @@ class nil_serviceId(ctypes.Structure):
     ]
 
 
-class nil_serviceIds(ctypes.Structure):
+class NilServiceIds(ctypes.Structure):
     _fields_ = [
         ("size", ctypes.c_uint32),
-        ("ids", ctypes.POINTER(nil_serviceId)),
+        ("ids", ctypes.POINTER(NilServiceId)),
     ]
 
 
 # Callback function types
 NIL_SERVICE_CALLBACK_EXEC = ctypes.CFUNCTYPE(
-    None, ctypes.POINTER(nil_serviceId), ctypes.c_void_p
+    None, ctypes.POINTER(NilServiceId), ctypes.c_void_p
 )
 NIL_SERVICE_MSG_CALLBACK_EXEC = ctypes.CFUNCTYPE(
-    None, ctypes.POINTER(nil_serviceId), ctypes.c_void_p, ctypes.c_uint64, ctypes.c_void_p
+    None, ctypes.POINTER(NilServiceId), ctypes.c_void_p, ctypes.c_uint64, ctypes.c_void_p
 )
 NIL_SERVICE_DISPATCH_EXEC = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 NIL_SERVICE_WEB_GET_CALLBACK_EXEC = ctypes.CFUNCTYPE(
-    ctypes.c_int, nil_serviceWebTransaction, ctypes.c_void_p
+    ctypes.c_int, ctypes.POINTER(NilServiceWebTransaction), ctypes.c_void_p
 )
 NIL_SERVICE_CLEANUP = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 
 
-class nil_serviceDispatchInfo(ctypes.Structure):
+class NilServiceDispatchInfo(ctypes.Structure):
     _fields_ = [
         ("exec", NIL_SERVICE_DISPATCH_EXEC),
         ("context", ctypes.c_void_p),
@@ -76,7 +76,7 @@ class nil_serviceDispatchInfo(ctypes.Structure):
     ]
 
 
-class nil_serviceMsgCallbackInfo(ctypes.Structure):
+class NilServiceMsgCallbackInfo(ctypes.Structure):
     _fields_ = [
         ("exec", NIL_SERVICE_MSG_CALLBACK_EXEC),
         ("context", ctypes.c_void_p),
@@ -84,7 +84,7 @@ class nil_serviceMsgCallbackInfo(ctypes.Structure):
     ]
 
 
-class nil_serviceCallbackInfo(ctypes.Structure):
+class NilServiceCallbackInfo(ctypes.Structure):
     _fields_ = [
         ("exec", NIL_SERVICE_CALLBACK_EXEC),
         ("context", ctypes.c_void_p),
@@ -92,7 +92,7 @@ class nil_serviceCallbackInfo(ctypes.Structure):
     ]
 
 
-class nil_serviceWebGetCallbackInfo(ctypes.Structure):
+class NilServiceWebGetCallbackInfo(ctypes.Structure):
     _fields_ = [
         ("exec", NIL_SERVICE_WEB_GET_CALLBACK_EXEC),
         ("context", ctypes.c_void_p),
@@ -115,7 +115,7 @@ class _CallbackState:
 class ID:
     """Wraps a nil_service_id with convenience methods."""
 
-    def __init__(self, c_id: nil_serviceId, lib: Any) -> None:
+    def __init__(self, c_id: NilServiceId, lib: Any) -> None:
         self._c_id = c_id
         self._lib = lib
 
@@ -129,7 +129,7 @@ class Message:
     """Message service wrapper."""
 
     def __init__(
-        self, message: nil_serviceMessage, lib: Any, refs: Dict[int, Any]
+        self, message: NilServiceMessage, lib: Any, refs: Dict[int, Any]
     ) -> None:
         self._message = message
         self._lib = lib
@@ -144,13 +144,13 @@ class Message:
     def publish_ex(self, id_obj: ID, data: bytes) -> None:
         """Publish data to a specific ID."""
         self._lib.nil_service_message_publish_ex(
-            id_obj._c_id, self._message, ctypes.c_char_p(data), len(data)
+            self._message, id_obj._c_id, ctypes.c_char_p(data), len(data)
         )
 
     def send(self, id_obj: ID, data: bytes) -> None:
         """Send data to a specific ID."""
         self._lib.nil_service_message_send(
-            id_obj._c_id, self._message, ctypes.c_char_p(data), len(data)
+            self._message, id_obj._c_id, ctypes.c_char_p(data), len(data)
         )
 
 
@@ -158,7 +158,7 @@ class Callback:
     """Callback service wrapper."""
 
     def __init__(
-        self, callback: nil_serviceCallback, lib: Any, fns: Any, refs: Dict[int, Any]
+        self, callback: NilServiceCallback, lib: Any, fns: Any, refs: Dict[int, Any]
     ) -> None:
         self._callback = callback
         self._lib = lib
@@ -167,7 +167,7 @@ class Callback:
 
     def on_ready(self, fn: Callable[[ID], None]) -> None:
         """Register on_ready callback."""
-        callback_info = nil_serviceCallbackInfo(
+        callback_info = NilServiceCallbackInfo(
             exec=self._fns["callback_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -176,7 +176,7 @@ class Callback:
 
     def on_connect(self, fn: Callable[[ID], None]) -> None:
         """Register on_connect callback."""
-        callback_info = nil_serviceCallbackInfo(
+        callback_info = NilServiceCallbackInfo(
             exec=self._fns["callback_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -185,7 +185,7 @@ class Callback:
 
     def on_disconnect(self, fn: Callable[[ID], None]) -> None:
         """Register on_disconnect callback."""
-        callback_info = nil_serviceCallbackInfo(
+        callback_info = NilServiceCallbackInfo(
             exec=self._fns["callback_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -194,7 +194,7 @@ class Callback:
 
     def on_message(self, fn: Callable[[ID, bytes], None]) -> None:
         """Register on_message callback."""
-        callback_info = nil_serviceMsgCallbackInfo(
+        callback_info = NilServiceMsgCallbackInfo(
             exec=self._fns["msg_callback_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -207,7 +207,7 @@ class Event(Message, Callback):
 
     def __init__(
         self,
-        event: nil_serviceEvent,
+        event: NilServiceEvent,
         lib: Any,
         fns: Any,
         refs: Dict[int, Any],
@@ -223,7 +223,7 @@ class Runnable:
     """Runnable service wrapper."""
 
     def __init__(
-        self, runnable: nil_serviceRunnable, lib: Any, fns: Any, refs: Dict[int, Any]
+        self, runnable: NilServiceRunnable, lib: Any, fns: Any, refs: Dict[int, Any]
     ) -> None:
         self._runnable = runnable
         self._lib = lib
@@ -248,7 +248,7 @@ class Runnable:
 
     def dispatch(self, fn: Callable[[], None]) -> None:
         """Dispatch a callback."""
-        dispatch_info = nil_serviceDispatchInfo(
+        dispatch_info = NilServiceDispatchInfo(
             exec=self._fns["dispatch_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -259,7 +259,7 @@ class Runnable:
 class WebTransaction:
     """Web transaction wrapper."""
 
-    def __init__(self, transaction: nil_serviceWebTransaction, lib: Any) -> None:
+    def __init__(self, transaction: NilServiceWebTransaction, lib: Any) -> None:
         self._transaction = transaction
         self._lib = lib
 
@@ -288,7 +288,7 @@ class Web(Runnable):
     """Web service wrapper."""
 
     def __init__(
-        self, web: nil_serviceWeb, lib: Any, fns: Any, refs: Dict[int, Any]
+        self, web: NilServiceWeb, lib: Any, fns: Any, refs: Dict[int, Any]
     ) -> None:
         self._web = web
         runnable = lib.nil_service_web_to_runnable(web)
@@ -296,7 +296,7 @@ class Web(Runnable):
 
     def on_ready(self, fn: Callable[[ID], None]) -> None:
         """Register on_ready callback."""
-        callback_info = nil_serviceCallbackInfo(
+        callback_info = NilServiceCallbackInfo(
             exec=self._fns["callback_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -305,7 +305,7 @@ class Web(Runnable):
 
     def on_get(self, fn: Callable[[WebTransaction], bool]) -> None:
         """Register on_get callback."""
-        callback_info = nil_serviceWebGetCallbackInfo(
+        callback_info = NilServiceWebGetCallbackInfo(
             exec=self._fns["web_get_callback_exec"],
             context=self._fns["store_callback"](fn),
             cleanup=self._fns["cleanup"],
@@ -327,7 +327,7 @@ class Standalone(Event, Runnable):
 
     def __init__(
         self,
-        standalone: nil_serviceStandalone,
+        standalone: NilServiceStandalone,
         lib: Any,
         fns: Any,
         refs: Dict[int, Any],
@@ -350,7 +350,7 @@ class Gateway(Standalone):
 
     def __init__(
         self,
-        gateway: nil_serviceGateway,
+        gateway: NilServiceGateway,
         lib: Any,
         fns: Any,
         refs: Dict[int, Any],
@@ -363,10 +363,9 @@ class Gateway(Standalone):
         Callback.__init__(self, callback, lib, fns, refs)
         Runnable.__init__(self, runnable, lib, fns, refs)
 
-    def add_service(self, service: Standalone) -> None:
+    def add_service(self, service: Event) -> None:
         """Add a service to the gateway."""
-        event = self._lib.nil_service_standalone_to_event(service._standalone)
-        self._lib.nil_service_gateway_add_service(self._gateway, event)
+        self._lib.nil_service_gateway_add_service(self._gateway, service._event)
 
     def destroy(self) -> None:
         """Destroy the gateway."""
@@ -376,196 +375,196 @@ class Gateway(Standalone):
 def _configure_signatures(lib: Any) -> None:
     """Configure ctypes signatures for all library functions."""
     lib.nil_service_gateway_add_service.argtypes = [
-        nil_serviceGateway,
-        nil_serviceEvent,
+        NilServiceGateway,
+        NilServiceEvent,
     ]
     lib.nil_service_gateway_add_service.restype = None
 
-    lib.nil_service_runnable_run.argtypes = [nil_serviceRunnable]
+    lib.nil_service_runnable_run.argtypes = [NilServiceRunnable]
     lib.nil_service_runnable_run.restype = None
 
-    lib.nil_service_runnable_poll.argtypes = [nil_serviceRunnable]
+    lib.nil_service_runnable_poll.argtypes = [NilServiceRunnable]
     lib.nil_service_runnable_poll.restype = None
 
-    lib.nil_service_runnable_stop.argtypes = [nil_serviceRunnable]
+    lib.nil_service_runnable_stop.argtypes = [NilServiceRunnable]
     lib.nil_service_runnable_stop.restype = None
 
-    lib.nil_service_runnable_restart.argtypes = [nil_serviceRunnable]
+    lib.nil_service_runnable_restart.argtypes = [NilServiceRunnable]
     lib.nil_service_runnable_restart.restype = None
 
     lib.nil_service_runnable_dispatch.argtypes = [
-        nil_serviceRunnable,
-        nil_serviceDispatchInfo,
+        NilServiceRunnable,
+        NilServiceDispatchInfo,
     ]
     lib.nil_service_runnable_dispatch.restype = None
 
     lib.nil_service_id_to_string.argtypes = [
-        nil_serviceId,
+        NilServiceId,
         ctypes.c_char_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_id_to_string.restype = ctypes.c_uint64
 
     lib.nil_service_message_publish.argtypes = [
-        nil_serviceMessage,
+        NilServiceMessage,
         ctypes.c_void_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_message_publish.restype = None
 
     lib.nil_service_message_publish_ex.argtypes = [
-        nil_serviceId,
-        nil_serviceMessage,
+        NilServiceMessage,
+        NilServiceId,
         ctypes.c_void_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_message_publish_ex.restype = None
 
     lib.nil_service_message_send.argtypes = [
-        nil_serviceId,
-        nil_serviceMessage,
+        NilServiceMessage,
+        NilServiceId,
         ctypes.c_void_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_message_send.restype = None
 
     lib.nil_service_message_publish_ex_ids.argtypes = [
-        nil_serviceIds,
-        nil_serviceMessage,
+        NilServiceMessage,
+        NilServiceIds,
         ctypes.c_void_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_message_publish_ex_ids.restype = None
 
     lib.nil_service_message_send_ids.argtypes = [
-        nil_serviceIds,
-        nil_serviceMessage,
+        NilServiceMessage,
+        NilServiceIds,
         ctypes.c_void_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_message_send_ids.restype = None
 
     lib.nil_service_callback_on_ready.argtypes = [
-        nil_serviceCallback,
-        nil_serviceCallbackInfo,
+        NilServiceCallback,
+        NilServiceCallbackInfo,
     ]
     lib.nil_service_callback_on_ready.restype = None
 
     lib.nil_service_callback_on_connect.argtypes = [
-        nil_serviceCallback,
-        nil_serviceCallbackInfo,
+        NilServiceCallback,
+        NilServiceCallbackInfo,
     ]
     lib.nil_service_callback_on_connect.restype = None
 
     lib.nil_service_callback_on_disconnect.argtypes = [
-        nil_serviceCallback,
-        nil_serviceCallbackInfo,
+        NilServiceCallback,
+        NilServiceCallbackInfo,
     ]
     lib.nil_service_callback_on_disconnect.restype = None
 
     lib.nil_service_callback_on_message.argtypes = [
-        nil_serviceCallback,
-        nil_serviceMsgCallbackInfo,
+        NilServiceCallback,
+        NilServiceMsgCallbackInfo,
     ]
     lib.nil_service_callback_on_message.restype = None
 
     lib.nil_service_web_on_ready.argtypes = [
-        nil_serviceWeb,
-        nil_serviceCallbackInfo,
+        NilServiceWeb,
+        NilServiceCallbackInfo,
     ]
     lib.nil_service_web_on_ready.restype = None
 
     lib.nil_service_web_on_get.argtypes = [
-        nil_serviceWeb,
-        nil_serviceWebGetCallbackInfo,
+        NilServiceWeb,
+        NilServiceWebGetCallbackInfo,
     ]
     lib.nil_service_web_on_get.restype = None
 
-    lib.nil_service_web_use_ws.argtypes = [nil_serviceWeb, ctypes.c_char_p]
-    lib.nil_service_web_use_ws.restype = nil_serviceEvent
+    lib.nil_service_web_use_ws.argtypes = [NilServiceWeb, ctypes.c_char_p]
+    lib.nil_service_web_use_ws.restype = NilServiceEvent
 
     lib.nil_service_web_transaction_set_content_type.argtypes = [
-        nil_serviceWebTransaction,
+        NilServiceWebTransaction,
         ctypes.c_char_p,
     ]
     lib.nil_service_web_transaction_set_content_type.restype = None
 
     lib.nil_service_web_transaction_send.argtypes = [
-        nil_serviceWebTransaction,
+        NilServiceWebTransaction,
         ctypes.c_void_p,
         ctypes.c_uint64,
     ]
     lib.nil_service_web_transaction_send.restype = None
 
     lib.nil_service_web_transaction_get_route.argtypes = [
-        nil_serviceWebTransaction,
+        NilServiceWebTransaction,
         ctypes.POINTER(ctypes.c_uint64),
     ]
     lib.nil_service_web_transaction_get_route.restype = ctypes.c_char_p
 
-    lib.nil_service_event_to_message.argtypes = [nil_serviceEvent]
-    lib.nil_service_event_to_message.restype = nil_serviceMessage
+    lib.nil_service_event_to_message.argtypes = [NilServiceEvent]
+    lib.nil_service_event_to_message.restype = NilServiceMessage
 
-    lib.nil_service_event_to_callback.argtypes = [nil_serviceEvent]
-    lib.nil_service_event_to_callback.restype = nil_serviceCallback
+    lib.nil_service_event_to_callback.argtypes = [NilServiceEvent]
+    lib.nil_service_event_to_callback.restype = NilServiceCallback
 
-    lib.nil_service_gateway_to_event.argtypes = [nil_serviceGateway]
-    lib.nil_service_gateway_to_event.restype = nil_serviceEvent
+    lib.nil_service_gateway_to_event.argtypes = [NilServiceGateway]
+    lib.nil_service_gateway_to_event.restype = NilServiceEvent
 
-    lib.nil_service_gateway_to_message.argtypes = [nil_serviceGateway]
-    lib.nil_service_gateway_to_message.restype = nil_serviceMessage
+    lib.nil_service_gateway_to_message.argtypes = [NilServiceGateway]
+    lib.nil_service_gateway_to_message.restype = NilServiceMessage
 
-    lib.nil_service_gateway_to_callback.argtypes = [nil_serviceGateway]
-    lib.nil_service_gateway_to_callback.restype = nil_serviceCallback
+    lib.nil_service_gateway_to_callback.argtypes = [NilServiceGateway]
+    lib.nil_service_gateway_to_callback.restype = NilServiceCallback
 
-    lib.nil_service_gateway_to_runnable.argtypes = [nil_serviceGateway]
-    lib.nil_service_gateway_to_runnable.restype = nil_serviceRunnable
+    lib.nil_service_gateway_to_runnable.argtypes = [NilServiceGateway]
+    lib.nil_service_gateway_to_runnable.restype = NilServiceRunnable
 
-    lib.nil_service_gateway_to_standalone.argtypes = [nil_serviceGateway]
-    lib.nil_service_gateway_to_standalone.restype = nil_serviceStandalone
+    lib.nil_service_gateway_to_standalone.argtypes = [NilServiceGateway]
+    lib.nil_service_gateway_to_standalone.restype = NilServiceStandalone
 
-    lib.nil_service_standalone_to_message.argtypes = [nil_serviceStandalone]
-    lib.nil_service_standalone_to_message.restype = nil_serviceMessage
+    lib.nil_service_standalone_to_message.argtypes = [NilServiceStandalone]
+    lib.nil_service_standalone_to_message.restype = NilServiceMessage
 
-    lib.nil_service_standalone_to_callback.argtypes = [nil_serviceStandalone]
-    lib.nil_service_standalone_to_callback.restype = nil_serviceCallback
+    lib.nil_service_standalone_to_callback.argtypes = [NilServiceStandalone]
+    lib.nil_service_standalone_to_callback.restype = NilServiceCallback
 
-    lib.nil_service_standalone_to_event.argtypes = [nil_serviceStandalone]
-    lib.nil_service_standalone_to_event.restype = nil_serviceEvent
+    lib.nil_service_standalone_to_event.argtypes = [NilServiceStandalone]
+    lib.nil_service_standalone_to_event.restype = NilServiceEvent
 
-    lib.nil_service_standalone_to_runnable.argtypes = [nil_serviceStandalone]
-    lib.nil_service_standalone_to_runnable.restype = nil_serviceRunnable
+    lib.nil_service_standalone_to_runnable.argtypes = [NilServiceStandalone]
+    lib.nil_service_standalone_to_runnable.restype = NilServiceRunnable
 
-    lib.nil_service_web_to_runnable.argtypes = [nil_serviceWeb]
-    lib.nil_service_web_to_runnable.restype = nil_serviceRunnable
+    lib.nil_service_web_to_runnable.argtypes = [NilServiceWeb]
+    lib.nil_service_web_to_runnable.restype = NilServiceRunnable
 
     lib.nil_service_create_udp_client.argtypes = [
         ctypes.c_char_p,
         ctypes.c_uint16,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_udp_client.restype = nil_serviceStandalone
+    lib.nil_service_create_udp_client.restype = NilServiceStandalone
 
     lib.nil_service_create_udp_server.argtypes = [
         ctypes.c_char_p,
         ctypes.c_uint16,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_udp_server.restype = nil_serviceStandalone
+    lib.nil_service_create_udp_server.restype = NilServiceStandalone
 
     lib.nil_service_create_tcp_client.argtypes = [
         ctypes.c_char_p,
         ctypes.c_uint16,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_tcp_client.restype = nil_serviceStandalone
+    lib.nil_service_create_tcp_client.restype = NilServiceStandalone
 
     lib.nil_service_create_tcp_server.argtypes = [
         ctypes.c_char_p,
         ctypes.c_uint16,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_tcp_server.restype = nil_serviceStandalone
+    lib.nil_service_create_tcp_server.restype = NilServiceStandalone
 
     lib.nil_service_create_ws_client.argtypes = [
         ctypes.c_char_p,
@@ -573,7 +572,7 @@ def _configure_signatures(lib: Any) -> None:
         ctypes.c_char_p,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_ws_client.restype = nil_serviceStandalone
+    lib.nil_service_create_ws_client.restype = NilServiceStandalone
 
     lib.nil_service_create_ws_server.argtypes = [
         ctypes.c_char_p,
@@ -581,25 +580,25 @@ def _configure_signatures(lib: Any) -> None:
         ctypes.c_char_p,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_ws_server.restype = nil_serviceStandalone
+    lib.nil_service_create_ws_server.restype = NilServiceStandalone
 
     lib.nil_service_create_http_server.argtypes = [
         ctypes.c_char_p,
         ctypes.c_uint16,
         ctypes.c_uint64,
     ]
-    lib.nil_service_create_http_server.restype = nil_serviceWeb
+    lib.nil_service_create_http_server.restype = NilServiceWeb
 
     lib.nil_service_create_gateway.argtypes = []
-    lib.nil_service_create_gateway.restype = nil_serviceGateway
+    lib.nil_service_create_gateway.restype = NilServiceGateway
 
-    lib.nil_service_gateway_destroy.argtypes = [nil_serviceGateway]
+    lib.nil_service_gateway_destroy.argtypes = [NilServiceGateway]
     lib.nil_service_gateway_destroy.restype = None
 
-    lib.nil_service_web_destroy.argtypes = [nil_serviceWeb]
+    lib.nil_service_web_destroy.argtypes = [NilServiceWeb]
     lib.nil_service_web_destroy.restype = None
 
-    lib.nil_service_standalone_destroy.argtypes = [nil_serviceStandalone]
+    lib.nil_service_standalone_destroy.argtypes = [NilServiceStandalone]
     lib.nil_service_standalone_destroy.restype = None
 
 
@@ -647,13 +646,13 @@ def _create_lib_fns(refs: Dict[int, Any], lib: Any) -> dict:
 
     @NIL_SERVICE_WEB_GET_CALLBACK_EXEC
     def web_get_callback_exec(transaction: Any, ctx_id: Any) -> int:
-        if not ctx_id:
+        if not ctx_id or not transaction:
             return 0
         ref_id = _to_ref_id(ctx_id)
         if ref_id not in refs:
             return 0
         callback_data = refs[ref_id]
-        trans_obj = WebTransaction(transaction, lib)
+        trans_obj = WebTransaction(transaction.contents, lib)
         result = callback_data.fn(trans_obj)
         return 1 if result else 0
 

@@ -13,22 +13,22 @@ sys.path.insert(0, str(PY_FFI_DIR))
 
 import nil_service
 
-def setup_handlers(service):
+def setup_handlers(service: nil_service.Event):
     """Setup event handlers for a service."""
 
     def on_ready(id_obj):
-        print(f"local        : {id_obj.to_string()}")
+        print(f"local        : {id_obj.to_string()}", flush=True)
 
     def on_connect(id_obj):
-        print(f"connected    : {id_obj.to_string()}")
+        print(f"connected    : {id_obj.to_string()}", flush=True)
 
     def on_disconnect(id_obj):
-        print(f"disconnected : {id_obj.to_string()}")
+        print(f"disconnected : {id_obj.to_string()}", flush=True)
 
     def on_message(id_obj, data):
-        print(f"from         : {id_obj.to_string()}")
-        print(f"type         : {data[:1].decode('utf-8', errors='replace')}")
-        print(f"message      : {data[1:].decode('utf-8', errors='replace')}")
+        print(f"from         : {id_obj.to_string()}", flush=True)
+        print(f"type         : {data[:1].decode('utf-8', errors='replace')}", flush=True)
+        print(f"message      : {data[1:].decode('utf-8', errors='replace')}", flush=True)
 
     service.on_ready(on_ready)
     service.on_connect(on_connect)
@@ -36,7 +36,7 @@ def setup_handlers(service):
     service.on_message(on_message)
 
 
-def input_output(service):
+def input_output(service: nil_service.Standalone):
     """Run interactive input/output loop."""
     type_flag = 0
 

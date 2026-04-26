@@ -59,20 +59,24 @@ set_nonblocking()
 local function setup_handlers(service)
     service:on_ready(function(id)
         print("local        : " .. id:to_string())
+        io.flush()
     end)
 
     service:on_connect(function(id)
         print("connected    : " .. id:to_string())
+        io.flush()
     end)
 
     service:on_disconnect(function(id)
         print("disconnected : " .. id:to_string())
+        io.flush()
     end)
 
     service:on_message(function(id, data)
         print("from         : " .. id:to_string())
         print("type         : " .. string.sub(data, 1, 1))
         print("message      : " .. string.sub(data, 2))
+        io.flush()
     end)
 end
 

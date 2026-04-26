@@ -103,27 +103,27 @@ extern "C"
 
     void nil_service_message_publish(nil_service_message service, const void* data, uint64_t size);
     void nil_service_message_publish_ex(
-        nil_service_id id,
         nil_service_message service,
+        nil_service_id id,
         const void* data,
         uint64_t size
     );
     void nil_service_message_send(
-        nil_service_id id,
         nil_service_message service,
+        nil_service_id id,
         const void* data,
         uint64_t size
     );
 
     void nil_service_message_publish_ex_ids(
-        nil_service_ids ids,
         nil_service_message service,
+        nil_service_ids ids,
         const void* data,
         uint64_t size
     );
     void nil_service_message_send_ids(
-        nil_service_ids ids,
         nil_service_message service,
+        nil_service_ids ids,
         const void* data,
         uint64_t size
     );

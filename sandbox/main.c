@@ -219,6 +219,7 @@ static void on_ready(const nil_service_id* id, void* context)
 	(void)context;
 	nil_service_id_to_string(*id, buf, sizeof(buf));
 	printf("local        : %s\n", buf);
+	fflush(stdout);
 }
 
 static void on_connect(const nil_service_id* id, void* context)
@@ -227,6 +228,7 @@ static void on_connect(const nil_service_id* id, void* context)
 	(void)context;
 	nil_service_id_to_string(*id, buf, sizeof(buf));
 	printf("connected    : %s\n", buf);
+	fflush(stdout);
 }
 
 static void on_disconnect(const nil_service_id* id, void* context)
@@ -235,6 +237,7 @@ static void on_disconnect(const nil_service_id* id, void* context)
 	(void)context;
 	nil_service_id_to_string(*id, buf, sizeof(buf));
 	printf("disconnected : %s\n", buf);
+	fflush(stdout);
 }
 
 static void on_message(const nil_service_id* id, const void* data, uint64_t size, void* context)
@@ -264,6 +267,7 @@ static void on_message(const nil_service_id* id, const void* data, uint64_t size
 		(void)fwrite(text, 1U, (size_t)text_size, stdout);
 	}
 	printf("\n");
+	fflush(stdout);
 }
 
 static int route_equals(nil_service_web_transaction transaction, const char* target)
