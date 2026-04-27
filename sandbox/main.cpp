@@ -189,6 +189,7 @@ int runner(const nil::clix::Options& options)
     if (flag(options, "help"))
     {
         help(options, std::cout);
+        std::cout << std::endl;
         return 0;
     }
     auto service = creator(options);
@@ -281,6 +282,7 @@ void add_web_node(nil::clix::Node& node)
             if (flag(options, "help"))
             {
                 help(options, std::cout);
+                std::cout << std::endl;
                 return 0;
             }
             auto server = create(options);
@@ -294,7 +296,13 @@ int main(int argc, const char** argv)
 {
     auto node = nil::clix::make_node();
     add_help(node);
-    use(node, nil::clix::prebuilt::Help(&std::cout));
+    use(node,
+        [](const nil::clix::Options& options)
+        {
+            help(options, std::cout);
+            std::cout << std::endl;
+            return 0;
+        });
     sub(node,
         "gateway",
         "use gateway",
@@ -395,5 +403,5 @@ int main(int argc, const char** argv)
             add_help,
             add_server_port>);
 
-    nil::clix::run(node, argc, argv);
+    nil::clix::run(node, argc - 1, argv + 1);
 }

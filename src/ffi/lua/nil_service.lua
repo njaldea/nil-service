@@ -585,7 +585,7 @@ local function create_lib_fns(refs, lib)
 end
 
 local function load_library()
-    local lib_path = current_file_dir() .. "libservice-c-api.so"
+    local lib_path = current_file_dir() .. "libnil-service-c-api.so"
     return ffi.load(lib_path)
 end
 

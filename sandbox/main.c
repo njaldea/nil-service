@@ -101,6 +101,8 @@ static void write_stdout(const char* data, uint64_t size, void* context)
 		return;
 	}
 	(void)fwrite(data, 1U, (size_t)size, stdout);
+	fwrite("\n", 1U, 1U, stdout);
+	fflush(stdout);
 }
 
 static int str_eq(const char* lhs, const char* rhs)
@@ -673,31 +675,31 @@ static int run_gateway(nil_clix_options options)
 	return 0;
 }
 
-static int run_mode_exec(nil_clix_options options, void* context)
+static int run_mode_exec(const nil_clix_options* options, void* context)
 {
 	const runner_context* rc = (const runner_context*)context;
 
-	if (nil_clix_options_flag(options, "help") != 0)
+	if (nil_clix_options_flag(*options, "help") != 0)
 	{
-		nil_clix_options_help(options, (nil_clix_write_info){.exec = write_stdout, .context = NULL});
+		nil_clix_options_help(*options, (nil_clix_write_info){.exec = write_stdout, .context = NULL});
 		return 0;
 	}
 
 	switch (rc->mode)
 	{
 		case MODE_GATEWAY:
-			return run_gateway(options);
+			return run_gateway(*options);
 		case MODE_PIPE:
-			return run_pipe(options);
+			return run_pipe(*options);
 		case MODE_UDP_SERVER:
 		case MODE_UDP_CLIENT:
 		case MODE_TCP_SERVER:
 		case MODE_TCP_CLIENT:
 		case MODE_WS_SERVER:
 		case MODE_WS_CLIENT:
-			return run_standalone(rc->mode, options);
+			return run_standalone(rc->mode, *options);
 		case MODE_HTTP:
-			return run_http(options);
+			return run_http(*options);
 		case MODE_SELF:
 			fprintf(stderr, "self creator is not exposed in C API\n");
 			return 1;
@@ -706,10 +708,10 @@ static int run_mode_exec(nil_clix_options options, void* context)
 	}
 }
 
-static int show_help_exec(nil_clix_options options, void* context)
+static int show_help_exec(const nil_clix_options* options, void* context)
 {
 	(void)context;
-	nil_clix_options_help(options, (nil_clix_write_info){.exec = write_stdout, .context = NULL});
+	nil_clix_options_help(*options, (nil_clix_write_info){.exec = write_stdout, .context = NULL});
 	return 0;
 }
 
@@ -719,103 +721,103 @@ static void attach_runner(nil_clix_node node, const runner_context* context)
 		(nil_clix_exec_info){.exec = run_mode_exec, .context = (void*)context, .cleanup = NULL});
 }
 
-static void build_server(nil_clix_node node, void* context)
+static void build_server(nil_clix_node* node, void* context)
 {
 	const sub_builder_context* cfg = (const sub_builder_context*)context;
-	add_help(node);
-	add_server_port(node);
+	add_help(*node);
+	add_server_port(*node);
 	if (cfg->needs_route)
 	{
-		add_route(node);
+		add_route(*node);
 	}
 	switch (cfg->server_mode)
 	{
 		case MODE_UDP_SERVER:
-			attach_runner(node, &g_mode_udp_server);
+			attach_runner(*node, &g_mode_udp_server);
 			break;
 		case MODE_TCP_SERVER:
-			attach_runner(node, &g_mode_tcp_server);
+			attach_runner(*node, &g_mode_tcp_server);
 			break;
 		case MODE_WS_SERVER:
-			attach_runner(node, &g_mode_ws_server);
+			attach_runner(*node, &g_mode_ws_server);
 			break;
 		default:
 			break;
 	}
 }
 
-static void build_client(nil_clix_node node, void* context)
+static void build_client(nil_clix_node* node, void* context)
 {
 	const sub_builder_context* cfg = (const sub_builder_context*)context;
-	add_help(node);
-	add_client_port(node);
+	add_help(*node);
+	add_client_port(*node);
 	if (cfg->needs_route)
 	{
-		add_route(node);
+		add_route(*node);
 	}
 	switch (cfg->client_mode)
 	{
 		case MODE_UDP_CLIENT:
-			attach_runner(node, &g_mode_udp_client);
+			attach_runner(*node, &g_mode_udp_client);
 			break;
 		case MODE_TCP_CLIENT:
-			attach_runner(node, &g_mode_tcp_client);
+			attach_runner(*node, &g_mode_tcp_client);
 			break;
 		case MODE_WS_CLIENT:
-			attach_runner(node, &g_mode_ws_client);
+			attach_runner(*node, &g_mode_ws_client);
 			break;
 		default:
 			break;
 	}
 }
 
-static void build_sc(nil_clix_node node, void* context)
+static void build_sc(nil_clix_node* node, void* context)
 {
 	const sub_builder_context* cfg = (const sub_builder_context*)context;
-	add_help(node);
-	nil_clix_node_use(node,
+	add_help(*node);
+	nil_clix_node_use(*node,
 		(nil_clix_exec_info){.exec = show_help_exec, .context = NULL, .cleanup = NULL});
-	nil_clix_node_sub(node,
+	nil_clix_node_sub(*node,
 		"server",
 		"server",
 		(nil_clix_sub_info){.exec = build_server, .context = (void*)cfg, .cleanup = NULL});
-	nil_clix_node_sub(node,
+	nil_clix_node_sub(*node,
 		"client",
 		"client",
 		(nil_clix_sub_info){.exec = build_client, .context = (void*)cfg, .cleanup = NULL});
 }
 
-static void build_gateway(nil_clix_node node, void* context)
+static void build_gateway(nil_clix_node* node, void* context)
 {
 	(void)context;
-	add_help(node);
-	add_route(node);
-	attach_runner(node, &g_mode_gateway);
+	add_help(*node);
+	add_route(*node);
+	attach_runner(*node, &g_mode_gateway);
 }
 
-static void build_pipe(nil_clix_node node, void* context)
+static void build_pipe(nil_clix_node* node, void* context)
 {
 	(void)context;
-	add_help(node);
-	add_pipe_read(node);
-	add_pipe_write(node);
-	add_pipe_flipped(node);
-	attach_runner(node, &g_mode_pipe);
+	add_help(*node);
+	add_pipe_read(*node);
+	add_pipe_write(*node);
+	add_pipe_flipped(*node);
+	attach_runner(*node, &g_mode_pipe);
 }
 
-static void build_self(nil_clix_node node, void* context)
+static void build_self(nil_clix_node* node, void* context)
 {
 	(void)context;
-	add_help(node);
-	attach_runner(node, &g_mode_self);
+	add_help(*node);
+	attach_runner(*node, &g_mode_self);
 }
 
-static void build_http(nil_clix_node node, void* context)
+static void build_http(nil_clix_node* node, void* context)
 {
 	(void)context;
-	add_help(node);
-	add_server_port(node);
-	attach_runner(node, &g_mode_http);
+	add_help(*node);
+	add_server_port(*node);
+	attach_runner(*node, &g_mode_http);
 }
 
 int main(int argc, const char* const* argv)
@@ -861,7 +863,7 @@ int main(int argc, const char* const* argv)
 		"serve http server",
 		(nil_clix_sub_info){.exec = build_http, .context = NULL, .cleanup = NULL});
 
-	(void)nil_clix_node_run(node, argc, argv);
+	int ret_val = nil_clix_node_run(node, argc - 1, argv + 1);
 	nil_clix_node_destroy(node);
-	return 0;
+	return ret_val;
 }

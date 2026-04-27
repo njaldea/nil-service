@@ -16,24 +16,24 @@ import nil_service
 def setup_handlers(service: nil_service.Event):
     """Setup event handlers for a service."""
 
+    @service.on_ready
     def on_ready(id_obj):
         print(f"local        : {id_obj.to_string()}", flush=True)
 
+    @service.on_connect
     def on_connect(id_obj):
         print(f"connected    : {id_obj.to_string()}", flush=True)
 
+    @service.on_disconnect
     def on_disconnect(id_obj):
         print(f"disconnected : {id_obj.to_string()}", flush=True)
 
+    @service.on_message
     def on_message(id_obj, data):
         print(f"from         : {id_obj.to_string()}", flush=True)
         print(f"type         : {data[:1].decode('utf-8', errors='replace')}", flush=True)
         print(f"message      : {data[1:].decode('utf-8', errors='replace')}", flush=True)
 
-    service.on_ready(on_ready)
-    service.on_connect(on_connect)
-    service.on_disconnect(on_disconnect)
-    service.on_message(on_message)
 
 
 def input_output(service: nil_service.Standalone):
@@ -174,9 +174,11 @@ def run_http_server(port):
 
     web = nil_service.create_http_server("0.0.0.0", port, 100 * 1024 * 1024)
 
+    @web.on_ready
     def on_ready(id_obj: nil_service.ID):
         print(f"HTTP server ready: {id_obj.to_string()}")
 
+    @web.on_get
     def on_get(transaction: nil_service.WebTransaction):
         route = transaction.get_route()
         if route == "/":
@@ -192,9 +194,6 @@ def run_http_server(port):
             )
             return True
         return False
-
-    web.on_ready(on_ready)
-    web.on_get(on_get)
 
     # Setup handlers on the WebSocket event
     ws_event = web.use_ws("/ws")

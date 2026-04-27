@@ -54,10 +54,8 @@ endif()
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
-target_link_libraries(
-    ${PROJECT_NAME} PUBLIC
-    nil::xalt
-)
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "nil-${PROJECT_NAME}")
+target_link_libraries(${PROJECT_NAME} PUBLIC nil::xalt)
 
 target_include_directories(
     ${PROJECT_NAME}
@@ -85,6 +83,7 @@ if(ENABLE_C_API)
         src/c/service.cpp
     )
 
+    set_target_properties(${PROJECT_NAME}-c-api PROPERTIES OUTPUT_NAME "nil-${PROJECT_NAME}-c-api")
     target_link_libraries(${PROJECT_NAME}-c-api PRIVATE ${PROJECT_NAME})
     target_link_libraries(${PROJECT_NAME}-c-api PUBLIC nil::xalt)
     target_include_directories(
@@ -96,4 +95,6 @@ if(ENABLE_C_API)
     
     nil_install_headers(${PROJECT_NAME}-c-api PUBLIC)
     nil_install_targets(${PROJECT_NAME}-c-api)
+
+    setup_pypi("${CMAKE_SOURCE_DIR}/cmake/pyproject.toml.in")
 endif()
