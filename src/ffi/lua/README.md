@@ -1,6 +1,6 @@
-# nil-service
+# nil-service (Lua FFI)
 
-Python bindings for **nil-service** - a high-performance networking service toolkit for building client/server applications.
+LuaJIT FFI bindings for **nil-service** - a high-performance networking service toolkit for building client/server applications.
 
 ## Features
 
@@ -12,72 +12,65 @@ Python bindings for **nil-service** - a high-performance networking service tool
 
 ## Installation
 
-```bash
-pip install nil-service
-```
+Copy `nil_service.lua` and `libnil-service-c-api.so` into your project, then load the module with `require`.
 
 ## Quick Start
 
 ### Basic Server
 
-```python
-from nil_service import Service
+```lua
+local Service = require("nil_service")
 
-# Create an HTTP server
-server = Service.http_server(port=8000)
+-- Create an HTTP server
+local server = Service.create_http_server("0.0.0.0", 8000, 1024)
 
-@server.on_ready
-def on_ready():
+server:on_ready(function(id)
     print("Server started")
+end)
 
-@server.on_message
-def on_message(connection_id, data):
-    # data is bytes
-    text = data.decode("utf-8", errors="replace")
-    print(f"Received from {connection_id}: {text}")
-    server.send(connection_id, b"Hello back!")
+server:on_message(function(id, data)
+    print("Received from " .. id:to_string() .. ": " .. data)
+    server:send(id, "Hello back!")
+end)
 
-server.run()
+server:run()
 ```
 
 ### WebSocket Server
 
-```python
-from nil_service import Service
+```lua
+local Service = require("nil_service")
 
-server = Service.http_server(port=8000)
-ws = server.use_ws("/ws")
+local server = Service.create_http_server("0.0.0.0", 8000, 1024)
+local ws = server:use_ws("/ws")
 
-@ws.on_connect
-def on_connect(connection_id):
-    print(f"Client {connection_id} connected")
+ws:on_connect(function(id)
+    print("Client " .. id:to_string() .. " connected")
+end)
 
-@ws.on_message
-def on_message(connection_id, data):
-    text = data.decode("utf-8", errors="replace")
-    print(f"Received: {text}")
-    ws.publish(data)  # Broadcast to all (data is bytes)
+ws:on_message(function(id, data)
+    ws:publish(data) -- Broadcast to all
+end)
 
-server.run()
+server:run()
 ```
 
 ### TCP Client
 
-```python
-from nil_service import Service
+```lua
+local Service = require("nil_service")
 
-client = Service.tcp_client(host="localhost", port=9000)
+local client = Service.create_tcp_client("127.0.0.1", 9000, 1024)
 
-@client.on_connect
-def on_connect(connection_id):
-    client.send(connection_id, b"Hello Server!")
+client:on_connect(function(id)
+    client:send(id, "Hello Server!")
+end)
 
-@client.on_message
-def on_message(connection_id, data):
-    text = data.decode("utf-8", errors="replace")
-    print(f"Received: {text}")
+client:on_message(function(id, data)
+    print("Received: " .. data)
+end)
 
-client.run()
+client:run()
 ```
 
 ## Service Types
@@ -98,15 +91,19 @@ client.run()
 - `run()` - Block and run the event loop
 - `poll()` - Process pending events (non-blocking)
 - `stop()` - Stop the service
-- `send(connection_id, data)` - Send to a specific connection
+- `send(id, data)` - Send to a specific connection
 - `publish(data)` - Broadcast to all connections
 
 ### Event Handlers
 
-- `@service.on_ready` - Service initialized
-- `@service.on_connect` - New connection
-- `@service.on_disconnect` - Connection closed
-- `@service.on_message` - Data received (bytes)
+- `on_ready(fn)` - Service initialized
+- `on_connect(fn)` - New connection
+- `on_disconnect(fn)` - Connection closed
+- `on_message(fn)` - Data received
+
+## Data Buffers
+
+Lua strings are treated as byte buffers. Use `string.char(...)` or concatenation to build binary payloads.
 
 ## Documentation
 
