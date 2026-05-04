@@ -333,11 +333,9 @@ class Standalone(Event, Runnable):
         refs: Dict[int, Any],
     ) -> None:
         self._standalone = standalone
-        message = lib.nil_service_standalone_to_message(standalone)
-        callback = lib.nil_service_standalone_to_callback(standalone)
+        event = lib.nil_service_standalone_to_event(standalone)
         runnable = lib.nil_service_standalone_to_runnable(standalone)
-        Message.__init__(self, message, lib, refs)
-        Callback.__init__(self, callback, lib, fns, refs)
+        Event.__init__(self, event, lib, fns, refs)
         Runnable.__init__(self, runnable, lib, fns, refs)
 
     def destroy(self) -> None:
@@ -356,12 +354,9 @@ class Gateway(Standalone):
         refs: Dict[int, Any],
     ) -> None:
         self._gateway = gateway
-        message = lib.nil_service_gateway_to_message(gateway)
-        callback = lib.nil_service_gateway_to_callback(gateway)
-        runnable = lib.nil_service_gateway_to_runnable(gateway)
-        Message.__init__(self, message, lib, refs)
-        Callback.__init__(self, callback, lib, fns, refs)
-        Runnable.__init__(self, runnable, lib, fns, refs)
+        #sym:nil_service_gateway_to_standalone
+        standalone = lib.nil_service_gateway_to_standalone(gateway)
+        Standalone.__init__(self, standalone, lib, fns, refs)
 
     def add_service(self, service: Event) -> None:
         """Add a service to the gateway."""

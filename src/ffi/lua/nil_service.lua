@@ -420,6 +420,13 @@ local function add_event(fns, lib, event, obj)
     return obj
 end
 
+local function add_standalone(fns, lib, standalone, obj)
+    obj._standalone = standalone
+    add_event(fns, lib, lib.nil_service_standalone_to_event(standalone), obj)
+    add_runnable(fns, lib, lib.nil_service_standalone_to_runnable(standalone), obj)
+    return obj
+end
+
 local function create_web_transaction(lib, transaction)
     return {
         _transaction = transaction,
@@ -476,8 +483,7 @@ local function create_standalone(fns, lib, standalone)
             lib.nil_service_standalone_destroy(self._standalone)
         end
     }
-    add_event(fns, lib, lib.nil_service_standalone_to_event(standalone), obj)
-    add_runnable(fns, lib, lib.nil_service_standalone_to_runnable(standalone), obj)
+    add_standalone(fns, lib, standalone, obj)
     return obj
 end
 
@@ -491,8 +497,8 @@ local function create_gateway(fns, lib, gateway)
             lib.nil_service_gateway_destroy(self._gateway)
         end
     }
-    add_event(fns, lib, lib.nil_service_gateway_to_event(gateway), obj)
-    add_runnable(fns, lib, lib.nil_service_gateway_to_runnable(gateway), obj)
+    local standalone = lib.nil_service_gateway_to_standalone(gateway)
+    add_standalone(fns, lib, standalone, obj)
     return obj
 end
 
