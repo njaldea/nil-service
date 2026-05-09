@@ -84,15 +84,9 @@ namespace nil::service
     struct codec
     {
         static std::size_t size(const T& message)
+            requires detail::with_tagged_size<T>
         {
-            if constexpr (detail::with_tagged_size<T>)
-            {
-                return detail::size(xalt::tlist<T>(), message);
-            }
-            else
-            {
-                xalt::undefined<T>(); // codec size method is not implemented
-            }
+            return detail::size(xalt::tlist<T>(), message);
         }
 
         /**
@@ -103,15 +97,9 @@ namespace nil::service
          * @return size payload consumed. should be the same as codec<T>::size
          */
         static std::size_t serialize(void* output, const T& data)
+            requires detail::with_tagged_serialize<T>
         {
-            if constexpr (detail::with_tagged_serialize<T>)
-            {
-                return detail::serialize(xalt::tlist<T>(), output, data);
-            }
-            else
-            {
-                xalt::undefined<T>(); // codec serialize method is not implemented
-            }
+            return detail::serialize(xalt::tlist<T>(), output, data);
         }
 
         /**
@@ -122,15 +110,9 @@ namespace nil::service
          * @return T
          */
         static T deserialize(const void* input, std::uint64_t size)
+            requires detail::with_tagged_deserialize<T>
         {
-            if constexpr (detail::with_tagged_deserialize<T>)
-            {
-                return detail::deserialize(xalt::tlist<T>(), input, size);
-            }
-            else
-            {
-                xalt::undefined<T>(); // codec deserialize method is not implemented
-            }
+            return detail::deserialize(xalt::tlist<T>(), input, size);
         }
     };
 
