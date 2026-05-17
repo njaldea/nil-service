@@ -1,0 +1,1 @@
+setup_pypi("${CMAKE_SOURCE_DIR}/cmake/pyproject.toml.in")
