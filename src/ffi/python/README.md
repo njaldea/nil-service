@@ -116,7 +116,7 @@ For detailed API documentation and more examples, visit:
 
 ## License
 
-CC BY-NC-ND 4.0
+BSL-1.0. See the [root LICENSE](../../../LICENSE) and the [Boost Software License 1.0](https://www.boost.org/LICENSE_1_0.txt).
 
 ## Support
 

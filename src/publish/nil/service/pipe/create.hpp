@@ -1,3 +1,7 @@
+// Copyright (c) 2026, Neil Aldea <njaldea@gmail.com>
+// SPDX-License-Identifier: BSL-1.0
+// See LICENSE and https://www.boost.org/LICENSE_1_0.txt.
+
 #pragma once
 
 #if defined(__unix__) || defined(__unix) || defined(unix) || defined(__APPLE__)

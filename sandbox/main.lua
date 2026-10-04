@@ -1,3 +1,7 @@
+-- Copyright (c) 2026, Neil Aldea <njaldea@gmail.com>
+-- SPDX-License-Identifier: BSL-1.0
+-- See LICENSE and https://www.boost.org/LICENSE_1_0.txt.
+
 package.path = package.path .. ";../src/ffi/lua/?.lua"
 
 local nil_service = require("nil_service")

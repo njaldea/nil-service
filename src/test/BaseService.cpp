@@ -1,3 +1,7 @@
+// Copyright (c) 2026, Neil Aldea <njaldea@gmail.com>
+// SPDX-License-Identifier: BSL-1.0
+// See LICENSE and https://www.boost.org/LICENSE_1_0.txt.
+
 #include <nil/service/codec.hpp>
 #include <nil/service/concat.hpp>
 #include <nil/service/consume.hpp>
